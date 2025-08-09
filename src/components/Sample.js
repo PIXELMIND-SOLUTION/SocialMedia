@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
 const Settings = () => {
   const [activeSection, setActiveSection] = useState("editProfile");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isDesktop, setIsDesktop] = useState(false);
   
   // Edit Profile Form Data
   const [profileData, setProfileData] = useState({
@@ -70,17 +69,6 @@ const Settings = () => {
     }
   ]);
 
-  useEffect(() => {
-    const handleResize = () => {
-      setIsDesktop(window.innerWidth >= 1024);
-    };
-    
-    handleResize(); // Set initial value
-    window.addEventListener('resize', handleResize);
-    
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
     setProfileData(prev => ({
@@ -135,6 +123,9 @@ const Settings = () => {
       backgroundColor: "#ffddc8",
       minHeight: "100vh",
       padding: "10px",
+      '@media (min-width: 768px)': {
+        padding: "20px"
+      }
     },
     mainCard: {
       backgroundColor: "white",
@@ -165,35 +156,52 @@ const Settings = () => {
       }
     },
     sidebar: {
-      width: isDesktop ? "280px" : "100%",
-      borderRight: isDesktop ? "1px solid #dee2e6" : "none",
-      padding: isDesktop ? "1.5rem" : "0",
+      width: "100%",
+      borderRight: "none",
+      padding: "0",
       backgroundColor: "white",
-      position: isDesktop ? "static" : (isMobileMenuOpen ? "fixed" : "fixed"),
-      left: isDesktop ? "0" : (isMobileMenuOpen ? "0" : "-100%"),
-      top: isDesktop ? "0" : "0",
-      height: isDesktop ? "auto" : "100vh",
+      position: isMobileMenuOpen ? "static" : "absolute",
+      left: isMobileMenuOpen ? "0" : "-100%",
+      top: "0",
+      height: isMobileMenuOpen ? "auto" : "100vh",
       zIndex: 1000,
       transition: "left 0.3s ease-in-out",
-      borderBottom: isDesktop ? "none" : "1px solid #dee2e6",
+      borderBottom: "1px solid #dee2e6",
+      '@media (min-width: 1024px)': {
+        position: "static",
+        left: "0",
+        width: "280px",
+        borderRight: "1px solid #dee2e6",
+        borderBottom: "none",
+        padding: "1.5rem",
+        height: "auto"
+      }
     },
     sidebarContent: {
-      padding: isDesktop ? "0" : "1rem",
+      padding: "1rem",
+      '@media (min-width: 1024px)': {
+        padding: "0"
+      }
     },
     menuItem: {
       display: "block",
       width: "100%",
-      padding: isDesktop ? "0.75rem 1rem" : "1rem",
+      padding: "0.75rem 1rem",
       backgroundColor: "transparent",
       border: "none",
       textAlign: "left",
       cursor: "pointer",
-      borderRadius: isDesktop ? "0.375rem" : "0",
+      borderRadius: "0.375rem",
       marginBottom: "0.25rem",
       transition: "all 0.15s ease-in-out",
       color: "#495057",
       textDecoration: "none",
-      fontSize: isDesktop ? "0.95rem" : "1rem",
+      fontSize: "0.95rem",
+      '@media (max-width: 1023px)': {
+        padding: "1rem",
+        fontSize: "1rem",
+        borderRadius: "0"
+      }
     },
     activeMenuItem: {
       color: "#ff7a1c",
@@ -202,7 +210,13 @@ const Settings = () => {
     },
     content: {
       flex: 1,
-      padding: isDesktop ? "2rem" : "1rem",
+      padding: "1rem",
+      '@media (min-width: 768px)': {
+        padding: "1.5rem"
+      },
+      '@media (min-width: 1024px)': {
+        padding: "2rem"
+      }
     },
     formGroup: {
       marginBottom: "1rem"
@@ -212,13 +226,16 @@ const Settings = () => {
       marginBottom: "0.5rem",
       fontWeight: "500",
       color: "#495057",
-      fontSize: isDesktop ? "1rem" : "0.9rem",
+      fontSize: "0.9rem",
+      '@media (min-width: 768px)': {
+        fontSize: "1rem"
+      }
     },
     input: {
       display: "block",
       width: "100%",
       padding: "0.75rem",
-      fontSize: isDesktop ? "1rem" : "0.9rem",
+      fontSize: "0.9rem",
       lineHeight: "1.5",
       color: "#495057",
       backgroundColor: "#fff",
@@ -226,12 +243,15 @@ const Settings = () => {
       borderRadius: "0.375rem",
       transition: "border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out",
       boxSizing: "border-box",
+      '@media (min-width: 768px)': {
+        fontSize: "1rem"
+      }
     },
     textarea: {
       display: "block",
       width: "100%",
       padding: "0.75rem",
-      fontSize: isDesktop ? "1rem" : "0.9rem",
+      fontSize: "0.9rem",
       lineHeight: "1.5",
       color: "#495057",
       backgroundColor: "#fff",
@@ -240,18 +260,24 @@ const Settings = () => {
       resize: "vertical",
       minHeight: "80px",
       boxSizing: "border-box",
+      '@media (min-width: 768px)': {
+        fontSize: "1rem"
+      }
     },
     select: {
       display: "block",
       width: "100%",
       padding: "0.75rem",
-      fontSize: isDesktop ? "1rem" : "0.9rem",
+      fontSize: "0.9rem",
       lineHeight: "1.5",
       color: "#495057",
       backgroundColor: "#fff",
       border: "1px solid #ced4da",
       borderRadius: "0.375rem",
       boxSizing: "border-box",
+      '@media (min-width: 768px)': {
+        fontSize: "1rem"
+      }
     },
     button: {
       display: "inline-block",
@@ -261,11 +287,14 @@ const Settings = () => {
       cursor: "pointer",
       border: "1px solid transparent",
       padding: "0.5rem 1rem",
-      fontSize: isDesktop ? "1rem" : "0.9rem",
+      fontSize: "0.9rem",
       lineHeight: "1.5",
       borderRadius: "0.375rem",
       transition: "all 0.15s ease-in-out",
       textDecoration: "none",
+      '@media (min-width: 768px)': {
+        fontSize: "1rem"
+      }
     },
     primaryButton: {
       backgroundColor: "#ff7a1c",
@@ -285,13 +314,20 @@ const Settings = () => {
       marginBottom: "1rem"
     },
     cardBody: {
-      padding: isDesktop ? "1.5rem" : "1rem",
+      padding: "1rem",
+      '@media (min-width: 768px)': {
+        padding: "1.5rem"
+      }
     },
     switch: {
       position: "relative",
       display: "inline-block",
-      width: isDesktop ? "60px" : "50px",
-      height: isDesktop ? "34px" : "28px",
+      width: "50px",
+      height: "28px",
+      '@media (min-width: 768px)': {
+        width: "60px",
+        height: "34px"
+      }
     },
     switchInput: {
       opacity: 0,
@@ -315,16 +351,23 @@ const Settings = () => {
     switchHandle: {
       position: "absolute",
       content: "",
-      height: isDesktop ? "26px" : "20px",
-      width: isDesktop ? "26px" : "20px",
+      height: "20px",
+      width: "20px",
       left: "4px",
       bottom: "4px",
       backgroundColor: "white",
       transition: "0.4s",
       borderRadius: "50%",
+      '@media (min-width: 768px)': {
+        height: "26px",
+        width: "26px"
+      }
     },
     switchHandleActive: {
-      transform: isDesktop ? "translateX(26px)" : "translateX(22px)",
+      transform: "translateX(22px)",
+      '@media (min-width: 768px)': {
+        transform: "translateX(26px)"
+      }
     },
     twoColumnGrid: {
       display: "grid",
@@ -337,47 +380,78 @@ const Settings = () => {
     },
     profilePhotoSection: {
       display: "flex",
-      flexDirection: isDesktop ? "row" : "column",
+      flexDirection: "column",
       alignItems: "center",
       marginBottom: "2rem",
       gap: "1rem",
+      '@media (min-width: 768px)': {
+        flexDirection: "row",
+        alignItems: "center"
+      }
     },
     profileAvatar: {
-      width: isDesktop ? "80px" : "60px",
-      height: isDesktop ? "80px" : "60px",
+      width: "60px",
+      height: "60px",
       borderRadius: "50%",
       backgroundColor: "#f3d0ff",
       color: "#6f42c1",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      fontSize: isDesktop ? "2rem" : "1.5rem",
+      fontSize: "1.5rem",
       fontWeight: "600",
-      marginRight: isDesktop ? "1rem" : "0",
+      '@media (min-width: 768px)': {
+        width: "80px",
+        height: "80px",
+        fontSize: "2rem",
+        marginRight: "1rem"
+      }
     },
     passwordInputGroup: {
       display: "flex",
-      flexDirection: isDesktop ? "row" : "column",
-      gap: isDesktop ? "0" : "0.5rem",
+      flexDirection: "column",
+      gap: "0.5rem",
+      '@media (min-width: 768px)': {
+        flexDirection: "row",
+        gap: "0"
+      }
     },
     passwordInput: {
-      borderTopRightRadius: isDesktop ? "0" : "0.375rem",
-      borderBottomRightRadius: isDesktop ? "0" : "0.375rem",
-      borderRight: isDesktop ? "none" : "1px solid #ced4da",
+      borderTopRightRadius: "0.375rem",
+      borderBottomRightRadius: "0.375rem",
+      borderRight: "1px solid #ced4da",
+      '@media (min-width: 768px)': {
+        borderTopRightRadius: 0,
+        borderBottomRightRadius: 0,
+        borderRight: "none"
+      }
     },
     passwordShowButton: {
-      borderTopLeftRadius: isDesktop ? "0" : "0.375rem",
-      borderBottomLeftRadius: isDesktop ? "0" : "0.375rem",
-      borderLeft: isDesktop ? "none" : "1px solid #6c757d",
+      borderTopLeftRadius: "0.375rem",
+      borderBottomLeftRadius: "0.375rem",
+      borderLeft: "1px solid #6c757d",
+      '@media (min-width: 768px)': {
+        borderTopLeftRadius: 0,
+        borderBottomLeftRadius: 0,
+        borderLeft: "none"
+      }
     },
     passwordChangeButton: {
-      marginLeft: isDesktop ? "0.5rem" : "0",
-      marginTop: isDesktop ? "0" : "0.5rem",
+      marginLeft: "0",
+      marginTop: "0.5rem",
+      '@media (min-width: 768px)': {
+        marginLeft: "0.5rem",
+        marginTop: "0"
+      }
     },
     genderOptions: {
       display: "flex",
-      flexDirection: isDesktop ? "row" : "column",
-      gap: isDesktop ? "1rem" : "0.5rem",
+      flexDirection: "column",
+      gap: "0.5rem",
+      '@media (min-width: 768px)': {
+        flexDirection: "row",
+        gap: "1rem"
+      }
     },
     mentionOptions: {
       display: "flex",
@@ -386,10 +460,14 @@ const Settings = () => {
     },
     cardContent: {
       display: "flex",
-      flexDirection: isDesktop ? "row" : "column",
-      justifyContent: isDesktop ? "space-between" : "flex-start",
-      alignItems: isDesktop ? "center" : "flex-start",
-      gap: isDesktop ? "0" : "1rem",
+      flexDirection: "column",
+      gap: "1rem",
+      '@media (min-width: 768px)': {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: "0"
+      }
     },
     cardTextContent: {
       flex: 1
@@ -401,16 +479,23 @@ const Settings = () => {
     },
     buttonGroup: {
       display: "flex",
-      flexDirection: isDesktop ? "row" : "column",
+      flexDirection: "column",
       gap: "0.75rem",
-      justifyContent: isDesktop ? "flex-end" : "flex-start",
+      '@media (min-width: 768px)': {
+        flexDirection: "row",
+        justifyContent: "flex-end"
+      }
     },
     blockedAccountCard: {
       display: "flex",
-      flexDirection: isDesktop ? "row" : "column",
-      alignItems: isDesktop ? "center" : "flex-start",
-      justifyContent: isDesktop ? "space-between" : "flex-start",
-      gap: isDesktop ? "0" : "1rem",
+      flexDirection: "column",
+      gap: "1rem",
+      '@media (min-width: 768px)': {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "0"
+      }
     },
     blockedAccountInfo: {
       display: "flex",
@@ -418,16 +503,21 @@ const Settings = () => {
       gap: "1rem"
     },
     blockedAccountAvatar: {
-      width: isDesktop ? "48px" : "40px",
-      height: isDesktop ? "48px" : "40px",
+      width: "40px",
+      height: "40px",
       borderRadius: "50%",
       backgroundColor: "#f3d0ff",
       color: "#6f42c1",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      fontSize: isDesktop ? "1.25rem" : "1rem",
+      fontSize: "1rem",
       fontWeight: "600",
+      '@media (min-width: 768px)': {
+        width: "48px",
+        height: "48px",
+        fontSize: "1.25rem"
+      }
     }
   };
 
@@ -460,8 +550,7 @@ const Settings = () => {
     setIsMobileMenuOpen(false);
   };
 
-
-const renderEditProfile = () => (
+  const renderEditProfile = () => (
     <div>
       <h4 style={{ marginBottom: "1.5rem", fontWeight: "600", color: "#495057", fontSize: "1.25rem" }}>Edit profile</h4>
       
@@ -994,18 +1083,19 @@ const renderEditProfile = () => (
   return (
     <div style={styles.container}>
       <div style={styles.mainCard}>
-        {/* Mobile Menu Button - only shown on mobile */}
-        {!isDesktop && (
-          <button
-            style={styles.mobileMenuButton}
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            ☰ {menuItems.find(item => item.id === activeSection)?.label}
-          </button>
-        )}
+        {/* Mobile Menu Button */}
+        <button
+          style={styles.mobileMenuButton}
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        >
+          ☰ {menuItems.find(item => item.id === activeSection)?.label}
+        </button>
 
         {/* Left Navigation Menu */}
-        <div style={styles.sidebar}>
+        <div style={{
+          ...styles.sidebar,
+          display: window.innerWidth >= 1024 ? 'block' : (isMobileMenuOpen ? 'block' : 'none')
+        }}>
           <div style={styles.sidebarContent}>
             {menuItems.map((item) => (
               <button
@@ -1016,14 +1106,14 @@ const renderEditProfile = () => (
                   ...(activeSection === item.id ? styles.activeMenuItem : {})
                 }}
               >
-                {item.label} {isDesktop && "→"}
+                {item.label} →
               </button>
             ))}
           </div>
         </div>
 
-        {/* Overlay for mobile menu - only shown on mobile when menu is open */}
-        {!isDesktop && isMobileMenuOpen && (
+        {/* Overlay for mobile menu */}
+        {isMobileMenuOpen && window.innerWidth < 1024 && (
           <div
             style={{
               position: "fixed",
