@@ -4,7 +4,9 @@ import Login from './components/Login';
 import HomeScreen from './components/HomeScreen';
 import Sidebar from './Views/Sidebar';
 import Header from './Views/Header';
-import Settings from './components/Settings'; // real component
+import Settings from './Settings/Settings'; // real component
+import MyProfile from './profiles/Myprofile';
+import UserProfile from './profiles/Usersprofile';
 
 function App() {
   const location = useLocation();
@@ -14,16 +16,24 @@ function App() {
 
   return (
     <div className="d-flex">
-      {!isLoginPage && <Sidebar />}
+      {!isLoginPage && (
+        <div className="vh-100 position-sticky top-0">
+          <Sidebar />
+        </div>
+
+      )}
       <div className="flex-grow-1 w-100">
         {!isLoginPage && <Header />}
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/home" element={<HomeScreen />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/myprofile" element={<MyProfile />} />
+          <Route path="/userprofile" element={<UserProfile />} />
         </Routes>
       </div>
     </div>
+
   );
 }
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   FaHome,
@@ -6,73 +6,63 @@ import {
   FaCommentDots,
   FaPlus,
   FaUserFriends,
-  FaWrench,
+  FaBullhorn,
   FaWallet,
   FaCog,
 } from 'react-icons/fa';
 
 const Sidebar = () => {
-  const [hovered, setHovered] = useState(null);
-
   const navItems = [
     { to: '/home', icon: <FaHome />, title: 'Home' },
-    { to: '/notifications', icon: <FaBell />, title: 'Notifications' },
     { to: '/messages', icon: <FaCommentDots />, title: 'Messages' },
+    { to: '/notifications', icon: <FaBell />, title: 'Notifications' },
     { to: '/create', icon: <FaPlus />, title: 'Create' },
     { to: '/people', icon: <FaUserFriends />, title: 'People' },
-    { to: '/tools', icon: <FaWrench />, title: 'Tools' },
+    { to: '/megaphone', icon: <FaBullhorn />, title: 'Megaphone' },
     { to: '/wallet', icon: <FaWallet />, title: 'Wallet' },
   ];
 
-  const circleStyle = (id) => ({
-    transition: 'all 0.3s ease',
-    backgroundColor: hovered === id ? '#f8f9fa' : 'transparent',
-    boxShadow: hovered === id ? '0 0 10px rgba(0,0,0,0.15)' : 'none',
-    cursor: 'pointer'
-  });
-
   return (
     <div
-      className="d-flex flex-column bg-white sticky-top"
-      style={{ width: '60px', height: '100vh', paddingTop: '1rem' }}
+      className="d-flex flex-column align-items-center bg-white border-end vh-100"
+      style={{
+        width: '60px',
+        height: '100vh',
+        paddingTop: '1rem',
+      }}
     >
-      <div className="d-flex flex-column align-items-center gap-4">
-        <div
-          className="bg-warning rounded-circle"
-          style={{ width: '30px', height: '30px' }}
-        ></div>
+      {/* Orange Circle */}
+      <div
+        className="rounded-circle mb-4"
+        style={{
+          width: '28px',
+          height: '28px',
+          backgroundColor: '#f47c31',
+        }}
+      ></div>
 
+      {/* Navigation Icons */}
+      <div className="d-flex flex-column align-items-center gap-4 flex-grow-1">
         {navItems.map((item, index) => (
           <Link
             to={item.to}
             key={index}
             className="text-dark text-decoration-none"
-            onMouseEnter={() => setHovered(index)}
-            onMouseLeave={() => setHovered(null)}
+            title={item.title}
           >
-            <div
-              className="p-2 rounded-circle d-flex align-items-center justify-content-center"
-              style={circleStyle(index)}
-              title={item.title}
-            >
-              <span className="fs-5">{item.icon}</span>
-            </div>
+            <span className="fs-5">{item.icon}</span>
           </Link>
         ))}
+      </div>
 
+      {/* Settings Icon at Bottom */}
+      <div className="mb-3">
         <Link
           to="/settings"
-          className="mt-auto mb-3 text-dark text-decoration-none"
-          onMouseEnter={() => setHovered('settings')}
-          onMouseLeave={() => setHovered(null)}
+          className="text-dark text-decoration-none"
+          title="Settings"
         >
-          <div
-            className="p-2 rounded-circle d-flex align-items-center justify-content-center"
-            style={circleStyle('settings')}
-            title="Settings"
-          >
-            <FaCog className="fs-5" />
-          </div>
+          <FaCog className="fs-5" />
         </Link>
       </div>
     </div>
