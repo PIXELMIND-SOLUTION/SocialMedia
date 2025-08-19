@@ -219,8 +219,6 @@ const HomeScreen = () => {
           />
         )}
       </div>
-
-      <Download show={downloadModal} handleClose={handleCloseDownload} />
     </div>
   );
 };
