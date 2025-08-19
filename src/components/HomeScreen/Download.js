@@ -64,7 +64,7 @@ const DownloadModal = ({ show, onClose, balance, cost, onConfirm, image }) => {
         >
           <div className="d-flex align-items-center mb-2">
             <img
-              src="/assets/icons/coin.png"
+              src="/assets/icons/coin1.png"
               alt="Coin"
               style={{ width: "28px", marginRight: "10px" }}
             />
@@ -74,7 +74,7 @@ const DownloadModal = ({ show, onClose, balance, cost, onConfirm, image }) => {
 
           <div className="d-flex align-items-center fw-bold">
             <img
-              src="/assets/icons/coin.png"
+              src="/assets/icons/coin1.png"
               alt="Coin"
               style={{ width: "20px", marginRight: "6px" }}
             />

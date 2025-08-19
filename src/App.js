@@ -17,10 +17,9 @@ function App() {
   return (
     <div className="d-flex">
       {!isLoginPage && (
-        <div className="vh-100 position-sticky top-0">
+        <div className="vh-100 position-sticky top-0" style={{ zIndex: 1000 }}>
           <Sidebar />
         </div>
-
       )}
       <div className="flex-grow-1 w-100">
         {!isLoginPage && <Header />}
@@ -33,7 +32,6 @@ function App() {
         </Routes>
       </div>
     </div>
-
   );
 }
 

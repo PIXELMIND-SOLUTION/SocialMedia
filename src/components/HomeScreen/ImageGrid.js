@@ -10,8 +10,9 @@ const ImageGrid = ({ images, onImageClick, selectedImage }) => {
             {images.map((image, index) => (
               <div
                 key={index}
-                className="masonry-item mb-3"
+                className="masonry-item mb-3 position-relative"
                 onClick={() => onImageClick(image)}
+                style={{ cursor: "pointer" }}
               >
                 <img
                   src={image.url}
@@ -19,6 +20,30 @@ const ImageGrid = ({ images, onImageClick, selectedImage }) => {
                   className="img-fluid rounded"
                   style={{ width: "100%", display: "block" }}
                 />
+                
+                {/* Hover overlay */}
+                <div className="image-hover-overlay position-absolute top-0 start-0 w-100 h-100 d-flex flex-column justify-content-between p-3 opacity-0">
+                  {/* Bookmark icon at top right */}
+                  <div className="d-flex justify-content-end">
+                    <button className="btn btn-light btn-sm rounded-circle">
+                      <i className="bi bi-bookmark"></i>
+                    </button>
+                  </div>
+                  
+                  {/* User info and title at bottom left */}
+                  <div className="text-white">
+                    <div className="d-flex align-items-center mb-2">
+                      <img
+                        src={image.user?.profileImage}
+                        alt={image.user?.name}
+                        className="rounded-circle me-2"
+                        style={{ width: '30px', height: '30px', objectFit: 'cover' }}
+                      />
+                      <span className="fw-bold">{image.user?.name}</span>
+                    </div>
+                    <h6 className="mb-0">{image.title}</h6>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -27,26 +52,32 @@ const ImageGrid = ({ images, onImageClick, selectedImage }) => {
       <style>
         {`
         .masonry {
-  column-count: 5; /* number of columns */
-  column-gap: 1rem; /* gap between columns */
-}
+          column-count: 5;
+          column-gap: 1rem;
+        }
 
-.masonry-item {
-  break-inside: avoid; /* prevents image cutting */
-}
+        .masonry-item {
+          break-inside: avoid;
+          position: relative;
+        }
 
-@media (max-width: 992px) {
-  .masonry {
-    column-count: 3; /* tablet */
-  }
-}
+        .masonry-item:hover .image-hover-overlay {
+          opacity: 1 !important;
+          background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, transparent 100%);
+          transition: opacity 0.3s ease;
+        }
 
-@media (max-width: 576px) {
-  .masonry {
-    column-count: 1; /* mobile */
-  }
-}
+        @media (max-width: 992px) {
+          .masonry {
+            column-count: 3;
+          }
+        }
 
+        @media (max-width: 576px) {
+          .masonry {
+            column-count: 1;
+          }
+        }
         `}
       </style>
     </div>
