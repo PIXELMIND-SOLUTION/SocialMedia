@@ -7,6 +7,8 @@ import Header from './Views/Header';
 import Settings from './Settings/Settings'; // real component
 import MyProfile from './profiles/Myprofile';
 import UserProfile from './profiles/Usersprofile';
+import MessageModel from './messages/MessageModal';
+import CreatePost from './CreatePost/CretePost';
 
 function App() {
   const location = useLocation();
@@ -29,6 +31,8 @@ function App() {
           <Route path="/settings" element={<Settings />} />
           <Route path="/myprofile" element={<MyProfile />} />
           <Route path="/userprofile" element={<UserProfile />} />
+          <Route path="/messages" element={<MessageModel />} />
+          <Route path='/create' element={<CreatePost/>}/>
         </Routes>
       </div>
     </div>

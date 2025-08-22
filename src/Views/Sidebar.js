@@ -64,9 +64,9 @@ const Sidebar = () => {
         
         {/* Mobile Floating Bottom Navigation */}
         <div
-          className="d-flex justify-content-around align-items-center fixed-bottom mx-3 mb-3 shadow-lg"
+          className="d-flex justify-content-around align-items-center fixed-bottom mx-2 mb-2 shadow-lg"
           style={{
-            height: "70px",
+            height: "55px",
             padding: "0.75rem 1rem",
             zIndex: 1000,
             borderRadius: "25px",
