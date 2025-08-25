@@ -32,7 +32,7 @@ const Sidebar = () => {
     { to: '/messages', icon: <FaCommentDots />, title: 'Messages' },
     { to: '/notifications', icon: <FaBell />, title: 'Notifications' },
     { to: '/create', icon: <FaPlus />, title: 'Create' },
-    { to: '/people', icon: <FaUserFriends />, title: 'People' },
+    { to: '/watch', icon: <FaUserFriends />, title: 'Watch' },
     { to: '/megaphone', icon: <FaBullhorn />, title: 'Megaphone' },
     { to: '/wallet', icon: <FaWallet />, title: 'Wallet' },
     { to: '/settings', icon: <FaCog />, title: 'Settings' }

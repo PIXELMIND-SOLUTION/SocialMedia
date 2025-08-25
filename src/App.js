@@ -8,7 +8,8 @@ import Settings from './Settings/Settings'; // real component
 import MyProfile from './profiles/Myprofile';
 import UserProfile from './profiles/Usersprofile';
 import MessageModel from './messages/MessageModal';
-import CreatePost from './CreatePost/CretePost';
+import CreatePost from './CreatePost/CreatePost';
+import WatchTogether from './WatchTogether/WatchTogether';
 
 function App() {
   const location = useLocation();
@@ -33,6 +34,7 @@ function App() {
           <Route path="/userprofile" element={<UserProfile />} />
           <Route path="/messages" element={<MessageModel />} />
           <Route path='/create' element={<CreatePost/>}/>
+          <Route path='/watch' element={<WatchTogether/>}/>
         </Routes>
       </div>
     </div>
