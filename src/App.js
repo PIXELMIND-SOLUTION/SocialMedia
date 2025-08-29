@@ -10,7 +10,15 @@ import UserProfile from './profiles/Usersprofile';
 import MessageModel from './messages/MessageModal';
 import CreatePost from './CreatePost/CreatePost';
 import WatchTogether from './WatchTogether/WatchTogether';
-
+import CampaignFlowApp from './CampaignManagement/CampaignManagement';
+import CampaignMenu from './CampaignManagement/CampaignMenu';
+import SimplifiedForm from './CampaignManagement/SimplifiedForm';
+import PricingPlans from './CampaignManagement/PricingPlan';
+import FormDashboard from './CampaignManagement/ResponseForm';
+import CampaignAdModal from './CampaignManagement/CurrentCampaignAd';
+import WalletModal from './Wallet/MyWallet';
+import PackageSelectionModal from './Wallet/WalletPackages';
+import Notifications from './notifications/Notification';
 function App() {
   const location = useLocation();
 
@@ -35,6 +43,14 @@ function App() {
           <Route path="/messages" element={<MessageModel />} />
           <Route path='/create' element={<CreatePost/>}/>
           <Route path='/watch' element={<WatchTogether/>}/>
+          <Route path="/campaign" element={<CampaignMenu />} />
+          <Route path='/simplifiedform' element={<SimplifiedForm/>}/>
+          <Route path='/pricingplan' element={<PricingPlans/>} />
+          <Route path='/responseform' element={<FormDashboard/>}/>
+          <Route path='/campaign-ad' element={<CampaignAdModal/>}/>
+          <Route path="/mywallet" element={<WalletModal />} />
+          <Route path="/packages" element={<PackageSelectionModal />} />
+          <Route path='/notification' element={<Notifications/>}/>
         </Routes>
       </div>
     </div>

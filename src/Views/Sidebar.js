@@ -30,11 +30,11 @@ const Sidebar = () => {
   const navItems = [
     { to: '/home', icon: <FaHome />, title: 'Home' },
     { to: '/messages', icon: <FaCommentDots />, title: 'Messages' },
-    { to: '/notifications', icon: <FaBell />, title: 'Notifications' },
+    { to: '/notification', icon: <FaBell />, title: 'Notifications' },
     { to: '/create', icon: <FaPlus />, title: 'Create' },
     { to: '/watch', icon: <FaUserFriends />, title: 'Watch' },
-    { to: '/megaphone', icon: <FaBullhorn />, title: 'Megaphone' },
-    { to: '/wallet', icon: <FaWallet />, title: 'Wallet' },
+    { to: '/campaign', icon: <FaBullhorn />, title: 'Campaign' },
+    { to: '/mywallet', icon: <FaWallet />, title: 'Wallet' },
     { to: '/settings', icon: <FaCog />, title: 'Settings' }
   ];
 
@@ -49,7 +49,7 @@ const Sidebar = () => {
           {`
             @media (max-width: 768px) {
               body {
-                padding-bottom: 100px !important;
+                padding-bottom: 80px !important;
               }
               
               /* Alternative: Add margin to main content container if body styling doesn't work */
