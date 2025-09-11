@@ -14,8 +14,9 @@ const ImageGrid = ({ images, onImageClick, selectedImage }) => {
                 onClick={() => onImageClick(image)}
                 style={{ cursor: "pointer" }}
               >
+                {/* Use first media image */}
                 <img
-                  src={image.url}
+                  src={image.media?.[0]?.url}
                   alt={`img-${index}`}
                   className="img-fluid rounded"
                   style={{ width: "100%", display: "block" }}
@@ -23,25 +24,25 @@ const ImageGrid = ({ images, onImageClick, selectedImage }) => {
                 
                 {/* Hover overlay */}
                 <div className="image-hover-overlay position-absolute top-0 start-0 w-100 h-100 d-flex flex-column justify-content-between p-3 opacity-0">
-                  {/* Bookmark icon at top right */}
+                  {/* Bookmark icon */}
                   <div className="d-flex justify-content-end">
                     <button className="btn btn-light btn-sm rounded-circle">
                       <i className="bi bi-bookmark"></i>
                     </button>
                   </div>
                   
-                  {/* User info and title at bottom left */}
+                  {/* User info */}
                   <div className="text-white">
                     <div className="d-flex align-items-center mb-2">
                       <img
-                        src={image.user?.profileImage}
-                        alt={image.user?.name}
+                        src={image.userId?.profile?.image}
+                        alt={image.userId?.fullName}
                         className="rounded-circle me-2"
                         style={{ width: '30px', height: '30px', objectFit: 'cover' }}
                       />
-                      <span className="fw-bold">{image.user?.name}</span>
+                      <span className="fw-bold">{image.userId?.fullName}</span>
                     </div>
-                    <h6 className="mb-0">{image.title}</h6>
+                    
                   </div>
                 </div>
               </div>
@@ -49,6 +50,7 @@ const ImageGrid = ({ images, onImageClick, selectedImage }) => {
           </div>
         </div>
       </div>
+
       <style>
         {`
         .masonry {

@@ -8,12 +8,6 @@ const PostScreen = ({
   currentImageIndex,
   postText,
   setPostText,
-  location,
-  setLocation,
-  hideEngagement,
-  setHideEngagement,
-  commentsOff,
-  setCommentsOff,
   getCurrentImageFilter,
   cropRatio
 }) => {
@@ -83,47 +77,6 @@ const PostScreen = ({
                 <Smile className="w-5 h-5 text-gray-500" />
               </button>
               <span className="text-sm text-gray-400">{postText.length}/2000</span>
-            </div>
-          </div>
-
-          {/* Add Location */}
-          <div className="flex items-center text-gray-600 mb-6">
-            <MapPin className="w-5 h-5 mr-2" />
-            <input
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Add location"
-              className="border-none outline-none flex-1"
-            />
-          </div>
-
-          {/* Settings */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 pr-4">
-                <h3 className="font-medium text-gray-900 mb-1">Hide like and view counts</h3>
-                <p className="text-sm text-gray-500">Only you will see the total number of likes and views on this post</p>
-              </div>
-              <button
-                onClick={() => setHideEngagement(!hideEngagement)}
-                className={`w-12 h-6 rounded-full transition-colors flex-shrink-0 ${hideEngagement ? 'bg-orange-500' : 'bg-gray-300'}`}
-              >
-                <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${hideEngagement ? 'translate-x-6' : 'translate-x-0.5'}`}></div>
-              </button>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex-1 pr-4">
-                <h3 className="font-medium text-gray-900 mb-1">Turn off commenting</h3>
-                <p className="text-sm text-gray-500">No one can comment on this post</p>
-              </div>
-              <button
-                onClick={() => setCommentsOff(!commentsOff)}
-                className={`w-12 h-6 rounded-full transition-colors flex-shrink-0 ${commentsOff ? 'bg-orange-500' : 'bg-gray-300'}`}
-              >
-                <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${commentsOff ? 'translate-x-6' : 'translate-x-0.5'}`}></div>
-              </button>
             </div>
           </div>
         </div>

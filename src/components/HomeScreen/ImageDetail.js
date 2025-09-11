@@ -9,6 +9,8 @@ const ImageDetail = ({
   newComment,
   setNewComment
 }) => {
+  if (!image) return null;
+
   return (
     <div className="col-md-4">
       <div className="bg-light p-4 sticky-top" style={{
@@ -36,30 +38,30 @@ const ImageDetail = ({
           onClick={onOpenGalleria}
         >
           <img
-            src={image.url}
-            alt={image.title}
+            src={image.media?.[0]?.url}
+            alt={image.description || "Post Image"}
             className="rounded w-100 h-100"
             style={{ objectFit: 'contain' }}
           />
         </div>
 
-        <h5>{image.title}</h5>
-        <p className="text-muted">{image.description}</p>
+        <h5>{image.description}</h5>
+
         <div className="d-flex gap-3 mb-3">
-          <span><i className="bi bi-bookmark me-1"></i> {image.stats.saves} Saves</span>
-          <span><i className="bi bi-heart me-1"></i> {image.stats.likes} Likes</span>
+          <span><i className="bi bi-bookmark me-1"></i> {image.saves?.length || 0} Saves</span>
+          <span><i className="bi bi-heart me-1"></i> {image.likes?.length || 0} Likes</span>
         </div>
 
         <div className="d-flex align-items-center justify-content-between mb-4">
           <div className="d-flex align-items-center">
             <img
-              src={image.user?.profileImage}
-              alt="User"
+              src={image.userId?.profile?.image}
+              alt={image.userId?.fullName}
               className="rounded-circle me-3"
-              style={{ width: '40px', height: '40px' }}
+              style={{ width: '40px', height: '40px', objectFit: 'cover' }}
             />
             <div>
-              <h6 className="mb-0">{image.user?.name}</h6>
+              <h6 className="mb-0">{image.userId?.fullName}</h6>
             </div>
           </div>
           <button className="btn btn-sm btn-outline-primary">+ Follow</button>
@@ -68,11 +70,11 @@ const ImageDetail = ({
         <hr className="my-4" />
 
         <div className="mb-4">
-          <h6>Comments ({image.comments.length})</h6>
+          <h6>Comments ({image.comments?.length || 0})</h6>
           <div className="mt-3">
-            {image.comments.map((comment, index) => (
+            {image.comments?.map((comment, index) => (
               <div key={index} className="mb-2 p-2 glass-effect rounded">
-                <strong>{comment.user}</strong>: {comment.text}
+                <strong>{comment.userId?.fullName || comment.user}</strong>: {comment.text}
               </div>
             ))}
           </div>
@@ -88,27 +90,6 @@ const ImageDetail = ({
               <button className="btn btn-primary" type="submit">Post</button>
             </div>
           </form>
-        </div>
-
-        <hr className="my-4" />
-
-        <div className="mb-4">
-          <h6>Reach. Engage. Convert.</h6>
-          <p className="text-muted small">Social Media Marketing, That Works</p>
-        </div>
-
-        <div className="mb-4">
-          <h6>Redeuthen</h6>
-          <p className="text-muted small">Safe Pixtinfo Solutions</p>
-        </div>
-
-        <div>
-          <h6>Expansions</h6>
-          <ul className="list-unstyled small">
-            {image.expansions.map((item, index) => (
-              <li key={index} className="mb-2">• {item}</li>
-            ))}
-          </ul>
         </div>
 
         <button className="btn btn-primary w-100 mt-3 rounded-pill">

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import axios from 'axios';
 import SelectScreen from './SelectScreen';
 import CropScreen from './CropScreen';
 import EditScreen from './EditScreen';
@@ -15,14 +16,14 @@ const CreatePost = () => {
   const [cropRatio, setCropRatio] = useState('original');
   const [activeTab, setActiveTab] = useState('adjustments'); // filters, adjustments
   const [location, setLocation] = useState('');
-  
+
   // Image adjustments
   const [brightness, setBrightness] = useState(50);
   const [contrast, setContrast] = useState(50);
   const [fade, setFade] = useState(0);
   const [saturation, setSaturation] = useState(50);
   const [temperature, setTemperature] = useState(50);
-  
+
   const fileInputRef = useRef(null);
 
   const balloonImages = [
@@ -38,36 +39,27 @@ const CreatePost = () => {
   ];
 
   const filters = [
-    { name: 'Aden', image: balloonImages[0], filter: 'sepia(0.2) brightness(1.15) saturate(1.4)' },
-    { name: 'Clarendon', image: balloonImages[1], filter: 'contrast(1.2) saturate(1.35)' },
-    { name: 'Crema', image: balloonImages[2], filter: 'sepia(0.5) contrast(1.25) brightness(1.15)' },
-    { name: 'B&W', image: balloonImages[3], filter: 'grayscale(1)' },
-    { name: 'Clarendon', image: balloonImages[4], filter: 'contrast(1.2) saturate(1.35)' },
-    { name: 'Cerma', image: balloonImages[5], filter: 'sepia(0.3) contrast(1.1)' },
-    { name: 'Normal', image: balloonImages[6], filter: 'none' },
-    { name: 'Vintage', image: balloonImages[7], filter: 'sepia(0.4) contrast(1.1) brightness(1.1)' },
-    { name: 'Cool', image: balloonImages[8], filter: 'brightness(1.1) hue-rotate(10deg) saturate(1.3)' }
+    { name: "Aden", image: balloonImages[0], filter: "sepia(0.2) brightness(1.15) saturate(1.4)" },
+    { name: "Clarendon", image: balloonImages[1], filter: "contrast(1.2) saturate(1.35)" },
+    { name: "Crema", image: balloonImages[2], filter: "sepia(0.5) contrast(1.25) brightness(1.15)" },
+    { name: "B&W", image: balloonImages[3], filter: "grayscale(1)" },
+    { name: "Cerma", image: balloonImages[5], filter: "sepia(0.3) contrast(1.1)" },
+    { name: "Normal", image: balloonImages[6], filter: "none" },
+    { name: "Vintage", image: balloonImages[7], filter: "sepia(0.4) contrast(1.1) brightness(1.1)" },
+    { name: "Cool", image: balloonImages[8], filter: "brightness(1.1) hue-rotate(10deg) saturate(1.3)" },
   ];
 
   const handleFileSelect = (event) => {
     const files = Array.from(event.target.files);
     if (files.length > 0) {
-      const imageUrls = files.map(file => {
-        const reader = new FileReader();
-        return new Promise((resolve) => {
-          reader.onload = (e) => resolve({
-            url: e.target.result,
-            name: file.name,
-            type: file.type
-          });
-          reader.readAsDataURL(file);
-        });
-      });
-      
-      Promise.all(imageUrls).then(images => {
-        setSelectedImages(images);
-        setCurrentStep('crop');
-      });
+      const imageFiles = files.map(file => ({
+        file,
+        url: URL.createObjectURL(file),
+        name: file.name,
+        type: file.type
+      }));
+      setSelectedImages(prev => [...prev, ...imageFiles]);
+      setCurrentStep('crop');
     }
   };
 
@@ -83,7 +75,6 @@ const CreatePost = () => {
         setCurrentStep('post');
         break;
       case 'post':
-        // Handle final post submission
         handlePostSubmit();
         break;
     }
@@ -103,37 +94,78 @@ const CreatePost = () => {
     }
   };
 
-  const handlePostSubmit = () => {
-    // Create post object with all data
-    const postData = {
-      images: selectedImages,
-      caption: postText,
-      location: location,
-      settings: {
-        hideEngagement: hideEngagement,
-        commentsOff: commentsOff
-      },
-      edits: {
-        filter: selectedFilter,
-        brightness: brightness,
-        contrast: contrast,
-        fade: fade,
-        saturation: saturation,
-        temperature: temperature,
-        cropRatio: cropRatio
+  // Helper: apply CSS filter to an image file using canvas
+  const applyFilterToImage = (imageFile, filter) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = URL.createObjectURL(imageFile);
+
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+
+        ctx.filter = filter;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const filteredFile = new File([blob], imageFile.name, { type: imageFile.type });
+            resolve(filteredFile);
+          } else {
+            reject(new Error('Canvas conversion failed'));
+          }
+        }, imageFile.type);
+      };
+
+      img.onerror = (err) => reject(err);
+    });
+  };
+
+  const handlePostSubmit = async () => {
+    try {
+      const formData = new FormData();
+      formData.append('userId', '68bc03a1aff2b0d7a66aedd1'); 
+      formData.append('description', postText);
+
+      // Apply filters to all images before uploading
+      const filteredImages = await Promise.all(
+        selectedImages.map(img => applyFilterToImage(img.file, getCurrentImageFilter()))
+      );
+
+      filteredImages.forEach(file => {
+        formData.append('media', file);
+      });
+
+      const res = await axios.post(
+        'https://social-media-nty4.onrender.com/api/post',
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+
+      if (res.data.success) {
+        alert('Post created successfully ✅');
+        console.log('Server Response:', res.data);
+
+        setPostText('');
+        setSelectedImages([]);
+        setCurrentStep('select');
+      } else {
+        alert('Failed to create post ❌');
       }
-    };
-    
-    console.log('Posting data:', postData);
-    alert('Post created successfully!');
-    // In a real app, you would send this data to your backend API
+    } catch (err) {
+      console.error('Error creating post:', err);
+      alert('Something went wrong while creating the post ❌');
+    }
   };
 
   const handleImageRemove = (index) => {
     const newImages = [...selectedImages];
     newImages.splice(index, 1);
     setSelectedImages(newImages);
-    
+
     if (newImages.length === 0) {
       setCurrentStep('select');
     } else if (currentImageIndex >= newImages.length) {
@@ -150,7 +182,7 @@ const CreatePost = () => {
       const filterObj = filters.find(f => f.name === selectedFilter);
       return filterObj ? filterObj.filter : 'none';
     }
-    
+
     if (activeTab === 'adjustments') {
       return `
         brightness(${brightness / 50}) 
@@ -160,22 +192,21 @@ const CreatePost = () => {
         hue-rotate(${(temperature - 50) * 3.6}deg)
       `;
     }
-    
+
     return 'none';
   };
 
-  // Render current screen
   return (
     <div>
       {currentStep === 'select' && (
-        <SelectScreen 
+        <SelectScreen
           fileInputRef={fileInputRef}
           handleFileSelect={handleFileSelect}
         />
       )}
-      
+
       {currentStep === 'crop' && (
-        <CropScreen 
+        <CropScreen
           handleBack={handleBack}
           handleNext={handleNext}
           selectedImages={selectedImages}
@@ -189,9 +220,9 @@ const CreatePost = () => {
           handleFileSelect={handleFileSelect}
         />
       )}
-      
+
       {currentStep === 'edit' && (
-        <EditScreen 
+        <EditScreen
           handleBack={handleBack}
           handleNext={handleNext}
           selectedImages={selectedImages}
@@ -216,9 +247,9 @@ const CreatePost = () => {
           cropRatio={cropRatio}
         />
       )}
-      
+
       {currentStep === 'post' && (
-        <PostScreen 
+        <PostScreen
           handleBack={handleBack}
           handleNext={handleNext}
           selectedImages={selectedImages}
@@ -235,7 +266,7 @@ const CreatePost = () => {
           cropRatio={cropRatio}
         />
       )}
-      
+
       <input
         ref={fileInputRef}
         type="file"

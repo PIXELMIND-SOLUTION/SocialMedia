@@ -92,54 +92,7 @@ const AccountManagement = ({ accountData, handleAccountChange, isDesktop }) => {
       <h4 style={{ marginBottom: "0.5rem", fontWeight: "600", color: "#495057", fontSize: "1.25rem" }}>Account management</h4>
       <p style={{ color: "#6c757d", marginBottom: "1.5rem", fontSize: "0.9rem" }}>Easily edit your profile and manage your account preferences.</p>
       
-      <div style={{ marginBottom: "2rem" }}>
-        <h5 style={{ fontWeight: "600", marginBottom: "1rem", color: "#495057", fontSize: "1.1rem" }}>Your Account</h5>
-        
-        <div style={styles.formGroup}>
-          <label style={styles.label}>E-mail</label>
-          <input
-            type="email"
-            name="email"
-            value={accountData.email}
-            onChange={handleAccountChange}
-            style={styles.input}
-          />
-        </div>
-
-        <div style={styles.formGroup}>
-          <label style={styles.label}>Password</label>
-          <div style={styles.passwordInputGroup}>
-            <input
-              type="password"
-              name="password"
-              value={accountData.password}
-              onChange={handleAccountChange}
-              style={{
-                ...styles.input,
-                ...styles.passwordInput
-              }}
-            />
-            <button
-              style={{
-                ...styles.button,
-                ...styles.secondaryButton,
-                ...styles.passwordShowButton
-              }}
-            >
-              👁
-            </button>
-            <button
-              style={{
-                ...styles.button,
-                ...styles.secondaryButton,
-                ...styles.passwordChangeButton
-              }}
-            >
-              Change
-            </button>
-          </div>
-        </div>
-      </div>
+      
 
       <div style={{ marginBottom: "2rem" }}>
         <h5 style={{ fontWeight: "600", marginBottom: "1rem", color: "#495057", fontSize: "1.1rem" }}>Personal information</h5>
