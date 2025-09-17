@@ -1,14 +1,18 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { useNavigate } from 'react-router-dom';
 
-const ImageDetail = ({ 
-  image, 
-  onBack, 
+const ImageDetail = ({
+  image,
+  onBack,
   onOpenGalleria,
   onCommentSubmit,
   newComment,
   setNewComment
 }) => {
+
+  const navigate = useNavigate();
+
   if (!image) return null;
 
   return (
@@ -60,7 +64,7 @@ const ImageDetail = ({
               className="rounded-circle me-3"
               style={{ width: '40px', height: '40px', objectFit: 'cover' }}
             />
-            <div>
+            <div onClick={() =>navigate(`/userprofile/${image.userId?._id}`)}>
               <h6 className="mb-0">{image.userId?.fullName}</h6>
             </div>
           </div>

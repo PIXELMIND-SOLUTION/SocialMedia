@@ -5,7 +5,179 @@ import "bootstrap/dist/css/bootstrap.min.css";
 const Login = () => {
   const [step, setStep] = useState("login"); // 'signup', 'loginOtp', 'signupOtp'
   const [email, setEmail] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
+  const [gender, setGender] = useState("");
+  const [otp, setOtp] = useState(["", "", "", ""]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [token, setToken] = useState("");
+  const [userId, setUserId] = useState("");
   const navigate = useNavigate();
+
+  // Handle OTP input change
+  const handleOtpChange = (index, value) => {
+    if (!/^\d*$/.test(value)) return; // Only allow numbers
+    
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+    
+    // Auto focus to next input
+    if (value && index < 3) {
+      document.getElementById(`otp-${index + 1}`).focus();
+    }
+  };
+
+  // Handle OTP input key events
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      document.getElementById(`otp-${index - 1}`).focus();
+    }
+  };
+
+  // Register API call
+  const handleSignUp = async () => {
+    setLoading(true);
+    setError("");
+    
+    try {
+      const response = await fetch('https://social-media-nty4.onrender.com/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fullName,
+          mobile,
+          email,
+          username,
+          gender
+        })
+      });
+      
+      const data = await response.json();
+      // console.log(data)
+      
+      if (response.ok) {
+        setToken(data.data.token);
+         console.log("token:", data.data.token)
+        setStep("signupOtp");
+      } else {
+        setError(data.message || "Registration failed");
+      }
+    } catch (error) {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Verify OTP for signup
+  const verifySignupOtp = async () => {
+    setLoading(true);
+    setError("");
+    
+    try {
+      const otpString = otp.join('');
+      const response = await fetch('https://social-media-nty4.onrender.com/api/verify-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          otp: otpString,
+          token
+        })
+      });
+      // console.log(token, otp)
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setStep("login");
+        alert("Registration successful! Please login.");
+      } else {
+        setError(data.message || "OTP verification failed");
+      }
+    } catch (error) {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Login API call
+  const handleLogin = async () => {
+    setLoading(true);
+    setError("");
+    
+    try {
+      const identifier = email.includes('@') ? { email } : { mobile: email };
+      
+      const response = await fetch('https://social-media-nty4.onrender.com/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(identifier)
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setUserId(data.data.userId);
+        setToken(data.data.token);
+        setStep("loginOtp");
+      } else {
+        setError(data.message || "Login failed");
+      }
+    } catch (error) {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Verify OTP for login
+  const verifyLoginOtp = async () => {
+    setLoading(true);
+    setError("");
+    
+    try {
+      const otpString = otp.join('');
+      const response = await fetch('https://social-media-nty4.onrender.com/api/verify-login-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          otp: otpString,
+          token
+        })
+      });
+      // console.log( otp, "token at verify:", token, "userId:", userId)
+      const data = await response.json();
+      
+      if (response.ok) {
+        sessionStorage.setItem('authToken', data.token);
+        navigate("/home");
+      } else {
+        setError(data.message || "OTP verification failed");
+      }
+    } catch (error) {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reset OTP fields
+  const resetOtp = () => {
+    setOtp(["", "", "", ""]);
+  };
 
   return (
     <div
@@ -41,6 +213,12 @@ const Login = () => {
               className="bg-white rounded shadow p-4 mx-auto"
               style={{ maxWidth: "450px" }}
             >
+              {error && (
+                <div className="alert alert-danger" role="alert">
+                  {error}
+                </div>
+              )}
+
               {/* Sign Up Form */}
               {step === "signup" && (
                 <>
@@ -52,6 +230,8 @@ const Login = () => {
                       type="text"
                       className="form-control"
                       placeholder="Name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
                     />
                   </div>
                   <div className="mb-3">
@@ -68,10 +248,25 @@ const Login = () => {
                       type="tel"
                       className="form-control"
                       placeholder="Mobile Number"
+                      value={mobile}
+                      onChange={(e) => setMobile(e.target.value)}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
                     />
                   </div>
                   <div className="mb-4">
-                    <select className="form-select">
+                    <select 
+                      className="form-select"
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value)}
+                    >
                       <option value="">Gender</option>
                       <option value="male">Male</option>
                       <option value="female">Female</option>
@@ -79,9 +274,10 @@ const Login = () => {
                   </div>
                   <button
                     className="btn btn-warning w-100 fw-bold mb-3"
-                    onClick={() => setStep("signupOtp")}
+                    onClick={handleSignUp}
+                    disabled={loading}
                   >
-                    Sign Up
+                    {loading ? "Processing..." : "Sign Up"}
                   </button>
 
                   <div className="text-center text-muted mb-3 position-relative">
@@ -145,9 +341,10 @@ const Login = () => {
                   </div>
                   <button
                     className="btn btn-warning w-100 fw-bold mb-3"
-                    onClick={() => setStep("loginOtp")}
+                    onClick={handleLogin}
+                    disabled={loading}
                   >
-                    Sign in
+                    {loading ? "Processing..." : "Sign in"}
                   </button>
 
                   <div className="text-center text-muted mb-3 position-relative">
@@ -204,13 +401,18 @@ const Login = () => {
                     Enter it below to complete registration.
                   </p>
                   <div className="d-flex justify-content-center gap-2 mb-3">
-                    {[...Array(5)].map((_, i) => (
+                    {otp.map((digit, index) => (
                       <input
-                        key={i}
+                        key={index}
+                        id={`otp-${index}`}
                         type="text"
                         maxLength="1"
                         className="form-control text-center py-2"
                         style={{ width: "50px", fontSize: "1.1rem" }}
+                        value={digit}
+                        onChange={(e) => handleOtpChange(index, e.target.value)}
+                        onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                        onFocus={(e) => e.target.select()}
                       />
                     ))}
                   </div>
@@ -222,9 +424,10 @@ const Login = () => {
                   </small>
                   <button
                     className="btn btn-warning w-100 fw-bold"
-                    onClick={() => setStep("login")}
+                    onClick={verifySignupOtp}
+                    disabled={loading}
                   >
-                    Verify & Continue to Login
+                    {loading ? "Verifying..." : "Verify & Continue to Login"}
                   </button>
                 </>
               )}
@@ -239,13 +442,18 @@ const Login = () => {
                     Enter it below to log in.
                   </p>
                   <div className="d-flex justify-content-center gap-2 mb-3">
-                    {[...Array(5)].map((_, i) => (
+                    {otp.map((digit, index) => (
                       <input
-                        key={i}
+                        key={index}
+                        id={`otp-${index}`}
                         type="text"
                         maxLength="1"
                         className="form-control text-center py-2"
                         style={{ width: "50px", fontSize: "1.1rem" }}
+                        value={digit}
+                        onChange={(e) => handleOtpChange(index, e.target.value)}
+                        onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                        onFocus={(e) => e.target.select()}
                       />
                     ))}
                   </div>
@@ -257,9 +465,10 @@ const Login = () => {
                   </small>
                   <button
                     className="btn btn-warning w-100 fw-bold"
-                    onClick={() => navigate("/home")}
+                    onClick={verifyLoginOtp}
+                    disabled={loading}
                   >
-                    Verify & Login
+                    {loading ? "Verifying..." : "Verify & Login"}
                   </button>
                 </>
               )}

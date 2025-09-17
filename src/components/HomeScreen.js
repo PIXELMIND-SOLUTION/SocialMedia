@@ -135,7 +135,7 @@ const HomeScreen = () => {
   };
   const handleCloseModal = () => {
     setShowModal(false);
-    localStorage.setItem('skipWelcome', 'true');
+    sessionStorage.setItem('skipWelcome', 'true');
   };
   const handleBackToGallery = () => setSelectedImage(null);
   const handleCommentSubmit = (e) => {

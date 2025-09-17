@@ -1,24 +1,26 @@
-import { Routes, Route, useLocation } from 'react-router-dom';
-import './App.css';
-import Login from './components/Login';
-import HomeScreen from './components/HomeScreen';
-import Sidebar from './Views/Sidebar';
-import Header from './Views/Header';
-import Settings from './Settings/Settings'; // real component
-import MyProfile from './profiles/Myprofile';
-import UserProfile from './profiles/Usersprofile';
-import MessageModel from './messages/MessageModal';
-import CreatePost from './CreatePost/CreatePost';
-import WatchTogether from './WatchTogether/WatchTogether';
-import CampaignFlowApp from './CampaignManagement/CampaignManagement';
-import CampaignMenu from './CampaignManagement/CampaignMenu';
-import SimplifiedForm from './CampaignManagement/SimplifiedForm';
-import PricingPlans from './CampaignManagement/PricingPlan';
-import FormDashboard from './CampaignManagement/ResponseForm';
-import CampaignAdModal from './CampaignManagement/CurrentCampaignAd';
-import WalletModal from './Wallet/MyWallet';
-import PackageSelectionModal from './Wallet/WalletPackages';
-import Notifications from './notifications/Notification';
+import { Routes, Route, useLocation } from "react-router-dom";
+import "./App.css";
+import Login from "./components/Login";
+import HomeScreen from "./components/HomeScreen";
+import Sidebar from "./Views/Sidebar";
+import Header from "./Views/Header";
+import Settings from "./Settings/Settings";
+import MyProfile from "./profiles/Myprofile";
+import UserProfile from "./profiles/Usersprofile";
+import MessageModel from "./messages/MessageModal";
+import CreatePost from "./CreatePost/CreatePost";
+import WatchTogether from "./WatchTogether/WatchTogether";
+import CampaignFlowApp from "./CampaignManagement/CampaignManagement";
+import CampaignMenu from "./CampaignManagement/CampaignMenu";
+import SimplifiedForm from "./CampaignManagement/SimplifiedForm";
+import PricingPlans from "./CampaignManagement/PricingPlan";
+import FormDashboard from "./CampaignManagement/ResponseForm";
+import CampaignAdModal from "./CampaignManagement/CurrentCampaignAd";
+import WalletModal from "./Wallet/MyWallet";
+import PackageSelectionModal from "./Wallet/WalletPackages";
+import Notifications from "./notifications/Notification";
+import PrivateRoute from "./components/PrivateRoute";
+
 function App() {
   const location = useLocation();
 
@@ -36,21 +38,128 @@ function App() {
         {!isLoginPage && <Header />}
         <Routes>
           <Route path="/" element={<Login />} />
-          <Route path="/home" element={<HomeScreen />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/myprofile" element={<MyProfile />} />
-          <Route path="/userprofile" element={<UserProfile />} />
-          <Route path="/messages" element={<MessageModel />} />
-          <Route path='/create' element={<CreatePost/>}/>
-          <Route path='/watch' element={<WatchTogether/>}/>
-          <Route path="/campaign" element={<CampaignMenu />} />
-          <Route path='/simplifiedform' element={<SimplifiedForm/>}/>
-          <Route path='/pricingplan' element={<PricingPlans/>} />
-          <Route path='/responseform' element={<FormDashboard/>}/>
-          <Route path='/campaign-ad' element={<CampaignAdModal/>}/>
-          <Route path="/mywallet" element={<WalletModal />} />
-          <Route path="/packages" element={<PackageSelectionModal />} />
-          <Route path='/notification' element={<Notifications/>}/>
+
+          {/* Protected Routes */}
+          <Route
+            path="/home"
+            element={
+              <PrivateRoute>
+                <HomeScreen />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <PrivateRoute>
+                <Settings />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/myprofile"
+            element={
+              <PrivateRoute>
+                <MyProfile />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/userprofile/:id"
+            element={
+              <PrivateRoute>
+                <UserProfile />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/messages"
+            element={
+              <PrivateRoute>
+                <MessageModel />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/create"
+            element={
+              <PrivateRoute>
+                <CreatePost />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/watch"
+            element={
+              <PrivateRoute>
+                <WatchTogether />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/campaign"
+            element={
+              <PrivateRoute>
+                <CampaignMenu />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/simplifiedform"
+            element={
+              <PrivateRoute>
+                <SimplifiedForm />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/pricingplan"
+            element={
+              <PrivateRoute>
+                <PricingPlans />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/responseform"
+            element={
+              <PrivateRoute>
+                <FormDashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/campaign-ad"
+            element={
+              <PrivateRoute>
+                <CampaignAdModal />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/mywallet"
+            element={
+              <PrivateRoute>
+                <WalletModal />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/packages"
+            element={
+              <PrivateRoute>
+                <PackageSelectionModal />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/notification"
+            element={
+              <PrivateRoute>
+                <Notifications />
+              </PrivateRoute>
+            }
+          />
         </Routes>
       </div>
     </div>
