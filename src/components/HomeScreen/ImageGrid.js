@@ -6,7 +6,7 @@ const ImageGrid = ({ images, onImageClick, selectedImage }) => {
     <div className={selectedImage ? "col-md-8 col-lg-8" : "col-12"}>
       <div className="row">
         <div className="col-12">
-          <div className="masonry">
+          <div className={selectedImage ? "masonry1" : "masonry"}>
             {images.map((image, index) => (
               <div
                 key={index}
@@ -21,7 +21,7 @@ const ImageGrid = ({ images, onImageClick, selectedImage }) => {
                   className="img-fluid rounded"
                   style={{ width: "100%", display: "block" }}
                 />
-                
+
                 {/* Hover overlay */}
                 <div className="image-hover-overlay position-absolute top-0 start-0 w-100 h-100 d-flex flex-column justify-content-between p-3 opacity-0">
                   {/* Bookmark icon */}
@@ -30,7 +30,7 @@ const ImageGrid = ({ images, onImageClick, selectedImage }) => {
                       <i className="bi bi-bookmark"></i>
                     </button>
                   </div>
-                  
+
                   {/* User info */}
                   <div className="text-white">
                     <div className="d-flex align-items-center mb-2">
@@ -42,7 +42,7 @@ const ImageGrid = ({ images, onImageClick, selectedImage }) => {
                       />
                       <span className="fw-bold">{image.userId?.fullName}</span>
                     </div>
-                    
+
                   </div>
                 </div>
               </div>
@@ -57,6 +57,10 @@ const ImageGrid = ({ images, onImageClick, selectedImage }) => {
           column-count: 5;
           column-gap: 1rem;
         }
+        .masonry1 {
+          column-count: 4;
+          column-gap: 1rem;
+        }
 
         .masonry-item {
           break-inside: avoid;
@@ -67,6 +71,17 @@ const ImageGrid = ({ images, onImageClick, selectedImage }) => {
           opacity: 1 !important;
           background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, transparent 100%);
           transition: opacity 0.3s ease;
+        }
+
+        @media (max-width: 1180px) {
+          .masonry {
+            column-count: 4;
+          }
+        }
+          @media (max-width: 1180px) {
+          .masonry1 {
+            column-count: 3;
+          }
         }
 
         @media (max-width: 992px) {

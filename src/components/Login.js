@@ -19,11 +19,11 @@ const Login = () => {
   // Handle OTP input change
   const handleOtpChange = (index, value) => {
     if (!/^\d*$/.test(value)) return; // Only allow numbers
-    
+
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
-    
+
     // Auto focus to next input
     if (value && index < 3) {
       document.getElementById(`otp-${index + 1}`).focus();
@@ -41,7 +41,7 @@ const Login = () => {
   const handleSignUp = async () => {
     setLoading(true);
     setError("");
-    
+
     try {
       const response = await fetch('https://social-media-nty4.onrender.com/api/register', {
         method: 'POST',
@@ -56,13 +56,13 @@ const Login = () => {
           gender
         })
       });
-      
+
       const data = await response.json();
       // console.log(data)
-      
+
       if (response.ok) {
         setToken(data.data.token);
-         console.log("token:", data.data.token)
+        console.log("token:", data.data.token)
         setStep("signupOtp");
       } else {
         setError(data.message || "Registration failed");
@@ -78,7 +78,7 @@ const Login = () => {
   const verifySignupOtp = async () => {
     setLoading(true);
     setError("");
-    
+
     try {
       const otpString = otp.join('');
       const response = await fetch('https://social-media-nty4.onrender.com/api/verify-otp', {
@@ -92,9 +92,9 @@ const Login = () => {
         })
       });
       // console.log(token, otp)
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
         setStep("login");
         alert("Registration successful! Please login.");
@@ -112,10 +112,10 @@ const Login = () => {
   const handleLogin = async () => {
     setLoading(true);
     setError("");
-    
+
     try {
       const identifier = email.includes('@') ? { email } : { mobile: email };
-      
+
       const response = await fetch('https://social-media-nty4.onrender.com/api/login', {
         method: 'POST',
         headers: {
@@ -123,9 +123,9 @@ const Login = () => {
         },
         body: JSON.stringify(identifier)
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
         setUserId(data.data.userId);
         setToken(data.data.token);
@@ -144,7 +144,7 @@ const Login = () => {
   const verifyLoginOtp = async () => {
     setLoading(true);
     setError("");
-    
+
     try {
       const otpString = otp.join('');
       const response = await fetch('https://social-media-nty4.onrender.com/api/verify-login-otp', {
@@ -160,13 +160,20 @@ const Login = () => {
       });
       // console.log( otp, "token at verify:", token, "userId:", userId)
       const data = await response.json();
-      
+      console.log(data);
+
       if (response.ok) {
-        sessionStorage.setItem('authToken', data.token);
+        // Store token separately (optional, for quick access)
+        sessionStorage.setItem("authToken", data.data.token);
+
+        // Store full response data (must be stringified)
+        sessionStorage.setItem("userData", JSON.stringify(data.data));
+
         navigate("/home");
       } else {
         setError(data.message || "OTP verification failed");
       }
+
     } catch (error) {
       setError("Network error. Please try again.");
     } finally {
@@ -262,7 +269,7 @@ const Login = () => {
                     />
                   </div>
                   <div className="mb-4">
-                    <select 
+                    <select
                       className="form-select"
                       value={gender}
                       onChange={(e) => setGender(e.target.value)}

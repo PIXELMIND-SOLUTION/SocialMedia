@@ -26,6 +26,9 @@ const CreatePost = () => {
 
   const fileInputRef = useRef(null);
 
+  const currentUserId = JSON.parse(sessionStorage.getItem("userData"));
+  const userId = currentUserId.userId;
+
   const balloonImages = [
     'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=150&h=150&fit=crop',
     'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=150&h=150&fit=crop',
@@ -127,7 +130,7 @@ const CreatePost = () => {
   const handlePostSubmit = async () => {
     try {
       const formData = new FormData();
-      formData.append('userId', '68bc03a1aff2b0d7a66aedd1'); 
+      formData.append('userId', userId); 
       formData.append('description', postText);
 
       // Apply filters to all images before uploading
@@ -140,7 +143,7 @@ const CreatePost = () => {
       });
 
       const res = await axios.post(
-        'https://social-media-nty4.onrender.com/api/post',
+        'https://social-media-nty4.onrender.com/api/posts',
         formData,
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );
