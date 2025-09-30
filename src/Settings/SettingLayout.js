@@ -126,7 +126,7 @@ const SettingsLayout = ({ children, activeSection, setActiveSection }) => {
         <div style={styles.content}>
           {children}
           
-          <div style={styles.actionButtons}>
+          {/* <div style={styles.actionButtons}>
             <div style={styles.buttonGroup}>
               <button
                 style={{
@@ -145,7 +145,7 @@ const SettingsLayout = ({ children, activeSection, setActiveSection }) => {
                 Save
               </button>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

@@ -13,6 +13,10 @@ const Settings = () => {
   const [activeSection, setActiveSection] = useState("editProfile");
   const [loading, setLoading] = useState(true);
 
+  // Get logged-in user from session
+  const storedUser = JSON.parse(sessionStorage.getItem("userData"));
+  const userId = storedUser?.userId;
+
   // Profile Data
   const [profileData, setProfileData] = useState({
     firstName: "",
@@ -79,23 +83,26 @@ const Settings = () => {
     },
   ]);
 
-  const PROFILE_API = "https://social-media-nty4.onrender.com/api/profile/68bc03a1aff2b0d7a66aedd1";
+  const GET_PROFILE_API = `https://social-media-nty4.onrender.com/api/profiles/${userId}`;
+  const UPDATE_PROFILE_API = `https://social-media-nty4.onrender.com/api/Profile`;
 
   // Fetch profile on mount
   useEffect(() => {
+    if (!userId) return;
+
     const fetchProfile = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(PROFILE_API);
+        const res = await axios.get(GET_PROFILE_API);
         if (res.data.success) {
           const profile = res.data.data.profile;
           setProfileData({
-            firstName: profile.firstName,
-            lastName: profile.lastName,
-            username: profile.username,
-            about: profile.about,
-            website: profile.website,
-            image: profile.image,
+            firstName: profile.firstName || "",
+            lastName: profile.lastName || "",
+            username: profile.username || "",
+            about: profile.about || "",
+            website: profile.website || "",
+            image: profile.image || "",
           });
 
           setAccountData((prev) => ({
@@ -112,12 +119,16 @@ const Settings = () => {
     };
 
     fetchProfile();
-  }, []);
+  }, [userId]);
 
   // Handlers
   const handleProfileChange = (e) => {
-    const { name, value } = e.target;
-    setProfileData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, files } = e.target;
+    if (name === "image" && files?.length > 0) {
+      setProfileData((prev) => ({ ...prev, image: files[0] }));
+    } else {
+      setProfileData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleAccountChange = (e) => {
@@ -143,15 +154,18 @@ const Settings = () => {
   // Save profile updates
   const handleSaveProfile = async () => {
     try {
-      const payload = {
-        profile: profileData,
-        account: accountData,
-        visibility: visibilityData,
-        social: socialData,
-        notifications: notificationData,
-      };
+      const formData = new FormData();
+      formData.append("userId", userId);
+      formData.append("about", profileData.about || "");
+      formData.append("website", profileData.website || "");
+      if (profileData.image && typeof profileData.image !== "string") {
+        formData.append("image", profileData.image); // only append if it's a File
+      }
 
-      const res = await axios.post(PROFILE_API, payload);
+      const res = await axios.post(UPDATE_PROFILE_API, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
       if (res.data.success) {
         Swal.fire("Success", "Profile updated successfully ✅", "success");
       } else {

@@ -20,7 +20,7 @@ const CreatePost = () => {
   // Image adjustments
   const [brightness, setBrightness] = useState(50);
   const [contrast, setContrast] = useState(50);
-  const [fade, setFade] = useState(0);
+  const [fade, setFade] = useState(50);
   const [saturation, setSaturation] = useState(50);
   const [temperature, setTemperature] = useState(50);
 
