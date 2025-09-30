@@ -74,7 +74,7 @@ const Settings = () => {
     },
   });
 
-  // Blocked Accounts
+  // Blocked Accounts (dummy for now)
   const [blockedAccounts] = useState([
     {
       name: "Manoj kumar",
@@ -83,19 +83,30 @@ const Settings = () => {
     },
   ]);
 
+  // APIs
   const GET_PROFILE_API = `https://social-media-nty4.onrender.com/api/profiles/${userId}`;
   const UPDATE_PROFILE_API = `https://social-media-nty4.onrender.com/api/Profile`;
 
-  // Fetch profile on mount
+  const PERSONAL_INFO_API = `https://social-media-nty4.onrender.com/api/personal-info`;
+  const GET_PERSONAL_INFO_API = `https://social-media-nty4.onrender.com/api/personal-info/${userId}`;
+  const DELETE_PERSONAL_INFO_API = `https://social-media-nty4.onrender.com/api/personal-info/${userId}`;
+
+  const DEACTIVATE_API = `https://social-media-nty4.onrender.com/api/deactivate`;
+  const REACTIVATE_API = `https://social-media-nty4.onrender.com/api/reactivate`;
+  const DELETE_ACCOUNT_API = `https://social-media-nty4.onrender.com/api/delete-account`;
+
+  // Fetch profile + personal info on mount
   useEffect(() => {
     if (!userId) return;
 
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(GET_PROFILE_API);
-        if (res.data.success) {
-          const profile = res.data.data.profile;
+
+        // Fetch profile
+        const profileRes = await axios.get(GET_PROFILE_API);
+        if (profileRes.data.success) {
+          const profile = profileRes.data.data.profile;
           setProfileData({
             firstName: profile.firstName || "",
             lastName: profile.lastName || "",
@@ -104,21 +115,33 @@ const Settings = () => {
             website: profile.website || "",
             image: profile.image || "",
           });
-
           setAccountData((prev) => ({
             ...prev,
-            email: res.data.data.email || prev.email,
+            email: profileRes.data.data.email || prev.email,
+          }));
+        }
+
+        // Fetch personal info
+        const personalRes = await axios.get(GET_PERSONAL_INFO_API);
+        if (personalRes.data.success) {
+          const info = personalRes.data.data;
+          setAccountData((prev) => ({
+            ...prev,
+            birthdate: info.birthdate || "",
+            gender: info.gender || "",
+            country: info.country || "",
+            language: info.language || "",
           }));
         }
       } catch (err) {
-        console.error("Error fetching profile:", err);
-        Swal.fire("Error", "Failed to fetch profile", "error");
+        console.error("Error fetching settings:", err);
+        Swal.fire("Error", "Failed to load settings", "error");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProfile();
+    fetchData();
   }, [userId]);
 
   // Handlers
@@ -151,29 +174,81 @@ const Settings = () => {
     }));
   };
 
-  // Save profile updates
+  // Save Profile + Personal Info
   const handleSaveProfile = async () => {
     try {
+      // Profile API (form-data for image)
       const formData = new FormData();
       formData.append("userId", userId);
       formData.append("about", profileData.about || "");
       formData.append("website", profileData.website || "");
       if (profileData.image && typeof profileData.image !== "string") {
-        formData.append("image", profileData.image); // only append if it's a File
+        formData.append("image", profileData.image);
       }
-
-      const res = await axios.post(UPDATE_PROFILE_API, formData, {
+      await axios.post(UPDATE_PROFILE_API, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      if (res.data.success) {
-        Swal.fire("Success", "Profile updated successfully ✅", "success");
-      } else {
-        Swal.fire("Error", "Failed to update profile", "error");
-      }
+      // Personal Info API
+      const personalPayload = {
+        userId,
+        birthdate: accountData.birthdate,
+        gender: accountData.gender,
+        country: accountData.country,
+        language: accountData.language,
+      };
+      await axios.post(PERSONAL_INFO_API, personalPayload);
+
+      Swal.fire("Success", "Settings updated successfully ✅", "success");
     } catch (err) {
       console.error(err);
-      Swal.fire("Error", "Something went wrong", "error");
+      Swal.fire("Error", "Failed to update settings", "error");
+    }
+  };
+
+  // Account Actions
+  const handleDeactivate = async () => {
+    try {
+      await axios.post(DEACTIVATE_API, { userId });
+      Swal.fire("Deactivated", "Account has been deactivated", "success");
+    } catch (err) {
+      Swal.fire("Error", "Failed to deactivate account", "error");
+    }
+  };
+
+  const handleReactivate = async () => {
+    try {
+      await axios.post(REACTIVATE_API, { userId });
+      Swal.fire("Reactivated", "Account has been reactivated", "success");
+    } catch (err) {
+      Swal.fire("Error", "Failed to reactivate account", "error");
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      await axios.delete(DELETE_ACCOUNT_API, { userId });
+      Swal.fire("Deleted", "Your account has been permanently deleted", "success");
+      sessionStorage.clear();
+      window.location.href = "/"; // redirect to home/login
+    } catch (err) {
+      Swal.fire("Error", "Failed to delete account", "error");
+    }
+  };
+
+  const handleDeletePersonalInfo = async () => {
+    try {
+      await axios.delete(DELETE_PERSONAL_INFO_API);
+      Swal.fire("Deleted", "Personal info removed successfully", "success");
+      setAccountData((prev) => ({
+        ...prev,
+        birthdate: "",
+        gender: "",
+        country: "",
+        language: "",
+      }));
+    } catch (err) {
+      Swal.fire("Error", "Failed to delete personal info", "error");
     }
   };
 
@@ -184,7 +259,16 @@ const Settings = () => {
       case "editProfile":
         return <EditProfile profileData={profileData} handleProfileChange={handleProfileChange} />;
       case "accountManagement":
-        return <AccountManagement accountData={accountData} handleAccountChange={handleAccountChange} />;
+        return (
+          <AccountManagement
+            accountData={accountData}
+            handleAccountChange={handleAccountChange}
+            onDeactivate={handleDeactivate}
+            onReactivate={handleReactivate}
+            onDeleteAccount={handleDeleteAccount}
+            onDeletePersonalInfo={handleDeletePersonalInfo}
+          />
+        );
       case "profileVisibility":
         return <ProfileVisibility visibilityData={visibilityData} handleVisibilityChange={handleVisibilityChange} />;
       case "socialPermissions":

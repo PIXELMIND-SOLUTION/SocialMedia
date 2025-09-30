@@ -15,11 +15,24 @@ const EditProfile = ({ profileData, handleProfileChange, handleImageChange, isDe
   return (
     <div>
       <h4 style={{ marginBottom: "1.5rem", fontWeight: "600", color: "#495057", fontSize: "1.25rem" }}>Edit profile</h4>
-      
+
       <div style={styles.profilePhotoSection}>
         <div style={styles.profileAvatar}>
-          {profileData.image ? <img src={profileData.image} alt="Profile" style={styles.profileImg} /> : "P"}
+          {profileData.image ? (
+            <img
+              src={
+                typeof profileData.image === "string"
+                  ? profileData.image // backend URL
+                  : URL.createObjectURL(profileData.image) // file preview
+              }
+              alt="Profile"
+              style={styles.profileImg}
+            />
+          ) : (
+            "P"
+          )}
         </div>
+
         <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: "none" }} id="profileImageInput" />
         <label htmlFor="profileImageInput" style={styles.button}>Change profile photo</label>
       </div>
