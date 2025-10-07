@@ -1,3 +1,4 @@
+// DownloadModal.js
 import React from "react";
 import PropTypes from "prop-types";
 
@@ -24,7 +25,6 @@ const DownloadModal = ({ show, onClose, balance, cost, onConfirm, image }) => {
           maxWidth: "95%",
         }}
       >
-        {/* Header */}
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h5 className="mb-0 fw-bold">Download</h5>
           <button
@@ -35,12 +35,11 @@ const DownloadModal = ({ show, onClose, balance, cost, onConfirm, image }) => {
           </button>
         </div>
 
-        {/* Image Preview */}
         {image && (
           <div className="mb-3">
             <img
-              src={image.url}
-              alt={image.title}
+              src={image.media?.[0]?.url?.trim()}
+              alt={image.description || "Post"}
               style={{
                 maxWidth: "100%",
                 maxHeight: "180px",
@@ -50,11 +49,10 @@ const DownloadModal = ({ show, onClose, balance, cost, onConfirm, image }) => {
                 padding: "4px",
               }}
             />
-            <p className="mt-2 text-muted small">{image.title}</p>
+            <p className="mt-2 text-muted small">{image.description || "Post image"}</p>
           </div>
         )}
 
-        {/* Balance & Cost Together */}
         <div
           className="d-flex flex-column align-items-center justify-content-center mb-3 p-3"
           style={{
@@ -84,7 +82,6 @@ const DownloadModal = ({ show, onClose, balance, cost, onConfirm, image }) => {
           </div>
         </div>
 
-        {/* Confirm Button */}
         <button
           className={`btn w-100 rounded-pill ${
             hasEnough ? "btn-warning text-white" : "btn-secondary"

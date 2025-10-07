@@ -18,3 +18,13 @@
   border: none;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
+
+/* Works on most browsers */
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer and Edge */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}

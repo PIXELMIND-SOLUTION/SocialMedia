@@ -1,230 +1,251 @@
-import React, { useState } from "react";
+// ImageDetail.js
+import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 
-const ImageDetail = ({
-  image,
-  onBack,
-  onOpenGalleria,
-  currentUserId, // Pass logged-in userId from parent
-}) => {
+const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
   const navigate = useNavigate();
   const [likes, setLikes] = useState(image.likes || []);
   const [comments, setComments] = useState(image.comments || []);
+  const [saves, setSaves] = useState(image.saves || []);
   const [newComment, setNewComment] = useState("");
   const [loadingLike, setLoadingLike] = useState(false);
   const [loadingComment, setLoadingComment] = useState(false);
+  const [loadingSave, setLoadingSave] = useState(false);
 
-  console.log(comments)
+  const storedUser = JSON.parse(sessionStorage.getItem("userData"));
+  const userId = storedUser?.userId;
 
-  if (!image) return null;
+  useEffect(() => {
+    setLikes(image.likes || []);
+    setComments(image.comments || []);
+    setSaves(image.saves || []);
+  }, [image]);
 
-  // --- LIKE HANDLER ---
   const handleLike = async () => {
+    if (!currentUserId) return alert("You must be logged in.");
     try {
       setLoadingLike(true);
-      const response = await fetch(
-        "https://social-media-nty4.onrender.com/api/posts/like",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            postId: image._id,
-            userId: currentUserId,
-            postOwnerId: image.userId?._id,
-          }),
-        }
-      );
-
-      const data = await response.json();
-      if (data.success) {
-        setLikes(data.likes || []); // Update likes array
-      } else {
-        console.error(data.message);
-      }
-    } catch (error) {
-      console.error("Error toggling like:", error);
+      const res = await fetch("https://social-media-nty4.onrender.com/api/posts/like", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          postId: image._id,
+          userId: currentUserId,
+          postOwnerId: image.userId?._id
+        }),
+      });
+      const data = await res.json();
+      if (data.success) setLikes(data.likes || []);
+      else alert(data.message || "Failed to like.");
+    } catch (err) {
+      alert("Network error.");
     } finally {
       setLoadingLike(false);
     }
   };
 
-  // --- COMMENT HANDLER ---
+  const handleSave = async () => {
+    if (!currentUserId) return alert("You must be logged in.");
+    try {
+      setLoadingSave(true);
+      const res = await fetch("https://social-media-nty4.onrender.com/api/posts/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          postId: image._id,
+          userId: currentUserId,
+          postOwnerId: image.userId?._id
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSaves(data.saves || []);
+      } else {
+        alert(data.message || "Failed to save.");
+      }
+    } catch (err) {
+      alert("Network error.");
+    } finally {
+      setLoadingSave(false);
+    }
+  };
+
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
-    if (!newComment.trim()) return;
-
+    if (!newComment.trim() || !currentUserId) return;
     try {
       setLoadingComment(true);
-      const response = await fetch(
-        "https://social-media-nty4.onrender.com/api/posts/comment",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            postId: image._id,
-            userId: currentUserId,
-            text: newComment,
-          }),
-        }
-      );
-
-      const data = await response.json();
+      const res = await fetch("https://social-media-nty4.onrender.com/api/posts/comment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          postId: image._id,
+          userId: currentUserId,
+          text: newComment
+        }),
+      });
+      const data = await res.json();
       if (data.success) {
-        setComments((prev) => [...prev, data.data]); // Append new comment
+        setComments(prev => [...prev, data.data]);
         setNewComment("");
       } else {
-        console.error(data.message);
+        alert(data.message || "Failed to comment.");
       }
-    } catch (error) {
-      console.error("Error adding comment:", error);
+    } catch (err) {
+      alert("Network error.");
     } finally {
       setLoadingComment(false);
     }
   };
 
-  // --- DOWNLOAD HANDLER ---
   const handleDownload = () => {
-    if (!image.media?.[0]?.url) return;
-    const link = document.createElement("a");
-    link.href = image.media[0].url;
-    link.download = "post-image.jpg";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const url = image.media?.[0]?.url?.trim();
+    if (!url) return;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `post-${image._id}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
+  const handleProfile = (id) => {
+    if (id === userId) {
+      navigate('/myprofile');
+    } else {
+      navigate(`/userprofile/${id}`);
+    }
+  }
+
+  if (!image) return null;
+  const isLiked = likes.includes(currentUserId);
+  const isSaved = saves.includes(currentUserId);
+
   return (
-    <div className="col-md-4">
-      <div
-        className="bg-light p-4 sticky-top"
-        style={{
-          top: "20px",
-          borderRadius: "15px",
-          maxHeight: "90vh",
-          overflowY: "auto",
-        }}
-      >
-        {/* Header */}
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <h4 className="mb-0">Details</h4>
-          <button
-            className="btn btn-sm btn-dark rounded-circle"
-            onClick={onBack}
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Image Preview */}
-        <div
-          className="mb-4 position-relative"
-          style={{
-            overflow: "hidden",
-            height: "300px",
-            cursor: "pointer",
-          }}
-          onClick={onOpenGalleria}
-        >
-          <img
-            src={image.media?.[0]?.url}
-            alt={image.description || "Post Image"}
-            className="rounded w-100 h-100"
-            style={{ objectFit: "contain" }}
-          />
-        </div>
-
-        {/* Description */}
-        <h5>{image.description}</h5>
-
-        {/* Likes + Saves */}
-        <div className="d-flex gap-3 mb-3">
-          <button
-            className="btn btn-link p-0"
-            onClick={handleLike}
-            disabled={loadingLike}
-          >
-            <i
-              className={`bi me-1 ${
-                likes.includes(currentUserId)
-                  ? "bi-heart-fill text-danger"
-                  : "bi-heart"
-              }`}
-            ></i>
-            {image.likes.length} Likes
-          </button>
-          <span>
-            <i className="bi bi-bookmark me-1"></i>{" "}
-            {image.saves?.length || 0} Saves
-          </span>
-        </div>
-
-        {/* User Info */}
-        <div className="d-flex align-items-center justify-content-between mb-4">
-          <div
-            className="d-flex align-items-center"
-            style={{ cursor: "pointer" }}
-            onClick={() => navigate(`/userprofile/${image.userId?._id}`)}
-          >
-            <img
-              src={image.userId?.profile?.image || "/default-avatar.png"}
-              alt={image.userId?.fullName || "User"}
-              className="rounded-circle me-3"
-              style={{ width: "40px", height: "40px", objectFit: "cover" }}
-            />
-            <div>
-              <h6 className="mb-0">{image.userId?.fullName || "Anonymous"}</h6>
-            </div>
-          </div>
-          <button className="btn btn-sm btn-outline-primary">+ Follow</button>
-        </div>
-
-        <hr className="my-4" />
-
-        {/* Comments */}
-        <div className="mb-4">
-          <h6>Comments ({image.comments.length})</h6>
-          <div className="mt-3">
-            {image.comments.map((comment, index) => (
-              <div key={index} className="mb-2 p-2 glass-effect rounded">
-                <strong>
-                  {comment.userId?.fullName || comment.user || "Anonymous"}
-                </strong>
-                : {comment.text}
-              </div>
-            ))}
-          </div>
-
-          {/* Add Comment */}
-          <form onSubmit={handleCommentSubmit} className="mt-3">
-            <div className="input-group">
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Add a comment..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                disabled={loadingComment}
-              />
-              <button
-                className="btn btn-primary"
-                type="submit"
-                disabled={loadingComment}
-              >
-                {loadingComment ? "Posting..." : "Post"}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Download */}
+    <div className="image-detail-container d-flex flex-column">
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h5 className="mb-0">Post Details</h5>
         <button
-          className="btn btn-primary w-100 mt-3 rounded-pill"
-          onClick={handleDownload}
+          className="btn btn-sm btn-outline-secondary rounded-circle"
+          onClick={onBack}
         >
-          Download Image
+          ✕
         </button>
       </div>
+
+      <div
+        className="rounded mb-3 overflow-hidden"
+        style={{ height: '250px', cursor: 'pointer' }}
+        onClick={onOpenGalleria}
+      >
+        <img
+          src={image.media?.[0]?.url?.trim()}
+          alt={image.description || "Post"}
+          className="w-100 h-100"
+          style={{ objectFit: "contain" }}
+        />
+      </div>
+
+      <p className="fw-medium mb-3">{image.description || "No description"}</p>
+
+      <div className="d-flex gap-3 mb-3">
+        <button
+          className="btn btn-sm d-flex align-items-center gap-1"
+          onClick={handleLike}
+          disabled={loadingLike}
+        >
+          <i className={`bi ${isLiked ? "bi-heart-fill text-danger" : "bi-heart"}`}></i>
+          {likes.length} Likes
+        </button>
+        <button
+          className="btn btn-sm d-flex align-items-center gap-1"
+          onClick={handleSave}
+          disabled={loadingSave}
+        >
+          <i className={`bi ${isSaved ? "bi-bookmark-fill text-primary" : "bi-bookmark"}`}></i>
+          {saves.length} Saves
+        </button>
+      </div>
+
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <div
+          className="d-flex align-items-center gap-2"
+          onClick={() => handleProfile(image.userId?._id)}
+          style={{ cursor: "pointer" }}
+        >
+          <img
+            src={image.userId?.profile?.image?.trim() || "/default-avatar.png"}
+            alt={image.userId?.fullName}
+            className="rounded-circle"
+            width="36"
+            height="36"
+            style={{ objectFit: "cover" }}
+          />
+          <span className="fw-bold">{image.userId?.fullName || "Anonymous"}</span>
+        </div>
+        <button className="btn btn-sm btn-outline-primary">Follow</button>
+      </div>
+
+      <hr className="my-3" />
+
+      <div className="flex-grow-1 overflow-auto mb-3" style={{ maxHeight: '300px' }}>
+        <h6 className="mb-2">Comments ({comments.length})</h6>
+        <div>
+          {comments.map(comment => (
+            <div key={comment._id} className="mb-2 p-2 bg-light rounded">
+              <div className="fw-bold">{comment.userId?.fullName || "Anonymous"}</div>
+              <div>{comment.text}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <form onSubmit={handleCommentSubmit} className="mt-auto">
+        <div className="input-group">
+          <input
+            type="text"
+            className="form-control form-control-sm"
+            placeholder="Add a comment..."
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            disabled={loadingComment}
+          />
+          <button
+            className="btn btn-primary btn-sm"
+            type="submit"
+            disabled={!newComment.trim() || loadingComment}
+          >
+            Post
+          </button>
+        </div>
+      </form>
+
+      <button
+        className="btn btn-primary w-100 mt-3 rounded-pill py-2"
+        onClick={handleDownload}
+      >
+        Download Image
+      </button>
+
+      <style jsx>{`
+        .image-detail-container {
+          width: 100%;
+          max-width: 100%;
+          padding: 0;
+        }
+
+        @media (min-width: 768px) {
+          .image-detail-container {
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+            max-height: calc(100vh - 40px);
+            overflow: hidden;
+            padding-right: 0;
+          }
+        }
+      `}</style>
     </div>
   );
 };
@@ -233,7 +254,7 @@ ImageDetail.propTypes = {
   image: PropTypes.object.isRequired,
   onBack: PropTypes.func.isRequired,
   onOpenGalleria: PropTypes.func.isRequired,
-  currentUserId: PropTypes.string.isRequired,
+  currentUserId: PropTypes.string,
 };
 
 export default ImageDetail;

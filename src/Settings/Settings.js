@@ -27,7 +27,7 @@ const Settings = () => {
     image: "",
   });
 
-  // Account Management Data
+  // Account Management
   const [accountData, setAccountData] = useState({
     email: "",
     password: "",
@@ -39,8 +39,8 @@ const Settings = () => {
 
   // Profile Visibility
   const [visibilityData, setVisibilityData] = useState({
-    privateProfile: true,
-    searchPrivacy: true,
+    privateProfile: false,
+    searchPrivacy: false,
   });
 
   // Social Permissions
@@ -74,32 +74,29 @@ const Settings = () => {
     },
   });
 
-  // Blocked Accounts (dummy for now)
   const [blockedAccounts] = useState([
-    {
-      name: "Manoj kumar",
-      email: "Manojkumar@gmail.com",
-      avatar: "M",
-    },
+    { name: "Manoj kumar", email: "Manojkumar@gmail.com", avatar: "M" },
   ]);
 
   // APIs
   const GET_PROFILE_API = `https://social-media-nty4.onrender.com/api/profiles/${userId}`;
   const UPDATE_PROFILE_API = `https://social-media-nty4.onrender.com/api/Profile`;
-
   const PERSONAL_INFO_API = `https://social-media-nty4.onrender.com/api/personal-info`;
   const GET_PERSONAL_INFO_API = `https://social-media-nty4.onrender.com/api/personal-info/${userId}`;
   const DELETE_PERSONAL_INFO_API = `https://social-media-nty4.onrender.com/api/personal-info/${userId}`;
+  const DEACTIVATE_API = `https://social-media-nty4.onrender.com/api/account/deactivate`;
+  const REACTIVATE_API = `https://social-media-nty4.onrender.com/api/account/reactivate`;
+  const DELETE_ACCOUNT_API = `https://social-media-nty4.onrender.com/api/account/delete-account`;
 
-  const DEACTIVATE_API = `https://social-media-nty4.onrender.com/api/deactivate`;
-  const REACTIVATE_API = `https://social-media-nty4.onrender.com/api/reactivate`;
-  const DELETE_ACCOUNT_API = `https://social-media-nty4.onrender.com/api/delete-account`;
+  // ✅ Privacy APIs
+  const PRIVACY_UPDATE_API = `https://social-media-nty4.onrender.com/api/privacy`;
+  const GET_PRIVACY_API = `https://social-media-nty4.onrender.com/api/profile-visibility/${userId}/${userId}`;
 
-  // Fetch profile + personal info on mount
+  // Fetch all profile data on mount
   useEffect(() => {
     if (!userId) return;
 
-    const fetchData = async () => {
+    const fetchAllData = async () => {
       try {
         setLoading(true);
 
@@ -133,6 +130,16 @@ const Settings = () => {
             language: info.language || "",
           }));
         }
+
+        // ✅ Fetch privacy settings
+        const privacyRes = await axios.get(GET_PRIVACY_API);
+        if (privacyRes.data.success && privacyRes.data.data.privacy) {
+          const { profileVisibility, searchEngineIndexing } = privacyRes.data.data.privacy;
+          setVisibilityData({
+            privateProfile: profileVisibility === "private",
+            searchPrivacy: !searchEngineIndexing,
+          });
+        }
       } catch (err) {
         console.error("Error fetching settings:", err);
         Swal.fire("Error", "Failed to load settings", "error");
@@ -141,7 +148,7 @@ const Settings = () => {
       }
     };
 
-    fetchData();
+    fetchAllData();
   }, [userId]);
 
   // Handlers
@@ -159,25 +166,30 @@ const Settings = () => {
     setAccountData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleVisibilityChange = (field) => {
-    setVisibilityData((prev) => ({ ...prev, [field]: !prev[field] }));
+  // ✅ Handle privacy change (API integration)
+  const handleVisibilityChange = async (field) => {
+    const newState = {
+      ...visibilityData,
+      [field]: !visibilityData[field],
+    };
+    setVisibilityData(newState);
+
+    try {
+      const payload = {
+        userId,
+        profileVisibility: newState.privateProfile ? "private" : "public",
+        searchEngineIndexing: newState.searchPrivacy ? "off" : "on",
+      };
+      await axios.post(PRIVACY_UPDATE_API, payload);
+      Swal.fire("Updated", "Privacy settings updated successfully ✅", "success");
+    } catch (err) {
+      console.error(err);
+      Swal.fire("Error", "Failed to update privacy settings", "error");
+    }
   };
 
-  const handleSocialChange = (field, value = null) => {
-    setSocialData((prev) => ({ ...prev, [field]: value !== null ? value : !prev[field] }));
-  };
-
-  const handleNotificationChange = (category, field) => {
-    setNotificationData((prev) => ({
-      ...prev,
-      [category]: { ...prev[category], [field]: !prev[category][field] },
-    }));
-  };
-
-  // Save Profile + Personal Info
   const handleSaveProfile = async () => {
     try {
-      // Profile API (form-data for image)
       const formData = new FormData();
       formData.append("userId", userId);
       formData.append("about", profileData.about || "");
@@ -189,7 +201,6 @@ const Settings = () => {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      // Personal Info API
       const personalPayload = {
         userId,
         birthdate: accountData.birthdate,
@@ -201,54 +212,7 @@ const Settings = () => {
 
       Swal.fire("Success", "Settings updated successfully ✅", "success");
     } catch (err) {
-      console.error(err);
       Swal.fire("Error", "Failed to update settings", "error");
-    }
-  };
-
-  // Account Actions
-  const handleDeactivate = async () => {
-    try {
-      await axios.post(DEACTIVATE_API, { userId });
-      Swal.fire("Deactivated", "Account has been deactivated", "success");
-    } catch (err) {
-      Swal.fire("Error", "Failed to deactivate account", "error");
-    }
-  };
-
-  const handleReactivate = async () => {
-    try {
-      await axios.post(REACTIVATE_API, { userId });
-      Swal.fire("Reactivated", "Account has been reactivated", "success");
-    } catch (err) {
-      Swal.fire("Error", "Failed to reactivate account", "error");
-    }
-  };
-
-  const handleDeleteAccount = async () => {
-    try {
-      await axios.delete(DELETE_ACCOUNT_API, { userId });
-      Swal.fire("Deleted", "Your account has been permanently deleted", "success");
-      sessionStorage.clear();
-      window.location.href = "/"; // redirect to home/login
-    } catch (err) {
-      Swal.fire("Error", "Failed to delete account", "error");
-    }
-  };
-
-  const handleDeletePersonalInfo = async () => {
-    try {
-      await axios.delete(DELETE_PERSONAL_INFO_API);
-      Swal.fire("Deleted", "Personal info removed successfully", "success");
-      setAccountData((prev) => ({
-        ...prev,
-        birthdate: "",
-        gender: "",
-        country: "",
-        language: "",
-      }));
-    } catch (err) {
-      Swal.fire("Error", "Failed to delete personal info", "error");
     }
   };
 
@@ -263,22 +227,27 @@ const Settings = () => {
           <AccountManagement
             accountData={accountData}
             handleAccountChange={handleAccountChange}
-            onDeactivate={handleDeactivate}
-            onReactivate={handleReactivate}
-            onDeleteAccount={handleDeleteAccount}
-            onDeletePersonalInfo={handleDeletePersonalInfo}
           />
         );
       case "profileVisibility":
-        return <ProfileVisibility visibilityData={visibilityData} handleVisibilityChange={handleVisibilityChange} />;
+        return (
+          <ProfileVisibility
+            visibilityData={visibilityData}
+            handleVisibilityChange={handleVisibilityChange}
+          />
+        );
       case "socialPermissions":
-        return <SocialPermissions socialData={socialData} handleSocialChange={handleSocialChange} />;
+        return <SocialPermissions socialData={socialData} />;
       case "notifications":
-        return <Notifications notificationData={notificationData} handleNotificationChange={handleNotificationChange} />;
+        return (
+          <Notifications
+            notificationData={notificationData}
+          />
+        );
       case "blockedAccounts":
         return <BlockedAccounts blockedAccounts={blockedAccounts} />;
       default:
-        return <EditProfile profileData={profileData} handleProfileChange={handleProfileChange} />;
+        return null;
     }
   };
 

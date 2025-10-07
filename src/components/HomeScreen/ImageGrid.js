@@ -1,16 +1,51 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 
-const ImageGrid = ({ images, onImageClick, selectedImage }) => {
+const ImageGrid = ({ image, images, onImageClick, selectedImage, currentUserId }) => {
+  const [saves, setSaves] = useState(image?.saves || []);
+  const [loadingSave, setLoadingSave] = useState(false);
+
+  useEffect(() => {
+      setSaves(image?.saves || []);
+    }, [image]);
+
+  const handleSave = async () => {
+    if (!currentUserId) return alert("You must be logged in.");
+    try {
+      setLoadingSave(true);
+      const res = await fetch("https://social-media-nty4.onrender.com/api/posts/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          postId: image._id,
+          userId: currentUserId,
+          postOwnerId: image?.userId?._id
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSaves(data.saves || []);
+      } else {
+        alert(data.message || "Failed to save.");
+      }
+    } catch (err) {
+      alert("Network error.");
+    } finally {
+      setLoadingSave(false);
+    }
+  };
+  const isSaved = saves.includes(currentUserId);
+
+
   return (
-    <div className={selectedImage ? "col-md-8 col-lg-8" : "col-12"}>
+    <div className={selectedImage ? "col-md-12 col-lg-12" : "col-12"}>
       <div className="row">
         <div className="col-12">
           <div className={selectedImage ? "masonry1" : "masonry"}>
             {images.map((image, index) => (
               <div
                 key={index}
-                className="masonry-item mb-3 position-relative"
+                className="masonry-item mb-3 position-relative "
                 onClick={() => onImageClick(image)}
                 style={{ cursor: "pointer" }}
               >
@@ -26,8 +61,8 @@ const ImageGrid = ({ images, onImageClick, selectedImage }) => {
                 <div className="image-hover-overlay position-absolute top-0 start-0 w-100 h-100 d-flex flex-column justify-content-between p-3 opacity-0">
                   {/* Bookmark icon */}
                   <div className="d-flex justify-content-end">
-                    <button className="btn btn-light btn-sm rounded-circle">
-                      <i className="bi bi-bookmark"></i>
+                    <button className="btn btn-light btn-sm rounded-circle" onClick={handleSave} disabled={loadingSave}>
+                      <i className={`bi ${isSaved ? "bi-bookmark-fill text-primary" : "bi-bookmark"}`}></i>
                     </button>
                   </div>
 
