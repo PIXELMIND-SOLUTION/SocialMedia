@@ -13,7 +13,7 @@ const Settings = () => {
   const [activeSection, setActiveSection] = useState("editProfile");
   const [loading, setLoading] = useState(true);
 
-  // Get logged-in user from session
+  // Get logged-in user
   const storedUser = JSON.parse(sessionStorage.getItem("userData"));
   const userId = storedUser?.userId;
 
@@ -43,56 +43,34 @@ const Settings = () => {
     searchPrivacy: false,
   });
 
-  // Social Permissions
-  const [socialData, setSocialData] = useState({
-    mentions: "Anyone",
-    allowComments: true,
-    filterMyComments: true,
-    filterOthersComments: true,
-    autoplayVideos: true,
+  // ✅ Notification Preferences
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    posts: true,
+    follows: true,
+    likes: true,
+    comments: true,
+    followRequests: true,
+    followApprovals: true,
+    mentions: true,
   });
 
-  // Notifications
-  const [notificationData, setNotificationData] = useState({
-    friends: {
-      comments: true,
-      mentions: true,
-      reminders: true,
-      commentsWithPhotos: true,
-    },
-    activityFromFollowed: {
-      follows: true,
-      saves: true,
-    },
-    activityFromCreators: {
-      newPosts: true,
-      saves: true,
-    },
-    browserNotifications: {
-      newPosts: true,
-      saves: true,
-    },
-  });
-
+  // Blocked Accounts (static)
   const [blockedAccounts] = useState([
     { name: "Manoj kumar", email: "Manojkumar@gmail.com", avatar: "M" },
   ]);
 
-  // APIs
-  const GET_PROFILE_API = `https://social-media-nty4.onrender.com/api/profiles/${userId}`;
-  const UPDATE_PROFILE_API = `https://social-media-nty4.onrender.com/api/Profile`;
-  const PERSONAL_INFO_API = `https://social-media-nty4.onrender.com/api/personal-info`;
-  const GET_PERSONAL_INFO_API = `https://social-media-nty4.onrender.com/api/personal-info/${userId}`;
-  const DELETE_PERSONAL_INFO_API = `https://social-media-nty4.onrender.com/api/personal-info/${userId}`;
-  const DEACTIVATE_API = `https://social-media-nty4.onrender.com/api/account/deactivate`;
-  const REACTIVATE_API = `https://social-media-nty4.onrender.com/api/account/reactivate`;
-  const DELETE_ACCOUNT_API = `https://social-media-nty4.onrender.com/api/account/delete-account`;
+  // API URLs
+  const BASE_URL = "https://social-media-nty4.onrender.com/api";
 
-  // ✅ Privacy APIs
-  const PRIVACY_UPDATE_API = `https://social-media-nty4.onrender.com/api/privacy`;
-  const GET_PRIVACY_API = `https://social-media-nty4.onrender.com/api/profile-visibility/${userId}/${userId}`;
+  const GET_PROFILE_API = `${BASE_URL}/profiles/${userId}`;
+  const UPDATE_PROFILE_API = `${BASE_URL}/Profile`;
+  const PERSONAL_INFO_API = `${BASE_URL}/personal-info`;
+  const GET_PERSONAL_INFO_API = `${BASE_URL}/personal-info/${userId}`;
+  const PRIVACY_UPDATE_API = `${BASE_URL}/privacy`;
+  const GET_PRIVACY_API = `${BASE_URL}/profile-visibility/${userId}/${userId}`;
+  const NOTIFICATION_PREF_API = `${BASE_URL}/preferences`;
 
-  // Fetch all profile data on mount
+  // Fetch all profile + preference data
   useEffect(() => {
     if (!userId) return;
 
@@ -100,7 +78,7 @@ const Settings = () => {
       try {
         setLoading(true);
 
-        // Fetch profile
+        // Profile
         const profileRes = await axios.get(GET_PROFILE_API);
         if (profileRes.data.success) {
           const profile = profileRes.data.data.profile;
@@ -118,7 +96,7 @@ const Settings = () => {
           }));
         }
 
-        // Fetch personal info
+        // Personal Info
         const personalRes = await axios.get(GET_PERSONAL_INFO_API);
         if (personalRes.data.success) {
           const info = personalRes.data.data;
@@ -131,7 +109,7 @@ const Settings = () => {
           }));
         }
 
-        // ✅ Fetch privacy settings
+        // Privacy
         const privacyRes = await axios.get(GET_PRIVACY_API);
         if (privacyRes.data.success && privacyRes.data.data.privacy) {
           const { profileVisibility, searchEngineIndexing } = privacyRes.data.data.privacy;
@@ -139,6 +117,12 @@ const Settings = () => {
             privateProfile: profileVisibility === "private",
             searchPrivacy: !searchEngineIndexing,
           });
+        }
+
+        // ✅ Notification Preferences
+        const prefRes = await axios.get(`${NOTIFICATION_PREF_API}/${userId}`);
+        if (prefRes.data.success && prefRes.data.data) {
+          setNotificationPrefs(prefRes.data.data);
         }
       } catch (err) {
         console.error("Error fetching settings:", err);
@@ -166,12 +150,9 @@ const Settings = () => {
     setAccountData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ✅ Handle privacy change (API integration)
+  // ✅ Privacy change handler
   const handleVisibilityChange = async (field) => {
-    const newState = {
-      ...visibilityData,
-      [field]: !visibilityData[field],
-    };
+    const newState = { ...visibilityData, [field]: !visibilityData[field] };
     setVisibilityData(newState);
 
     try {
@@ -188,6 +169,27 @@ const Settings = () => {
     }
   };
 
+  // ✅ Handle notification toggle
+  const handleNotificationChange = async (key) => {
+    const updatedPrefs = {
+      ...notificationPrefs,
+      [key]: !notificationPrefs[key],
+    };
+    setNotificationPrefs(updatedPrefs);
+
+    try {
+      await axios.put(NOTIFICATION_PREF_API, {
+        userId,
+        preferences: updatedPrefs,
+      });
+      Swal.fire("Updated", "Notification preferences saved ✅", "success");
+    } catch (err) {
+      console.error("Error updating notifications:", err);
+      Swal.fire("Error", "Failed to update notification preferences", "error");
+    }
+  };
+
+  // Save Profile and Personal Info
   const handleSaveProfile = async () => {
     try {
       const formData = new FormData();
@@ -210,7 +212,7 @@ const Settings = () => {
       };
       await axios.post(PERSONAL_INFO_API, personalPayload);
 
-      Swal.fire("Success", "Settings updated successfully ✅", "success");
+      Swal.fire("Success", "Profile updated successfully ✅", "success");
     } catch (err) {
       Swal.fire("Error", "Failed to update settings", "error");
     }
@@ -237,11 +239,12 @@ const Settings = () => {
           />
         );
       case "socialPermissions":
-        return <SocialPermissions socialData={socialData} />;
+        return <SocialPermissions />;
       case "notifications":
         return (
           <Notifications
-            notificationData={notificationData}
+            notificationPrefs={notificationPrefs}
+            handleNotificationChange={handleNotificationChange}
           />
         );
       case "blockedAccounts":
