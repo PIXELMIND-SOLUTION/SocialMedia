@@ -12,6 +12,7 @@ import {
   FaTimes,
   FaBars,
 } from 'react-icons/fa';
+import axios from 'axios';
 
 const Sidebar = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -26,6 +27,8 @@ const Sidebar = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+   
 
   const navItems = [
     { to: '/home', icon: <FaHome />, title: 'Home' },

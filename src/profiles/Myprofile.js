@@ -1,205 +1,331 @@
-import React, { useState } from "react";
-import {
-  Container,
-  Row,
-  Col,
-  Button,
-  Card,
-  Modal,
-  Image,
-} from "react-bootstrap";
-import "bootstrap/dist/css/bootstrap.min.css";
+import React, { useState, useEffect } from 'react';
+import { Grid, Bookmark, Film, Settings, MoreVertical, Info, MessageCircle, Heart } from 'lucide-react';
+import PostViewModal from './PostViewModal';
+import AboutModal from './AboutModal';
+import { useNavigate } from 'react-router-dom';
 
 const MyProfile = () => {
+  const [profile, setProfile] = useState(null);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('posts');
   const [showAbout, setShowAbout] = useState(false);
 
-  // Images array with metadata
-  const images = [
-    {
-      id: 1,
-      url: "/assets/images/a1.png",
-      title: "Tiger Graphic Design",
-      description: "Bold black and yellow tiger design for branding.",
-      stats: {
-        saves: 4,
-        likes: 1,
-        views: 125,
-        downloads: 32,
-      },
-      comments: [
-        {
-          user: "Naveen",
-          text: "Nice!",
-          avatar: "/assets/images/avatar1.png",
-          date: "2 days ago",
-        },
-        {
-          user: "Alex",
-          text: "Great colors!",
-          avatar: "/assets/images/avatar2.png",
-          date: "1 week ago",
-        },
-      ],
-      height: 300,
-      width: 400,
-      size: "1.2 MB",
-      format: "PNG",
-      tags: ["tiger", "graphic design", "branding", "yellow"],
-      createdDate: "2023-05-15",
-      location: "New York, USA",
-      license: "Royalty-free",
-      price: "$19.99",
-      rating: 4.5,
-      category: "Graphic Design",
-      colorPalette: ["#FFD700", "#000000", "#FFFFFF", "#808080"],
-    },
-    {
-      id: 2,
-      url: "/assets/images/a2.png",
-      title: "Girl on Scooter",
-      description: "Anime-style girl riding a scooter by the ocean.",
-      stats: {
-        saves: 8,
-        likes: 3,
-        views: 210,
-        downloads: 45,
-      },
-      comments: [
-        {
-          user: "Sarah",
-          text: "Beautiful colors!",
-          avatar: "/assets/images/avatar3.png",
-          date: "3 days ago",
-        },
-      ],
-      height: 400,
-      width: 600,
-      size: "2.1 MB",
-      format: "JPEG",
-      tags: ["anime", "scooter", "ocean", "girl"],
-      createdDate: "2023-06-20",
-      location: "Tokyo, Japan",
-      license: "Creative Commons",
-      price: "Free",
-      rating: 4.2,
-      category: "Illustration",
-      colorPalette: ["#00BFFF", "#FF69B4", "#FFFFFF", "#000000"],
-    },
-  ];
+  const navigate = useNavigate();
+
+  // Get logged-in user
+  const storedUser = JSON.parse(sessionStorage.getItem("userData"));
+  const userId = storedUser?.userId;
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`https://social-media-nty4.onrender.com/api/profiles/${userId}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setProfile(data.data);
+      } else {
+        setError('Failed to load profile');
+      }
+    } catch (err) {
+      setError('Error loading profile');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPostDetails = async (postId) => {
+    try {
+      const response = await fetch(`https://social-media-nty4.onrender.com/api/posts/${userId}/${postId}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setSelectedPost(data.data);
+      }
+    } catch (err) {
+      console.error('Error loading post:', err);
+    }
+  };
+
+  const handlePostClick = (post) => {
+    fetchPostDetails(post._id);
+  };
+
+  const handleLike = async (postId) => {
+    console.log('Like post:', postId);
+  };
+
+  const handleComment = async (postId, text) => {
+    console.log('Comment on post:', postId, text);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+      </div>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-500 text-lg">{error || 'Profile not found'}</p>
+          <button
+            onClick={fetchProfile}
+            className="mt-4 px-6 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const posts = activeTab === 'posts' ? profile.posts : profile.posts.filter(p => profile.savedPosts.includes(p._id));
 
   return (
-    <>
-      {/* Profile Header */}
-      <Container className="py-4">
-        <Row className="align-items-center text-center text-md-start">
-          <Col md="auto" className="mb-3 mb-md-0">
-            <div
-              style={{
-                width: "80px",
-                height: "80px",
-                backgroundColor: "#e6ccff",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "32px",
-                fontWeight: "bold",
-              }}
-            >
-              P
+    <div className="min-h-screen bg-white">
+      {/* Header - Mobile */}
+      <div className="lg:hidden sticky top-0 bg-white border-b border-gray-200 px-4 py-3 z-10 flex items-center justify-between">
+        <h1 className="text-xl font-semibold">{profile.profile.username}</h1>
+        <div className="flex items-center gap-4">
+          <Settings className="w-6 h-6 cursor-pointer"  onClick={() => navigate('/settings')}/>
+          {/* <MoreVertical className="w-6 h-6 cursor-pointer" /> */}
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 py-6 lg:py-10">
+        {/* Profile Header */}
+        <div className="mb-11">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6 lg:gap-20 mb-6">
+            {/* Profile Picture */}
+            <div className="flex-shrink-0 mx-auto lg:mx-0">
+              <div className="w-24 h-24 lg:w-40 lg:h-40 rounded-full overflow-hidden border-2 border-gray-200 shadow-sm">
+                {profile.profile.image ? (
+                  <img
+                    src={profile.profile.image}
+                    alt={profile.fullName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-4xl lg:text-6xl font-bold">
+                    {profile.profile.firstName?.[0] || 'U'}
+                  </div>
+                )}
+              </div>
             </div>
-          </Col>
-          <Col>
-            <h4 className="mb-1">Pixelmind sloution</h4>
-            <p className="mb-1 text-muted" style={{ fontSize: "14px" }}>
-              Pixelmindsolutions.com "Welcome to our future tech house, your
-              one-stop destination for cutting-edge digital solutions!"
-            </p>
-            <p className="mb-2" style={{ fontSize: "14px" }}>
-              <strong>875</strong> followers · <strong>5</strong> following
-            </p>
-            <div className="d-flex gap-2 justify-content-center justify-content-md-start">
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                onClick={() => setShowAbout(true)}
+
+            {/* Profile Info */}
+            <div className="flex-1 w-full">
+              {/* Username and Actions - Desktop */}
+              <div className="hidden lg:flex items-center gap-5 mb-6">
+                <h1 className="text-xl font-light">{profile.profile.username}</h1>
+                <button className="px-6 py-1.5 bg-gray-200 text-black text-sm font-semibold rounded-lg hover:bg-gray-300 transition-colors"
+                  onClick={() => navigate('/settings')}
+                >
+                  Edit Profile
+                </button>
+                <div className="flex justify-center items-center h-full">
+                  <button
+                    onClick={() => setShowAbout(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-black rounded-lg hover:bg-gray-300 transition"
+                  >
+                    <Info className="w-5 h-5" />
+                    About
+                  </button>
+                </div>
+                <Settings className="w-6 h-6 cursor-pointer text-gray-700 hover:text-black"  onClick={() => navigate('/settings')} />
+              </div>
+
+              {/* Mobile Username */}
+              <div className="lg:hidden text-center mb-4">
+                <h1 className="text-2xl font-light mb-2">{profile.profile.username}</h1>
+              </div>
+
+              {/* Stats */}
+              <div className="flex justify-center lg:justify-start gap-8 lg:gap-10 mb-5 text-base">
+                <div>
+                  <span className="font-semibold">{profile.posts.length}</span>
+                  <span className="text-gray-700 ml-1">posts</span>
+                </div>
+                <div className="cursor-pointer hover:text-gray-600">
+                  <span className="font-semibold">{profile.counts.followers}</span>
+                  <span className="text-gray-700 ml-1">followers</span>
+                </div>
+                <div className="cursor-pointer hover:text-gray-600">
+                  <span className="font-semibold">{profile.counts.following}</span>
+                  <span className="text-gray-700 ml-1">following</span>
+                </div>
+              </div>
+
+              {/* Bio - Desktop */}
+              <div className="hidden lg:block">
+                <h2 className="font-semibold text-sm">{profile.fullName}</h2>
+                {profile.profile.about && (
+                  <p className="text-sm mt-1 whitespace-pre-wrap leading-relaxed">{profile.profile.about}</p>
+                )}
+                {profile.profile.website && (
+                  <a
+                    href={profile.profile.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-900 font-semibold text-sm hover:underline inline-block mt-1"
+                  >
+                    {profile.profile.website}
+                  </a>
+                )}
+              </div>
+
+              {/* Mobile Action Buttons */}
+              <div className="flex gap-2 lg:hidden mt-4">
+                <button className="flex-1 px-4 py-2 bg-gray-200 text-black text-sm font-semibold rounded-lg hover:bg-gray-300">
+                  Edit Profile
+                </button>
+
+                <div className="flex justify-center items-center h-full">
+                  <button
+                    onClick={() => setShowAbout(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-black rounded-lg hover:bg-gray-300 transition"
+                  >
+                    <Info className="w-5 h-5" />
+                    About
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Bio */}
+          <div className="lg:hidden text-center px-4">
+            <h2 className="font-semibold text-sm">{profile.fullName}</h2>
+            {profile.profile.about && (
+              <p className="text-sm mt-1 whitespace-pre-wrap leading-relaxed">{profile.profile.about}</p>
+            )}
+            {profile.profile.website && (
+              <a
+                href={profile.profile.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-900 font-semibold text-sm hover:underline inline-block mt-1"
               >
-                About
-              </Button>
-              <Button variant="primary" size="sm">
-                + Follow
-              </Button>
-            </div>
-          </Col>
-        </Row>
+                {profile.profile.website}
+              </a>
+            )}
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="border-t border-gray-300">
+          <div className="flex justify-center gap-16">
+            <button
+              onClick={() => setActiveTab('posts')}
+              className={`flex items-center gap-2 py-4 text-xs font-semibold tracking-widest transition-colors ${activeTab === 'posts'
+                ? 'border-t-2 border-black text-black -mt-px'
+                : 'text-gray-400 hover:text-gray-600'
+                }`}
+            >
+              <Grid className="w-3 h-3" />
+              POSTS
+            </button>
+            <button
+              onClick={() => setActiveTab('saved')}
+              className={`flex items-center gap-2 py-4 text-xs font-semibold tracking-widest transition-colors ${activeTab === 'saved'
+                ? 'border-t-2 border-black text-black -mt-px'
+                : 'text-gray-400 hover:text-gray-600'
+                }`}
+            >
+              <Bookmark className="w-3 h-3" />
+              SAVED
+            </button>
+          </div>
+        </div>
 
         {/* Posts Grid */}
-        <Row className="mt-4 g-3">
-          {images.map((img) => (
-            <Col key={img.id} xs={6} sm={4} md={3} lg={2}>
-              <Card className="h-100 shadow-sm border-0">
-                <Card.Img
-                  variant="top"
-                  src={img.url}
-                  alt={img.title}
-                  style={{ height: "150px", objectFit: "cover" }}
+        <div className="grid grid-cols-3 gap-1 md:gap-4 lg:gap-7 mt-1">
+          {posts.map((post) => (
+            <div
+              key={post._id}
+              onClick={() => handlePostClick(post)}
+              className="aspect-square bg-gray-100 cursor-pointer relative group overflow-hidden rounded-sm"
+            >
+              {post.media[0]?.type === 'video' ? (
+                <div className="relative w-full h-full">
+                  <video
+                    src={post.media[0].url}
+                    className="w-full h-full object-cover"
+                    muted
+                  />
+                  <Film className="absolute top-2 right-2 w-4 h-4 lg:w-5 lg:h-5 text-white drop-shadow-lg" />
+                </div>
+              ) : (
+                <img
+                  src={post.media[0]?.url}
+                  alt={post.description}
+                  className="w-full h-full object-cover"
                 />
-                <Card.Body className="p-2">
-                  <Card.Title
-                    className="mb-1"
-                    style={{ fontSize: "0.9rem", fontWeight: "500" }}
-                  >
-                    {img.title}
-                  </Card.Title>
-                  <div
-                    style={{
-                      fontSize: "0.75rem",
-                      color: "#666",
-                      display: "flex",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <span>❤️ {img.stats.likes}</span>
-                    <span>👁 {img.stats.views}</span>
+              )}
+
+              {/* Hover Overlay - Desktop Only */}
+              <div className="hidden lg:flex absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center gap-8 text-white">
+                <div className="flex items-center gap-2">
+                  <Heart className="w-6 h-6 fill-white" />
+                  <span className="font-semibold text-lg">{post.likes.length}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MessageCircle className="w-6 h-6 fill-white" />
+                  <span className="font-semibold text-lg">{post.comments.length}</span>
+                </div>
+              </div>
+
+              {/* Multiple Media Indicator */}
+              {post.media.length > 1 && (
+                <div className="absolute top-2 right-2 lg:top-3 lg:right-3">
+                  <div className="flex gap-1 bg-black/50 rounded-full px-2 py-1">
+                    <div className="w-1 h-1 bg-white rounded-full" />
+                    <div className="w-1 h-1 bg-white rounded-full" />
                   </div>
-                </Card.Body>
-              </Card>
-            </Col>
+                </div>
+              )}
+            </div>
           ))}
-        </Row>
-      </Container>
+        </div>
+
+        {posts.length === 0 && (
+          <div className="text-center py-16 text-gray-400">
+            <Grid className="w-16 h-16 mx-auto mb-4 opacity-30" />
+            <p className="text-2xl font-light">No posts yet</p>
+          </div>
+        )}
+      </div>
+
+      {/* Post View Modal */}
+      {selectedPost && (
+        <PostViewModal
+          post={selectedPost}
+          onClose={() => setSelectedPost(null)}
+          onLike={handleLike}
+          onComment={handleComment}
+        />
+      )}
 
       {/* About Modal */}
-      <Modal show={showAbout} onHide={() => setShowAbout(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>About Pixelmind sloution</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <p>
-            <a
-              href="https://pixelmindsloution.com"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Pixelmindsloution.com
-            </a>
-          </p>
-          <p>
-            <strong>885</strong> followers · <strong>5</strong> following
-          </p>
-          <p>
-            Unlock your business potential with our excellent IT services
-            designed to drive success. Tailored solutions to seamless support,
-            we ensure your technology works for you, every step of the way.
-          </p>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowAbout(false)}>
-            Close
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </>
+      {showAbout && (
+        <AboutModal
+          profile={profile}
+          onClose={() => setShowAbout(false)}
+        />
+      )}
+    </div>
   );
 };
 

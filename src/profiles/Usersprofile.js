@@ -1,49 +1,95 @@
-import React, { useState } from "react";
-import {
-  Container,
-  Row,
-  Col,
-  Button,
-  Modal,
-  Image,
-  Tab,
-  Tabs,
-  Badge,
-  ListGroup,
-} from "react-bootstrap";
+import React, { useState, useEffect } from "react";
+import { Container, Row, Col, Button, Tabs, Tab, Image, Badge } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { FaHeart, FaEye, FaDownload, FaUser, FaPalette } from "react-icons/fa";
-import images from "../components/mockData";
+import { FaHeart, FaEye, FaUser, FaPalette } from "react-icons/fa";
+import { useParams } from "react-router-dom";
+import PostViewModal from "./PostViewModal"; // import your PostViewModal
 
-const UserProfile = () => {
-  const [showAbout, setShowAbout] = useState(false);
+const UserProfile = ({ currentUserId }) => {
+  const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState("uploads");
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [savedPostsData, setSavedPostsData] = useState([]);
+  const { id } = useParams();
+  const userId = id;
 
-  // Current user data
-  const currentUser = {
-    id: 1,
-    name: "vijay",
-    profileImage: "/assets/images/a1.png",
-    bio: "Digital artist and graphic designer with 5+ years experience creating bold visual identities",
-    followers: 875,
-    following: 142,
-    joinedDate: "January 2020",
-    location: "New York, USA",
-    stats: {
-      uploads: 24,
-      likes: 1560,
-      views: 12500,
-      downloads: 3200,
-      rating: 4.7,
-    },
+  // Fetch profile
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch(`https://social-media-nty4.onrender.com/api/profiles/${userId}`);
+        const data = await res.json();
+        if (data.success) {
+          setUser(data.data);
+          setIsFollowing(data.data.counts.followers.includes(currentUserId));
+          fetchSavedPosts(data.data.savedPosts);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    const fetchSavedPosts = async (savedPostsIds) => {
+      try {
+        const savedPostsDetails = await Promise.all(
+          savedPostsIds.map(async (postId) => {
+            const res = await fetch(`https://social-media-nty4.onrender.com/api/posts/${userId}/${postId}`);
+            const data = await res.json();
+            return data.success ? data.data : null;
+          })
+        );
+        setSavedPostsData(savedPostsDetails.filter(Boolean));
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchProfile();
+  }, [userId, currentUserId]);
+
+  const handleFollowToggle = async () => {
+    if (!currentUserId) return alert("Login to follow");
+    try {
+      const res = await fetch(
+        `https://social-media-nty4.onrender.com/api/profiles/${userId}/follow`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: currentUserId }),
+        }
+      );
+      const data = await res.json();
+      if (data.success) {
+        setIsFollowing(!isFollowing);
+        setUser((prev) => ({
+          ...prev,
+          counts: {
+            ...prev.counts,
+            followers: !isFollowing
+              ? prev.counts.followers + 1
+              : prev.counts.followers - 1,
+          },
+        }));
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  // User images
-  const userImages = images.filter((img) => img.user?.name === currentUser.name);
-  const savedImages = images.filter((img) => img.stats.saves > 10).slice(0, 6);
+  const handleLike = (postId) => {
+    // Optional: integrate like API here
+    console.log("Liked post:", postId);
+  };
 
-  const handleImageClick = (img) => setSelectedImage(img);
+  const handleComment = (postId, text) => {
+    // Optional: integrate comment API here
+    console.log("Comment on post:", postId, text);
+  };
+
+  if (!user) return <p className="text-center mt-5">Loading profile...</p>;
+
+  const userPosts = user.posts || [];
 
   return (
     <>
@@ -52,46 +98,40 @@ const UserProfile = () => {
         <Row className="align-items-center text-center text-md-start mb-4">
           <Col md="auto" className="mb-3 mb-md-0">
             <Image
-              src={currentUser.profileImage}
+              src={user.profile.image || "/default-avatar.png"}
               roundedCircle
-              style={{
-                width: "120px",
-                height: "120px",
-                objectFit: "cover",
-              }}
-              alt={currentUser.name}
+              style={{ width: "120px", height: "120px", objectFit: "cover" }}
+              alt={user.fullName}
             />
           </Col>
           <Col>
-            <div className="d-flex flex-column flex-md-row align-items-md-center gap-3 mb-2">
-              <h2 className="mb-0">{currentUser.name}</h2>
-              <div className="d-flex gap-2">
-                <Button variant="outline-secondary" size="sm">
-                  Edit Profile
-                </Button>
-                <Button variant="outline-primary" size="sm">
-                  Share
-                </Button>
-              </div>
+            <div className="d-flex flex-column flex-md-row align-items-md-center gap-3 mb-2 justify-content-center justify-content-md-start">
+              <h2 className="mb-0">{user.fullName}</h2>
+              <Button
+                variant={isFollowing ? "outline-secondary" : "primary"}
+                size="sm"
+                onClick={handleFollowToggle}
+              >
+                {isFollowing ? "Unfollow" : "Follow"}
+              </Button>
             </div>
 
             <div className="d-flex gap-4 mb-2 justify-content-center justify-content-md-start">
               <div>
-                <strong>{userImages.length}</strong> posts
+                <strong>{userPosts.length}</strong> posts
               </div>
               <div>
-                <strong>{currentUser.followers}</strong> followers
+                <strong>{user.counts.followers}</strong> followers
               </div>
               <div>
-                <strong>{currentUser.following}</strong> following
+                <strong>{user.counts.following}</strong> following
               </div>
             </div>
 
-            <p className="mb-1">{currentUser.bio}</p>
+            {user.profile.about && <p className="mb-1">{user.profile.about}</p>}
             <p className="text-muted small">
-              <FaUser className="me-1" /> Joined {currentUser.joinedDate} ·
-              <FaPalette className="ms-2 me-1" /> {currentUser.stats.rating}★
-              rating
+              <FaUser className="me-1" /> Joined{" "}
+              {new Date(user.createdAt).toLocaleDateString()} · <FaPalette className="ms-2 me-1" /> ★
             </p>
           </Col>
         </Row>
@@ -104,164 +144,53 @@ const UserProfile = () => {
         >
           <Tab eventKey="uploads" title="Posts" />
           <Tab eventKey="saved" title="Saved" />
-          <Tab eventKey="stats" title="Statistics" />
         </Tabs>
 
-        {/* Posts Grid (Instagram Style) */}
+        {/* User Posts Grid */}
         {activeTab === "uploads" && (
           <Row className="g-2">
-            {userImages.map((img) => (
-              <Col key={img.id} xs={4} sm={4} md={3}>
-                <div
-                  style={{ position: "relative", cursor: "pointer" }}
-                  onClick={() => handleImageClick(img)}
-                >
-                  <Image
-                    src={img.url}
-                    alt={img.title}
-                    style={{
-                      width: "100%",
-                      aspectRatio: "1 / 1",
-                      objectFit: "cover",
-                    }}
-                  />
-                  <div
-                    className="position-absolute top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center"
-                    style={{
-                      background: "rgba(0,0,0,0.4)",
-                      opacity: 0,
-                      transition: "opacity 0.3s",
-                    }}
-                  >
-                    <div className="text-white small d-flex gap-3">
-                      <span>
-                        <FaHeart /> {img.stats.likes}
-                      </span>
-                      <span>
-                        <FaEye /> {img.stats.views}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Col>
-            ))}
-          </Row>
-        )}
-
-        {/* Saved Posts */}
-        {activeTab === "saved" && (
-          <Row className="g-2">
-            {savedImages.map((img) => (
-              <Col key={img.id} xs={4} sm={4} md={3}>
+            {userPosts.map((img) => (
+              <Col key={img._id} xs={4} sm={4} md={3}>
                 <Image
-                  src={img.url}
-                  alt={img.title}
-                  style={{
-                    width: "100%",
-                    aspectRatio: "1 / 1",
-                    objectFit: "cover",
-                  }}
+                  src={img.media?.[0]?.url}
+                  alt={img.description}
+                  style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", cursor: 'pointer' }}
+                  onClick={() => setSelectedPost(img)}
+                  className="rounded"
                 />
               </Col>
             ))}
           </Row>
         )}
 
-        {/* Statistics */}
-        {activeTab === "stats" && (
-          <div className="p-3 border rounded">
-            <h5>Activity Statistics</h5>
-            <ListGroup variant="flush">
-              <ListGroup.Item className="d-flex justify-content-between">
-                <span>Total Uploads</span>
-                <Badge bg="primary">{currentUser.stats.uploads}</Badge>
-              </ListGroup.Item>
-              <ListGroup.Item className="d-flex justify-content-between">
-                <span>Total Likes</span>
-                <Badge bg="primary">{currentUser.stats.likes}</Badge>
-              </ListGroup.Item>
-              <ListGroup.Item className="d-flex justify-content-between">
-                <span>Total Views</span>
-                <Badge bg="primary">{currentUser.stats.views}</Badge>
-              </ListGroup.Item>
-              <ListGroup.Item className="d-flex justify-content-between">
-                <span>Total Downloads</span>
-                <Badge bg="primary">{currentUser.stats.downloads}</Badge>
-              </ListGroup.Item>
-              <ListGroup.Item className="d-flex justify-content-between">
-                <span>Rating</span>
-                <Badge bg="success">{currentUser.stats.rating} ★</Badge>
-              </ListGroup.Item>
-            </ListGroup>
-          </div>
+        {/* Saved Posts Grid */}
+        {activeTab === "saved" && (
+          <Row className="g-2">
+            {savedPostsData.map((post) => (
+              <Col key={post._id} xs={4} sm={4} md={3}>
+                <Image
+                  src={post.media?.[0]?.url}
+                  alt={post.description}
+                  style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", cursor: 'pointer' }}
+                  onClick={() => setSelectedPost(post)}
+                  className="rounded"
+                />
+              </Col>
+            ))}
+          </Row>
         )}
       </Container>
 
-      {/* Image Modal (Instagram Post Style) */}
-      <Modal
-        show={!!selectedImage}
-        onHide={() => setSelectedImage(null)}
-        size="lg"
-        centered
-      >
-        {selectedImage && (
-          <>
-            <Modal.Body className="p-0">
-              <Row className="g-0">
-                <Col md={7} className="bg-dark d-flex align-items-center">
-                  <Image
-                    src={selectedImage.url}
-                    alt={selectedImage.title}
-                    fluid
-                    style={{ maxHeight: "90vh", objectFit: "contain" }}
-                    className="mx-auto"
-                  />
-                </Col>
-                <Col md={5} className="p-3">
-                  <div className="d-flex align-items-center mb-3">
-                    <Image
-                      src={selectedImage.user.profileImage}
-                      roundedCircle
-                      style={{ width: "40px", height: "40px" }}
-                      className="me-2"
-                    />
-                    <div>
-                      <strong>{selectedImage.user.name}</strong>
-                      <div className="text-muted small">
-                        {selectedImage.createdDate}
-                      </div>
-                    </div>
-                  </div>
-
-                  <p>{selectedImage.description}</p>
-
-                  <div className="d-flex gap-3 mb-3">
-                    <span>
-                      <FaHeart className="me-1 text-danger" />{" "}
-                      {selectedImage.stats.likes}
-                    </span>
-                    <span>
-                      <FaEye className="me-1" /> {selectedImage.stats.views}
-                    </span>
-                    <span>
-                      <FaDownload className="me-1" />{" "}
-                      {selectedImage.stats.downloads}
-                    </span>
-                  </div>
-
-                  <div className="d-flex flex-wrap gap-1">
-                    {selectedImage.tags.map((tag) => (
-                      <Badge key={tag} bg="secondary" pill>
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </Col>
-              </Row>
-            </Modal.Body>
-          </>
-        )}
-      </Modal>
+      {/* Post View Modal */}
+      {selectedPost && (
+        <PostViewModal
+          post={selectedPost}
+          onClose={() => setSelectedPost(null)}
+          currentUserId={currentUserId}
+          onLike={handleLike}
+          onComment={handleComment}
+        />
+      )}
     </>
   );
 };

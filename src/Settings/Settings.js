@@ -43,7 +43,7 @@ const Settings = () => {
     searchPrivacy: false,
   });
 
-  // ✅ Notification Preferences
+  // Notification Preferences
   const [notificationPrefs, setNotificationPrefs] = useState({
     posts: true,
     follows: true,
@@ -119,7 +119,7 @@ const Settings = () => {
           });
         }
 
-        // ✅ Notification Preferences
+        // Notification Preferences
         const prefRes = await axios.get(`${NOTIFICATION_PREF_API}/${userId}`);
         if (prefRes.data.success && prefRes.data.data) {
           setNotificationPrefs(prefRes.data.data);
@@ -150,7 +150,7 @@ const Settings = () => {
     setAccountData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ✅ Privacy change handler
+  // Privacy change handler
   const handleVisibilityChange = async (field) => {
     const newState = { ...visibilityData, [field]: !visibilityData[field] };
     setVisibilityData(newState);
@@ -169,7 +169,7 @@ const Settings = () => {
     }
   };
 
-  // ✅ Handle notification toggle
+  // Notification toggle
   const handleNotificationChange = async (key) => {
     const updatedPrefs = {
       ...notificationPrefs,
@@ -223,7 +223,12 @@ const Settings = () => {
 
     switch (activeSection) {
       case "editProfile":
-        return <EditProfile profileData={profileData} handleProfileChange={handleProfileChange} />;
+        return (
+          <EditProfile
+            profileData={profileData}
+            handleProfileChange={handleProfileChange} // ✅ pass the handler
+          />
+        );
       case "accountManagement":
         return (
           <AccountManagement

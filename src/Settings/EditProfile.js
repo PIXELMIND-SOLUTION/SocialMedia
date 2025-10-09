@@ -1,6 +1,6 @@
 import React from "react";
 
-const EditProfile = ({ profileData, handleProfileChange, handleImageChange, isDesktop }) => {
+const EditProfile = ({ profileData, handleProfileChange, isDesktop }) => {
   const styles = {
     formGroup: { marginBottom: "1rem" },
     label: { display: "block", marginBottom: "0.5rem", fontWeight: "500", color: "#495057", fontSize: isDesktop ? "1rem" : "0.9rem" },
@@ -22,8 +22,8 @@ const EditProfile = ({ profileData, handleProfileChange, handleImageChange, isDe
             <img
               src={
                 typeof profileData.image === "string"
-                  ? profileData.image // backend URL
-                  : URL.createObjectURL(profileData.image) // file preview
+                  ? profileData.image
+                  : URL.createObjectURL(profileData.image)
               }
               alt="Profile"
               style={styles.profileImg}
@@ -33,8 +33,17 @@ const EditProfile = ({ profileData, handleProfileChange, handleImageChange, isDe
           )}
         </div>
 
-        <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: "none" }} id="profileImageInput" />
-        <label htmlFor="profileImageInput" style={styles.button}>Change profile photo</label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleProfileChange} // ✅ use Settings handler
+          style={{ display: "none" }}
+          id="profileImageInput"
+          name="image"
+        />
+        <label htmlFor="profileImageInput" style={styles.button}>
+          Change profile photo
+        </label>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: "1rem", marginBottom: "1rem" }}>

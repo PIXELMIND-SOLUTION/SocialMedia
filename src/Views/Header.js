@@ -1,49 +1,297 @@
-import React from 'react';
-import { FaUserCircle } from 'react-icons/fa';
+import React, { useState, useEffect } from "react";
+import { FaUserCircle, FaSearch } from "react-icons/fa";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const Header = () => {
+  const [profilePic, setProfilePic] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [allUsers, setAllUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [showResults, setShowResults] = useState(false);
+
+  const navigate = useNavigate();
+
+  // Get logged-in user
+  const storedUser = JSON.parse(sessionStorage.getItem("userData"));
+  const userId = storedUser?.userId;
+
+  // Fetch logged-in user profile
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await axios.get(
+          `https://social-media-nty4.onrender.com/api/profiles/${userId}`
+        );
+        if (res.data.success && res.data.data.profile.image) {
+          setProfilePic(res.data.data.profile.image);
+        }
+      } catch (err) {
+        console.error("Failed to load profile picture:", err);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  // Fetch all users for search
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await axios.get("https://social-media-nty4.onrender.com/api/users");
+        if (res.data.success) {
+          setAllUsers(res.data.data);
+        }
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
+    };
+    fetchUsers();
+  }, []);
+
+  // Search logic
+  useEffect(() => {
+    if (searchTerm.trim() === "") {
+      setFilteredUsers([]);
+      setShowResults(false);
+      return;
+    }
+
+    const lowerTerm = searchTerm.toLowerCase();
+    const results = allUsers.filter((user) => {
+      return (
+        user.fullName?.toLowerCase().includes(lowerTerm) ||
+        user.mobile?.includes(lowerTerm) ||
+        user.profile?.username?.toLowerCase().includes(lowerTerm)
+      );
+    });
+
+    setFilteredUsers(results);
+    setShowResults(true);
+  }, [searchTerm, allUsers]);
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("authToken");
+    sessionStorage.removeItem("userData");
+    navigate("/");
+  };
+
   return (
-    <nav className="navbar navbar-expand-lg bg-main">
-      <div className="container-fluid d-flex justify-content-between align-items-center">
-        {/* Left Icon or Logo Placeholder */}
-        {/* <span className="navbar-brand fw-bold fs-4">LOGO</span> */}
+    <>
+      <nav className="navbar navbar-expand-lg bg-main shadow-sm px-3 position-relative">
+        <div className="container-fluid d-flex justify-content-between align-items-center">
+          {/* Brand or Logo */}
+          <Link to="/home" className="navbar-brand fw-bold fs-4 text-dark">
+            SocialMedia
+          </Link>
 
-        {/* Centered Search */}
-        <form className="d-none d-md-block w-100 mx-auto">
-          <input
-            className="form-control rounded-pill"
-            type="search"
-            placeholder="Search"
-            aria-label="Search"
-          />
-        </form>
+          {/* Search Bar */}
+          <div className="position-relative w-50 d-none d-md-block mx-auto">
+            <div className="input-group">
+              <span className="input-group-text bg-white border-end-0 rounded-start-pill">
+                <FaSearch />
+              </span>
+              <input
+                type="text"
+                className="form-control border-start-0 rounded-end-pill"
+                placeholder="Search users by name or username..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onFocus={() => setShowResults(true)}
+              />
+            </div>
 
-        {/* Profile Dropdown */}
-        <div className="dropdown">
-          <button
-            className="btn btn-light rounded-pill d-flex align-items-center"
-            type="button"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
+            {/* Search Results Dropdown */}
+            {showResults && filteredUsers.length > 0 && (
+              <div
+                className="position-absolute bg-white shadow-lg rounded-4 mt-2 w-100 overflow-auto"
+                style={{
+                  zIndex: 1050,
+                  maxHeight: "350px",
+                  animation: "fadeIn 0.2s ease-in-out",
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "#f47c31 #f1f1f1",
+                }}
+              >
+                {filteredUsers.slice(0, 10).map((user) => (
+                  <div
+                    key={user._id}
+                    className="d-flex align-items-center p-2 px-3 hover-bg-light"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => {
+                      navigate(`/userprofile/${user._id}`);
+                      setSearchTerm("");
+                      setShowResults(false);
+                    }}
+                  >
+                    <img
+                      src={
+                        user.profile?.image ||
+                        "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                      }
+                      alt="profile"
+                      style={{
+                        width: "45px",
+                        height: "45px",
+                        borderRadius: "50%",
+                        objectFit: "cover",
+                        marginRight: "12px",
+                        border: "2px solid #f47c31",
+                      }}
+                    />
+                    <div>
+                      <div className="fw-semibold text-dark">{user.fullName}</div>
+                      <small className="text-muted">
+                        @{user.profile?.username}
+                      </small>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Show More Indicator */}
+                {filteredUsers.length > 10 && (
+                  <div className="text-center py-2 text-muted small">
+                    Scroll to view more...
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* No results */}
+            {showResults && filteredUsers.length === 0 && searchTerm.trim() !== "" && (
+              <div
+                className="position-absolute bg-white shadow-lg rounded-4 mt-2 w-100 text-center text-muted py-3"
+                style={{ zIndex: 1050 }}
+              >
+                No results found.
+              </div>
+            )}
+          </div>
+
+          {/* Profile Image Trigger */}
+          <div
+            className="d-flex align-items-center"
+            onClick={() => setShowModal(true)}
+            style={{ cursor: "pointer" }}
           >
-            <FaUserCircle className="me-2 fs-5" />
-            <span className="d-none d-sm-inline"></span>
-          </button>
-          <ul className="dropdown-menu dropdown-menu-end">
-            <li><button className="dropdown-item">Profile</button></li>
-            <li><button className="dropdown-item">Settings</button></li>
-            <li><hr className="dropdown-divider" /></li>
-            <li><button className="dropdown-item">Logout</button></li>
-          </ul>
+            {profilePic ? (
+              <img
+                src={profilePic}
+                alt="Profile"
+                style={{
+                  width: "45px",
+                  height: "45px",
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                  border: "2px solid #f47c31",
+                  transition: "transform 0.3s ease",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+              />
+            ) : (
+              <FaUserCircle className="text-secondary" size={45} />
+            )}
+          </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+
+      {/* Profile Modal */}
+      {showModal && (
+        <>
+          {/* Blur Background */}
+          <div
+            className="position-fixed top-0 start-0 w-100 h-100"
+            style={{
+              backgroundColor: "rgba(0,0,0,0.5)",
+              backdropFilter: "blur(6px)",
+              zIndex: 1040,
+            }}
+            onClick={() => setShowModal(false)}
+          ></div>
+
+          {/* Modal Content */}
+          <div
+            className="position-fixed top-50 start-50 translate-middle bg-white shadow-lg rounded-4 p-4"
+            style={{
+              width: "320px",
+              zIndex: 1050,
+              animation: "fadeIn 0.3s ease-in-out",
+            }}
+          >
+            <div className="text-center">
+              {profilePic ? (
+                <img
+                  src={profilePic}
+                  alt="Profile"
+                  style={{
+                    width: "90px",
+                    height: "90px",
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                    border: "3px solid #f47c31",
+                  }}
+                />
+              ) : (
+                <FaUserCircle className="text-secondary" size={90} />
+              )}
+              <h5 className="mt-3 mb-4 fw-semibold">My Account</h5>
+            </div>
+
+            <div className="list-group text-center">
+              <Link
+                to="/myprofile"
+                className="list-group-item list-group-item-action border-0"
+                onClick={() => setShowModal(false)}
+              >
+                View Profile
+              </Link>
+              <Link
+                to="/settings"
+                className="list-group-item list-group-item-action border-0"
+                onClick={() => setShowModal(false)}
+              >
+                Settings
+              </Link>
+              <button
+                className="list-group-item list-group-item-action border-0 text-danger"
+                onClick={handleLogout}
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Animations */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translate(-50%, -48%); }
+          to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+
+        .hover-bg-light:hover {
+          background-color: #f8f9fa;
+        }
+
+        /* Scrollbar styling */
+        .overflow-auto::-webkit-scrollbar {
+          width: 6px;
+        }
+        .overflow-auto::-webkit-scrollbar-thumb {
+          background-color: #f47c31;
+          border-radius: 10px;
+        }
+        .overflow-auto::-webkit-scrollbar-track {
+          background: #f1f1f1;
+        }
+      `}</style>
+    </>
   );
 };
 
 export default Header;
-
-
 
 
 
