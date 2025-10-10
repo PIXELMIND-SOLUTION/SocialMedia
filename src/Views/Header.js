@@ -70,6 +70,15 @@ const Header = () => {
     setShowResults(true);
   }, [searchTerm, allUsers]);
 
+  const handleProfile = (id) => {
+    if (id === userId) {
+      navigate('/myprofile');
+    } else {
+      navigate(`/userprofile/${id}`);
+    }
+  }
+
+
   const handleLogout = () => {
     sessionStorage.removeItem("authToken");
     sessionStorage.removeItem("userData");
@@ -119,7 +128,7 @@ const Header = () => {
                     className="d-flex align-items-center p-2 px-3 hover-bg-light"
                     style={{ cursor: "pointer" }}
                     onClick={() => {
-                      navigate(`/userprofile/${user._id}`);
+                      handleProfile(user._id);
                       setSearchTerm("");
                       setShowResults(false);
                     }}
