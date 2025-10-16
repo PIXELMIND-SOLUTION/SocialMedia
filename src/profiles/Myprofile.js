@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Grid, Bookmark, Film, Settings, MoreVertical, Info, MessageCircle, Heart } from 'lucide-react';
+import { Grid, Bookmark, Film, Settings, Info, MessageCircle, Heart, ChevronLeft } from 'lucide-react';
 import PostViewModal from './PostViewModal';
 import AboutModal from './AboutModal';
 import { useNavigate } from 'react-router-dom';
+import FollowersFollowingModal from './FollowersFollowingModal';
 
 const MyProfile = () => {
   const [profile, setProfile] = useState(null);
@@ -11,6 +12,9 @@ const MyProfile = () => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('posts');
   const [showAbout, setShowAbout] = useState(false);
+  const [showFollowModal, setShowFollowModal] = useState(false);
+  const [followModalTab, setFollowModalTab] = useState('followers');
+  const [savedPostsData, setSavedPostsData] = useState([]);
 
   const navigate = useNavigate();
 
@@ -30,6 +34,10 @@ const MyProfile = () => {
 
       if (data.success) {
         setProfile(data.data);
+        // Fetch saved posts if available
+        if (data.data.savedPosts && data.data.savedPosts.length > 0) {
+          fetchSavedPosts(data.data.savedPosts);
+        }
       } else {
         setError('Failed to load profile');
       }
@@ -38,6 +46,21 @@ const MyProfile = () => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSavedPosts = async (savedPostsIds) => {
+    try {
+      const savedPostsDetails = await Promise.all(
+        savedPostsIds.map(async (postId) => {
+          const res = await fetch(`https://social-media-nty4.onrender.com/api/posts/${userId}/${postId}`);
+          const data = await res.json();
+          return data.success ? data.data : null;
+        })
+      );
+      setSavedPostsData(savedPostsDetails.filter(Boolean));
+    } catch (err) {
+      console.error('Error fetching saved posts:', err);
     }
   };
 
@@ -68,117 +91,148 @@ const MyProfile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-sm">Loading profile...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !profile) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-500 text-lg">{error || 'Profile not found'}</p>
+      <div className="min-h-screen bg-white flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+            <span className="text-red-500 text-3xl">!</span>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Profile Not Found</h2>
+          <p className="text-gray-600 mb-6">{error || 'Unable to load profile data'}</p>
           <button
             onClick={fetchProfile}
-            className="mt-4 px-6 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
+            className="px-6 py-2.5 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg hover:from-pink-600 hover:to-purple-600 transition-all shadow-md hover:shadow-lg font-medium"
           >
-            Retry
+            Try Again
           </button>
         </div>
       </div>
     );
   }
 
-  const posts = activeTab === 'posts' ? profile.posts : profile.posts.filter(p => profile.savedPosts.includes(p._id));
+  const posts = activeTab === 'posts' ? profile.posts : savedPostsData;
 
   return (
     <div className="min-h-screen bg-white">
       {/* Header - Mobile */}
-      <div className="lg:hidden sticky top-0 bg-white border-b border-gray-200 px-4 py-3 z-10 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{profile.profile.username}</h1>
-        <div className="flex items-center gap-4">
-          <Settings className="w-6 h-6 cursor-pointer"  onClick={() => navigate('/settings')}/>
-          {/* <MoreVertical className="w-6 h-6 cursor-pointer" /> */}
+      <div className="lg:hidden sticky top-0 bg-white/95 backdrop-blur-md border-b border-gray-200 px-4 py-3 z-20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <ChevronLeft 
+              className="w-6 h-6 cursor-pointer text-gray-700 hover:text-black" 
+              onClick={() => navigate(-1)}
+            />
+            <h1 className="text-lg font-semibold">{profile.profile.username}</h1>
+          </div>
+          <Settings 
+            className="w-6 h-6 cursor-pointer text-gray-700 hover:text-black" 
+            onClick={() => navigate('/settings')} 
+          />
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-6 lg:py-10">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 lg:py-10">
         {/* Profile Header */}
-        <div className="mb-11">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6 lg:gap-20 mb-6">
+        <div className="mb-8 lg:mb-11">
+          <div className="flex flex-col lg:flex-row items-center lg:items-start gap-6 lg:gap-20 mb-6">
             {/* Profile Picture */}
-            <div className="flex-shrink-0 mx-auto lg:mx-0">
-              <div className="w-24 h-24 lg:w-40 lg:h-40 rounded-full overflow-hidden border-2 border-gray-200 shadow-sm">
-                {profile.profile.image ? (
-                  <img
-                    src={profile.profile.image}
-                    alt={profile.fullName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-4xl lg:text-6xl font-bold">
-                    {profile.profile.firstName?.[0] || 'U'}
-                  </div>
-                )}
+            <div className="flex-shrink-0">
+              <div className="relative">
+                <div className="w-20 h-20 sm:w-28 sm:h-28 lg:w-40 lg:h-40 rounded-full overflow-hidden border-2 border-gray-200 shadow-lg">
+                  {profile.profile.image ? (
+                    <img
+                      src={profile.profile.image}
+                      alt={profile.fullName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-purple-400 via-pink-400 to-orange-400 flex items-center justify-center text-white text-3xl sm:text-5xl lg:text-6xl font-bold">
+                      {profile.profile.firstName?.[0] || 'U'}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Profile Info */}
             <div className="flex-1 w-full">
-              {/* Username and Actions - Desktop */}
-              <div className="hidden lg:flex items-center gap-5 mb-6">
-                <h1 className="text-xl font-light">{profile.profile.username}</h1>
-                <button className="px-6 py-1.5 bg-gray-200 text-black text-sm font-semibold rounded-lg hover:bg-gray-300 transition-colors"
+              {/* Desktop Header */}
+              <div className="hidden lg:flex items-center gap-4 mb-6">
+                <h1 className="text-2xl font-light text-gray-900">{profile.profile.username}</h1>
+                <button 
+                  className="px-5 py-1.5 bg-gray-200 text-gray-900 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-all"
                   onClick={() => navigate('/settings')}
                 >
                   Edit Profile
                 </button>
-                <div className="flex justify-center items-center h-full">
-                  <button
-                    onClick={() => setShowAbout(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-black rounded-lg hover:bg-gray-300 transition"
-                  >
-                    <Info className="w-5 h-5" />
-                    About
-                  </button>
-                </div>
-                <Settings className="w-6 h-6 cursor-pointer text-gray-700 hover:text-black"  onClick={() => navigate('/settings')} />
+                <button
+                  onClick={() => setShowAbout(true)}
+                  className="flex items-center gap-2 px-4 py-1.5 bg-gray-200 text-gray-900 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-all"
+                >
+                  <Info className="w-4 h-4" />
+                  About
+                </button>
+                <Settings 
+                  className="w-6 h-6 cursor-pointer text-gray-600 hover:text-gray-900 transition-colors" 
+                  onClick={() => navigate('/settings')} 
+                />
               </div>
 
               {/* Mobile Username */}
               <div className="lg:hidden text-center mb-4">
-                <h1 className="text-2xl font-light mb-2">{profile.profile.username}</h1>
+                <h1 className="text-xl sm:text-2xl font-light text-gray-900">{profile.profile.username}</h1>
               </div>
 
               {/* Stats */}
-              <div className="flex justify-center lg:justify-start gap-8 lg:gap-10 mb-5 text-base">
-                <div>
-                  <span className="font-semibold">{profile.posts.length}</span>
-                  <span className="text-gray-700 ml-1">posts</span>
+              <div className="flex justify-center lg:justify-start gap-6 sm:gap-10 lg:gap-12 mb-5 text-sm sm:text-base">
+                <div className="text-center lg:text-left">
+                  <div className="font-semibold text-gray-900">{profile.posts.length}</div>
+                  <div className="text-gray-600 text-xs sm:text-sm">posts</div>
                 </div>
-                <div className="cursor-pointer hover:text-gray-600">
-                  <span className="font-semibold">{profile.counts.followers}</span>
-                  <span className="text-gray-700 ml-1">followers</span>
+                <div 
+                  className="cursor-pointer hover:opacity-70 transition-opacity text-center lg:text-left"
+                  onClick={() => {
+                    setFollowModalTab('followers');
+                    setShowFollowModal(true);
+                  }}
+                >
+                  <div className="font-semibold text-gray-900">{profile.counts.followers}</div>
+                  <div className="text-gray-600 text-xs sm:text-sm">followers</div>
                 </div>
-                <div className="cursor-pointer hover:text-gray-600">
-                  <span className="font-semibold">{profile.counts.following}</span>
-                  <span className="text-gray-700 ml-1">following</span>
+                <div 
+                  className="cursor-pointer hover:opacity-70 transition-opacity text-center lg:text-left"
+                  onClick={() => {
+                    setFollowModalTab('following');
+                    setShowFollowModal(true);
+                  }}
+                >
+                  <div className="font-semibold text-gray-900">{profile.counts.following}</div>
+                  <div className="text-gray-600 text-xs sm:text-sm">following</div>
                 </div>
               </div>
 
               {/* Bio - Desktop */}
               <div className="hidden lg:block">
-                <h2 className="font-semibold text-sm">{profile.fullName}</h2>
+                <h2 className="font-semibold text-sm text-gray-900 mb-1">{profile.fullName}</h2>
                 {profile.profile.about && (
-                  <p className="text-sm mt-1 whitespace-pre-wrap leading-relaxed">{profile.profile.about}</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed mb-1">{profile.profile.about}</p>
                 )}
                 {profile.profile.website && (
                   <a
                     href={profile.profile.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-900 font-semibold text-sm hover:underline inline-block mt-1"
+                    className="text-blue-600 font-medium text-sm hover:underline inline-block"
                   >
                     {profile.profile.website}
                   </a>
@@ -186,37 +240,36 @@ const MyProfile = () => {
               </div>
 
               {/* Mobile Action Buttons */}
-              <div className="flex gap-2 lg:hidden mt-4">
-                <button className="flex-1 px-4 py-2 bg-gray-200 text-black text-sm font-semibold rounded-lg hover:bg-gray-300">
+              <div className="flex gap-2 lg:hidden mt-5">
+                <button 
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-900 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-all"
+                  onClick={() => navigate('/settings')}
+                >
                   Edit Profile
                 </button>
-
-                <div className="flex justify-center items-center h-full">
-                  <button
-                    onClick={() => setShowAbout(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-black rounded-lg hover:bg-gray-300 transition"
-                  >
-                    <Info className="w-5 h-5" />
-                    About
-                  </button>
-                </div>
-
+                <button
+                  onClick={() => setShowAbout(true)}
+                  className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 text-gray-900 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-all"
+                >
+                  <Info className="w-4 h-4" />
+                  <span className="hidden sm:inline">About</span>
+                </button>
               </div>
             </div>
           </div>
 
           {/* Mobile Bio */}
-          <div className="lg:hidden text-center px-4">
-            <h2 className="font-semibold text-sm">{profile.fullName}</h2>
+          <div className="lg:hidden text-center px-2 sm:px-4">
+            <h2 className="font-semibold text-sm text-gray-900 mb-1">{profile.fullName}</h2>
             {profile.profile.about && (
-              <p className="text-sm mt-1 whitespace-pre-wrap leading-relaxed">{profile.profile.about}</p>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed mb-1">{profile.profile.about}</p>
             )}
             {profile.profile.website && (
               <a
                 href={profile.profile.website}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-900 font-semibold text-sm hover:underline inline-block mt-1"
+                className="text-blue-600 font-medium text-sm hover:underline inline-block"
               >
                 {profile.profile.website}
               </a>
@@ -225,38 +278,40 @@ const MyProfile = () => {
         </div>
 
         {/* Tabs */}
-        <div className="border-t border-gray-300">
-          <div className="flex justify-center gap-16">
+        <div className="border-t border-gray-300 -mx-4 sm:-mx-6 lg:mx-0">
+          <div className="flex justify-center gap-12 sm:gap-16">
             <button
               onClick={() => setActiveTab('posts')}
-              className={`flex items-center gap-2 py-4 text-xs font-semibold tracking-widest transition-colors ${activeTab === 'posts'
-                ? 'border-t-2 border-black text-black -mt-px'
-                : 'text-gray-400 hover:text-gray-600'
-                }`}
+              className={`flex items-center gap-2 py-3 sm:py-4 text-xs font-semibold tracking-widest transition-colors ${
+                activeTab === 'posts'
+                  ? 'border-t-2 border-black text-black -mt-px'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
             >
               <Grid className="w-3 h-3" />
-              POSTS
+              <span className="hidden sm:inline">POSTS</span>
             </button>
             <button
               onClick={() => setActiveTab('saved')}
-              className={`flex items-center gap-2 py-4 text-xs font-semibold tracking-widest transition-colors ${activeTab === 'saved'
-                ? 'border-t-2 border-black text-black -mt-px'
-                : 'text-gray-400 hover:text-gray-600'
-                }`}
+              className={`flex items-center gap-2 py-3 sm:py-4 text-xs font-semibold tracking-widest transition-colors ${
+                activeTab === 'saved'
+                  ? 'border-t-2 border-black text-black -mt-px'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
             >
               <Bookmark className="w-3 h-3" />
-              SAVED
+              <span className="hidden sm:inline">SAVED</span>
             </button>
           </div>
         </div>
 
         {/* Posts Grid */}
-        <div className="grid grid-cols-3 gap-1 md:gap-4 lg:gap-7 mt-1">
+        <div className="grid grid-cols-3 gap-0.5 sm:gap-1 md:gap-3 lg:gap-7 mt-0.5 sm:mt-1 -mx-4 sm:-mx-6 lg:mx-0">
           {posts.map((post) => (
             <div
               key={post._id}
               onClick={() => handlePostClick(post)}
-              className="aspect-square bg-gray-100 cursor-pointer relative group overflow-hidden rounded-sm"
+              className="aspect-square bg-gray-100 cursor-pointer relative group overflow-hidden"
             >
               {post.media[0]?.type === 'video' ? (
                 <div className="relative w-full h-full">
@@ -264,33 +319,35 @@ const MyProfile = () => {
                     src={post.media[0].url}
                     className="w-full h-full object-cover"
                     muted
+                    playsInline
                   />
-                  <Film className="absolute top-2 right-2 w-4 h-4 lg:w-5 lg:h-5 text-white drop-shadow-lg" />
+                  <Film className="absolute top-2 right-2 w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-white drop-shadow-lg" />
                 </div>
               ) : (
                 <img
                   src={post.media[0]?.url}
                   alt={post.description}
                   className="w-full h-full object-cover"
+                  loading="lazy"
                 />
               )}
 
               {/* Hover Overlay - Desktop Only */}
-              <div className="hidden lg:flex absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center gap-8 text-white">
+              <div className="hidden lg:flex absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center gap-8 text-white">
                 <div className="flex items-center gap-2">
                   <Heart className="w-6 h-6 fill-white" />
-                  <span className="font-semibold text-lg">{post.likes.length}</span>
+                  <span className="font-semibold text-lg">{post.likes?.length || 0}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <MessageCircle className="w-6 h-6 fill-white" />
-                  <span className="font-semibold text-lg">{post.comments.length}</span>
+                  <span className="font-semibold text-lg">{post.comments?.length || 0}</span>
                 </div>
               </div>
 
               {/* Multiple Media Indicator */}
-              {post.media.length > 1 && (
+              {post.media?.length > 1 && (
                 <div className="absolute top-2 right-2 lg:top-3 lg:right-3">
-                  <div className="flex gap-1 bg-black/50 rounded-full px-2 py-1">
+                  <div className="flex gap-1 bg-black/60 rounded-full px-1.5 py-1 backdrop-blur-sm">
                     <div className="w-1 h-1 bg-white rounded-full" />
                     <div className="w-1 h-1 bg-white rounded-full" />
                   </div>
@@ -300,10 +357,22 @@ const MyProfile = () => {
           ))}
         </div>
 
+        {/* Empty State */}
         {posts.length === 0 && (
-          <div className="text-center py-16 text-gray-400">
-            <Grid className="w-16 h-16 mx-auto mb-4 opacity-30" />
-            <p className="text-2xl font-light">No posts yet</p>
+          <div className="text-center py-12 sm:py-16 text-gray-400">
+            {activeTab === 'posts' ? (
+              <>
+                <Grid className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 opacity-30" />
+                <p className="text-xl sm:text-2xl font-light mb-2">No posts yet</p>
+                <p className="text-sm text-gray-500">Share your first moment!</p>
+              </>
+            ) : (
+              <>
+                <Bookmark className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 opacity-30" />
+                <p className="text-xl sm:text-2xl font-light mb-2">No saved posts</p>
+                <p className="text-sm text-gray-500">Save posts you like to see them here</p>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -314,6 +383,7 @@ const MyProfile = () => {
           post={selectedPost}
           onClose={() => setSelectedPost(null)}
           onLike={handleLike}
+          currentUserId={userId}
           onComment={handleComment}
         />
       )}
@@ -323,6 +393,16 @@ const MyProfile = () => {
         <AboutModal
           profile={profile}
           onClose={() => setShowAbout(false)}
+        />
+      )}
+
+      {/* Followers/Following Modal */}
+      {showFollowModal && (
+        <FollowersFollowingModal
+          isOpen={showFollowModal}
+          onClose={() => setShowFollowModal(false)}
+          userId={userId}
+          initialTab={followModalTab}
         />
       )}
     </div>

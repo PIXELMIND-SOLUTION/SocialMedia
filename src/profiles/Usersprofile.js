@@ -1,197 +1,458 @@
-import React, { useState, useEffect } from "react";
-import { Container, Row, Col, Button, Tabs, Tab, Image, Badge } from "react-bootstrap";
-import "bootstrap/dist/css/bootstrap.min.css";
-import { FaHeart, FaEye, FaUser, FaPalette } from "react-icons/fa";
-import { useParams } from "react-router-dom";
-import PostViewModal from "./PostViewModal"; // import your PostViewModal
+import React, { useState, useEffect } from 'react';
+import { Grid, Bookmark, Film, Heart, MessageCircle, UserPlus, UserCheck, Clock, MoreVertical } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import PostViewModal from './PostViewModal';
+import FollowersFollowingModal from './FollowersFollowingModal';
 
-const UserProfile = ({ currentUserId }) => {
-  const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState("uploads");
+const UserProfile = () => {
+  const [profile, setProfile] = useState(null);
   const [selectedPost, setSelectedPost] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('posts');
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followRequestPending, setFollowRequestPending] = useState(false);
+  const [showFollowModal, setShowFollowModal] = useState(false);
+  const [followModalTab, setFollowModalTab] = useState('followers');
   const [savedPostsData, setSavedPostsData] = useState([]);
+
   const { id } = useParams();
   const userId = id;
+  const navigate = useNavigate();
 
-  // Fetch profile
+  const storedUser = JSON.parse(sessionStorage.getItem("userData"));
+  const currentUserId = storedUser?.userId;
+  const isOwnProfile = userId === currentUserId;
+
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const res = await fetch(`https://social-media-nty4.onrender.com/api/profiles/${userId}`);
-        const data = await res.json();
-        if (data.success) {
-          setUser(data.data);
-          setIsFollowing(data.data.counts.followers.includes(currentUserId));
+    fetchProfile();
+    if (!isOwnProfile) {
+      checkFollowStatus();
+    }
+  }, [userId]);
+
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`https://social-media-nty4.onrender.com/api/profiles/${userId}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setProfile(data.data);
+        if (data.data.savedPosts && data.data.savedPosts.length > 0) {
           fetchSavedPosts(data.data.savedPosts);
         }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    const fetchSavedPosts = async (savedPostsIds) => {
-      try {
-        const savedPostsDetails = await Promise.all(
-          savedPostsIds.map(async (postId) => {
-            const res = await fetch(`https://social-media-nty4.onrender.com/api/posts/${userId}/${postId}`);
-            const data = await res.json();
-            return data.success ? data.data : null;
-          })
-        );
-        setSavedPostsData(savedPostsDetails.filter(Boolean));
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    fetchProfile();
-  }, [userId, currentUserId]);
-
-  const handleFollowToggle = async () => {
-    if (!currentUserId) return alert("Login to follow");
-    try {
-      const res = await fetch(
-        `https://social-media-nty4.onrender.com/api/profiles/${userId}/follow`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: currentUserId }),
-        }
-      );
-      const data = await res.json();
-      if (data.success) {
-        setIsFollowing(!isFollowing);
-        setUser((prev) => ({
-          ...prev,
-          counts: {
-            ...prev.counts,
-            followers: !isFollowing
-              ? prev.counts.followers + 1
-              : prev.counts.followers - 1,
-          },
-        }));
+      } else {
+        setError('Failed to load profile');
       }
     } catch (err) {
+      setError('Error loading profile');
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleLike = (postId) => {
-    // Optional: integrate like API here
-    console.log("Liked post:", postId);
+  const fetchSavedPosts = async (savedPostsIds) => {
+    try {
+      const savedPostsDetails = await Promise.all(
+        savedPostsIds.map(async (postId) => {
+          const res = await fetch(`https://social-media-nty4.onrender.com/api/posts/${userId}/${postId}`);
+          const data = await res.json();
+          return data.success ? data.data : null;
+        })
+      );
+      setSavedPostsData(savedPostsDetails.filter(Boolean));
+    } catch (err) {
+      console.error('Error fetching saved posts:', err);
+    }
   };
 
-  const handleComment = (postId, text) => {
-    // Optional: integrate comment API here
-    console.log("Comment on post:", postId, text);
+  const checkFollowStatus = async () => {
+    try {
+      const response = await fetch(`https://social-media-nty4.onrender.com/api/following/${currentUserId}`);
+      const data = await response.json();
+
+      if (data.success) {
+        const followingIds = (data.following || []).map(u => u._id);
+        setIsFollowing(followingIds.includes(userId));
+      }
+
+      // Check if request is pending
+      const followersResponse = await fetch(`https://social-media-nty4.onrender.com/api/followers/${userId}`);
+      const followersData = await followersResponse.json();
+      
+      if (followersData.success) {
+        const pendingIds = (followersData.pendingRequests || []).map(u => u._id);
+        setFollowRequestPending(pendingIds.includes(currentUserId));
+      }
+    } catch (err) {
+      console.error('Error checking follow status:', err);
+    }
   };
 
-  if (!user) return <p className="text-center mt-5">Loading profile...</p>;
+  const handleFollowToggle = async () => {
+    if (!currentUserId) {
+      alert('Please login to follow users');
+      return;
+    }
 
-  const userPosts = user.posts || [];
+    try {
+      if (isFollowing) {
+        // Unfollow logic - you may need to implement unfollow API
+        setIsFollowing(false);
+      } else {
+        // Send follow request
+        const response = await fetch(`https://social-media-nty4.onrender.com/api/send-request`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: userId,
+            followerId: currentUserId
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          setFollowRequestPending(true);
+          // Optionally refresh profile to update counts
+          fetchProfile();
+        }
+      }
+    } catch (err) {
+      console.error('Error toggling follow:', err);
+    }
+  };
+
+  const fetchPostDetails = async (postId) => {
+    try {
+      const response = await fetch(`https://social-media-nty4.onrender.com/api/posts/${userId}/${postId}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setSelectedPost(data.data);
+      }
+    } catch (err) {
+      console.error('Error loading post:', err);
+    }
+  };
+
+  const handlePostClick = (post) => {
+    fetchPostDetails(post._id);
+  };
+
+  const handleLike = async (postId) => {
+    console.log('Like post:', postId);
+  };
+
+  const handleComment = async (postId, text) => {
+    console.log('Comment on post:', postId, text);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+      </div>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-500 text-lg">{error || 'Profile not found'}</p>
+          <button
+            onClick={fetchProfile}
+            className="mt-4 px-6 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const posts = activeTab === 'posts' ? profile.posts : savedPostsData;
 
   return (
-    <>
-      <Container className="py-4">
+    <div className="min-h-screen bg-white">
+      {/* Header - Mobile */}
+      <div className="lg:hidden sticky top-0 bg-white border-b border-gray-200 px-4 py-3 z-10 flex items-center justify-between">
+        <h1 className="text-xl font-semibold">{profile.profile.username}</h1>
+        <MoreVertical className="w-6 h-6 cursor-pointer" />
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 py-6 lg:py-10">
         {/* Profile Header */}
-        <Row className="align-items-center text-center text-md-start mb-4">
-          <Col md="auto" className="mb-3 mb-md-0">
-            <Image
-              src={user.profile.image || "/default-avatar.png"}
-              roundedCircle
-              style={{ width: "120px", height: "120px", objectFit: "cover" }}
-              alt={user.fullName}
-            />
-          </Col>
-          <Col>
-            <div className="d-flex flex-column flex-md-row align-items-md-center gap-3 mb-2 justify-content-center justify-content-md-start">
-              <h2 className="mb-0">{user.fullName}</h2>
-              <Button
-                variant={isFollowing ? "outline-secondary" : "primary"}
-                size="sm"
-                onClick={handleFollowToggle}
+        <div className="mb-11">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6 lg:gap-20 mb-6">
+            {/* Profile Picture */}
+            <div className="flex-shrink-0 mx-auto lg:mx-0">
+              <div className="w-24 h-24 lg:w-40 lg:h-40 rounded-full overflow-hidden border-2 border-gray-200 shadow-sm">
+                {profile.profile.image ? (
+                  <img
+                    src={profile.profile.image}
+                    alt={profile.fullName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-4xl lg:text-6xl font-bold">
+                    {profile.profile.firstName?.[0] || 'U'}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Profile Info */}
+            <div className="flex-1 w-full">
+              {/* Username and Actions - Desktop */}
+              <div className="hidden lg:flex items-center gap-5 mb-6">
+                <h1 className="text-xl font-light">{profile.profile.username}</h1>
+                
+                {!isOwnProfile && (
+                  <>
+                    <button
+                      onClick={handleFollowToggle}
+                      disabled={followRequestPending}
+                      className={`px-6 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
+                        isFollowing
+                          ? 'bg-gray-200 text-black hover:bg-gray-300'
+                          : followRequestPending
+                          ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}
+                    >
+                      {isFollowing ? (
+                        <span className="flex items-center gap-2">
+                          <UserCheck className="w-4 h-4" />
+                          Following
+                        </span>
+                      ) : followRequestPending ? (
+                        <span className="flex items-center gap-2">
+                          <Clock className="w-4 h-4" />
+                          Requested
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-2">
+                          <UserPlus className="w-4 h-4" />
+                          Follow
+                        </span>
+                      )}
+                    </button>
+                    <button className="px-6 py-1.5 bg-gray-200 text-black text-sm font-semibold rounded-lg hover:bg-gray-300 transition-colors">
+                      Message
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Mobile Username */}
+              <div className="lg:hidden text-center mb-4">
+                <h1 className="text-2xl font-light mb-2">{profile.profile.username}</h1>
+              </div>
+
+              {/* Stats */}
+              <div className="flex justify-center lg:justify-start gap-8 lg:gap-10 mb-5 text-base">
+                <div>
+                  <span className="font-semibold">{profile.posts.length}</span>
+                  <span className="text-gray-700 ml-1">posts</span>
+                </div>
+                <div 
+                  className="cursor-pointer hover:text-gray-600"
+                  onClick={() => {
+                    setFollowModalTab('followers');
+                    setShowFollowModal(true);
+                  }}
+                >
+                  <span className="font-semibold">{profile.counts.followers}</span>
+                  <span className="text-gray-700 ml-1">followers</span>
+                </div>
+                <div 
+                  className="cursor-pointer hover:text-gray-600"
+                  onClick={() => {
+                    setFollowModalTab('following');
+                    setShowFollowModal(true);
+                  }}
+                >
+                  <span className="font-semibold">{profile.counts.following}</span>
+                  <span className="text-gray-700 ml-1">following</span>
+                </div>
+              </div>
+
+              {/* Bio - Desktop */}
+              <div className="hidden lg:block">
+                <h2 className="font-semibold text-sm">{profile.fullName}</h2>
+                {profile.profile.about && (
+                  <p className="text-sm mt-1 whitespace-pre-wrap leading-relaxed">{profile.profile.about}</p>
+                )}
+                {profile.profile.website && (
+                  <a
+                    href={profile.profile.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-900 font-semibold text-sm hover:underline inline-block mt-1"
+                  >
+                    {profile.profile.website}
+                  </a>
+                )}
+              </div>
+
+              {/* Mobile Action Buttons */}
+              {!isOwnProfile && (
+                <div className="flex gap-2 lg:hidden mt-4">
+                  <button
+                    onClick={handleFollowToggle}
+                    disabled={followRequestPending}
+                    className={`flex-1 px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                      isFollowing
+                        ? 'bg-gray-200 text-black hover:bg-gray-300'
+                        : followRequestPending
+                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                    }`}
+                  >
+                    {isFollowing ? 'Following' : followRequestPending ? 'Requested' : 'Follow'}
+                  </button>
+                  <button className="flex-1 px-4 py-2 bg-gray-200 text-black text-sm font-semibold rounded-lg hover:bg-gray-300">
+                    Message
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile Bio */}
+          <div className="lg:hidden text-center px-4">
+            <h2 className="font-semibold text-sm">{profile.fullName}</h2>
+            {profile.profile.about && (
+              <p className="text-sm mt-1 whitespace-pre-wrap leading-relaxed">{profile.profile.about}</p>
+            )}
+            {profile.profile.website && (
+              <a
+                href={profile.profile.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-900 font-semibold text-sm hover:underline inline-block mt-1"
               >
-                {isFollowing ? "Unfollow" : "Follow"}
-              </Button>
-            </div>
-
-            <div className="d-flex gap-4 mb-2 justify-content-center justify-content-md-start">
-              <div>
-                <strong>{userPosts.length}</strong> posts
-              </div>
-              <div>
-                <strong>{user.counts.followers}</strong> followers
-              </div>
-              <div>
-                <strong>{user.counts.following}</strong> following
-              </div>
-            </div>
-
-            {user.profile.about && <p className="mb-1">{user.profile.about}</p>}
-            <p className="text-muted small">
-              <FaUser className="me-1" /> Joined{" "}
-              {new Date(user.createdAt).toLocaleDateString()} · <FaPalette className="ms-2 me-1" /> ★
-            </p>
-          </Col>
-        </Row>
+                {profile.profile.website}
+              </a>
+            )}
+          </div>
+        </div>
 
         {/* Tabs */}
-        <Tabs
-          activeKey={activeTab}
-          onSelect={(k) => setActiveTab(k)}
-          className="mb-4 justify-content-center"
-        >
-          <Tab eventKey="uploads" title="Posts" />
-          <Tab eventKey="saved" title="Saved" />
-        </Tabs>
+        <div className="border-t border-gray-300">
+          <div className="flex justify-center gap-16">
+            <button
+              onClick={() => setActiveTab('posts')}
+              className={`flex items-center gap-2 py-4 text-xs font-semibold tracking-widest transition-colors ${
+                activeTab === 'posts'
+                  ? 'border-t-2 border-black text-black -mt-px'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              <Grid className="w-3 h-3" />
+              POSTS
+            </button>
+            <button
+              onClick={() => setActiveTab('saved')}
+              className={`flex items-center gap-2 py-4 text-xs font-semibold tracking-widest transition-colors ${
+                activeTab === 'saved'
+                  ? 'border-t-2 border-black text-black -mt-px'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              <Bookmark className="w-3 h-3" />
+              SAVED
+            </button>
+          </div>
+        </div>
 
-        {/* User Posts Grid */}
-        {activeTab === "uploads" && (
-          <Row className="g-2">
-            {userPosts.map((img) => (
-              <Col key={img._id} xs={4} sm={4} md={3}>
-                <Image
-                  src={img.media?.[0]?.url}
-                  alt={img.description}
-                  style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", cursor: 'pointer' }}
-                  onClick={() => setSelectedPost(img)}
-                  className="rounded"
-                />
-              </Col>
-            ))}
-          </Row>
-        )}
-
-        {/* Saved Posts Grid */}
-        {activeTab === "saved" && (
-          <Row className="g-2">
-            {savedPostsData.map((post) => (
-              <Col key={post._id} xs={4} sm={4} md={3}>
-                <Image
-                  src={post.media?.[0]?.url}
+        {/* Posts Grid */}
+        <div className="grid grid-cols-3 gap-1 md:gap-4 lg:gap-7 mt-1">
+          {posts.map((post) => (
+            <div
+              key={post._id}
+              onClick={() => handlePostClick(post)}
+              className="aspect-square bg-gray-100 cursor-pointer relative group overflow-hidden rounded-sm"
+            >
+              {post.media[0]?.type === 'video' ? (
+                <div className="relative w-full h-full">
+                  <video
+                    src={post.media[0].url}
+                    className="w-full h-full object-cover"
+                    muted
+                  />
+                  <Film className="absolute top-2 right-2 w-4 h-4 lg:w-5 lg:h-5 text-white drop-shadow-lg" />
+                </div>
+              ) : (
+                <img
+                  src={post.media[0]?.url}
                   alt={post.description}
-                  style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", cursor: 'pointer' }}
-                  onClick={() => setSelectedPost(post)}
-                  className="rounded"
+                  className="w-full h-full object-cover"
                 />
-              </Col>
-            ))}
-          </Row>
+              )}
+
+              {/* Hover Overlay - Desktop Only */}
+              <div className="hidden lg:flex absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center gap-8 text-white">
+                <div className="flex items-center gap-2">
+                  <Heart className="w-6 h-6 fill-white" />
+                  <span className="font-semibold text-lg">{post.likes.length}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MessageCircle className="w-6 h-6 fill-white" />
+                  <span className="font-semibold text-lg">{post.comments.length}</span>
+                </div>
+              </div>
+
+              {/* Multiple Media Indicator */}
+              {post.media.length > 1 && (
+                <div className="absolute top-2 right-2 lg:top-3 lg:right-3">
+                  <div className="flex gap-1 bg-black/50 rounded-full px-2 py-1">
+                    <div className="w-1 h-1 bg-white rounded-full" />
+                    <div className="w-1 h-1 bg-white rounded-full" />
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {posts.length === 0 && (
+          <div className="text-center py-16 text-gray-400">
+            <Grid className="w-16 h-16 mx-auto mb-4 opacity-30" />
+            <p className="text-2xl font-light">
+              {activeTab === 'posts' ? 'No posts yet' : 'No saved posts'}
+            </p>
+          </div>
         )}
-      </Container>
+      </div>
 
       {/* Post View Modal */}
       {selectedPost && (
         <PostViewModal
           post={selectedPost}
           onClose={() => setSelectedPost(null)}
-          currentUserId={currentUserId}
           onLike={handleLike}
+          currentUserId={currentUserId}
           onComment={handleComment}
         />
       )}
-    </>
+
+      {/* Followers/Following Modal */}
+      {showFollowModal && (
+        <FollowersFollowingModal
+          isOpen={showFollowModal}
+          onClose={() => setShowFollowModal(false)}
+          userId={userId}
+          initialTab={followModalTab}
+        />
+      )}
+    </div>
   );
 };
 
