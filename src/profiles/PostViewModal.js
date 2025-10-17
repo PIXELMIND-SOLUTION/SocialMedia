@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+// src/components/PostViewModal.jsx
+import React, { useState } from 'react';
 import { Heart, MessageCircle, Bookmark, Send, Smile, X } from 'lucide-react';
 
 const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
@@ -9,13 +10,11 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [showComments, setShowComments] = useState(false);
 
-
   const isLiked = likes.includes(currentUserId);
   const isSaved = saves.includes(currentUserId);
   const hasMultipleMedia = post.media?.length > 1;
 
-
-  // Handle Like Toggle with API
+  // ✅ Handle Like Toggle
   const handleLike = async () => {
     if (!currentUserId) {
       alert('Please log in to like posts.');
@@ -36,11 +35,11 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
       const data = await response.json();
       if (data.success) {
         if (isLiked) {
-          setLikes((prev) => prev.filter(id => id !== currentUserId));
+          setLikes((prev) => prev.filter((id) => id !== currentUserId));
         } else {
           setLikes((prev) => [...prev, currentUserId]);
         }
-        onLike?.(post._id); // optional callback
+        onLike?.(post._id);
       } else {
         console.error('Like failed:', data.message);
       }
@@ -49,7 +48,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
     }
   };
 
-  // Handle Comment Submission with API
+  // ✅ Handle Comment Submit
   const handleSubmitComment = async (e) => {
     e.preventDefault();
     if (!commentText.trim() || !currentUserId) return;
@@ -78,7 +77,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
     }
   };
 
-  // Handle Save Toggle with API
+  // ✅ Handle Save / Unsave Toggle with API
   const handleSaveToggle = async () => {
     if (!currentUserId) {
       alert('Please log in to save posts.');
@@ -98,8 +97,9 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
 
       const data = await response.json();
       if (data.success) {
+        // toggle locally
         if (isSaved) {
-          setSaves((prev) => prev.filter(id => id !== currentUserId));
+          setSaves((prev) => prev.filter((id) => id !== currentUserId));
         } else {
           setSaves((prev) => [...prev, currentUserId]);
         }
@@ -111,6 +111,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
     }
   };
 
+  // ✅ Media navigation
   const nextMedia = () => {
     if (currentMediaIndex < post.media.length - 1) {
       setCurrentMediaIndex(currentMediaIndex + 1);
@@ -124,15 +125,15 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center p-3 overflow-y-auto"
       onClick={onClose}
     >
-      <div 
+      <div
         className="relative w-full max-w-[500px] rounded-2xl shadow-2xl bg-white overflow-hidden my-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close Button */}
+        {/* ❌ Close Button */}
         <button
           className="absolute top-3 right-3 z-10 p-2 bg-gray-100 hover:bg-gray-200 rounded-full transition"
           onClick={onClose}
@@ -140,7 +141,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
           <X className="w-5 h-5 text-gray-900" />
         </button>
 
-        {/* Header */}
+        {/* 👤 Header */}
         <div className="flex items-center gap-3 p-4 border-b border-gray-200">
           <img
             src={post.userId?.profile?.image || '/default-avatar.png'}
@@ -152,7 +153,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
           </span>
         </div>
 
-        {/* Media Section */}
+        {/* 📸 Media Section */}
         <div className="relative w-full bg-black">
           {post.media?.[currentMediaIndex]?.type === 'video' ? (
             <video
@@ -179,7 +180,12 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
                   onClick={prevMedia}
                   className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-white/90 hover:bg-white rounded-full shadow-lg transition"
                 >
-                  <svg className="w-5 h-5 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg
+                    className="w-5 h-5 text-gray-900"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
@@ -189,13 +195,18 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
                   onClick={nextMedia}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white/90 hover:bg-white rounded-full shadow-lg transition"
                 >
-                  <svg className="w-5 h-5 text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg
+                    className="w-5 h-5 text-gray-900"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
               )}
 
-              {/* Dots */}
+              {/* Pagination Dots */}
               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
                 {post.media.map((_, idx) => (
                   <div
@@ -210,12 +221,12 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
           )}
         </div>
 
-        {/* Description */}
+        {/* 📝 Description */}
         <p className="px-4 py-3 text-gray-900 text-sm">
           {post.description || 'No description available.'}
         </p>
 
-        {/* Actions */}
+        {/* ❤️ Action Buttons */}
         <div className="flex justify-between items-center px-4 py-2 border-t border-gray-200">
           <div className="flex gap-4 items-center">
             <Heart
@@ -224,15 +235,15 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
               }`}
               onClick={handleLike}
             />
-            <MessageCircle 
-              className="w-6 h-6 text-gray-900 cursor-pointer" 
+            <MessageCircle
+              className="w-6 h-6 text-gray-900 cursor-pointer"
               onClick={() => setShowComments(!showComments)}
             />
             <Send className="w-6 h-6 text-gray-900 cursor-pointer" />
           </div>
           <div className="flex gap-3 items-center">
             <Bookmark
-              className={`w-6 h-6 cursor-pointer ${
+              className={`w-6 h-6 cursor-pointer transition ${
                 isSaved ? 'text-blue-500 fill-blue-500' : 'text-gray-900'
               }`}
               onClick={handleSaveToggle}
@@ -240,12 +251,12 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
           </div>
         </div>
 
-        {/* Like count */}
+        {/* 👍 Like Count */}
         <p className="px-4 pb-2 text-sm font-semibold text-gray-900">
           {likes.length} {likes.length === 1 ? 'like' : 'likes'}
         </p>
 
-        {/* Comments Section (toggleable) */}
+        {/* 💬 Comments */}
         {showComments && (
           <>
             <div className="px-4 pb-3 space-y-3 max-h-[300px] overflow-y-auto">
@@ -265,7 +276,10 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
               )}
             </div>
 
-            <form onSubmit={handleSubmitComment} className="flex items-center gap-2 px-4 py-3 border-t border-gray-200">
+            <form
+              onSubmit={handleSubmitComment}
+              className="flex items-center gap-2 px-4 py-3 border-t border-gray-200"
+            >
               <Smile className="w-5 h-5 text-gray-400" />
               <input
                 type="text"

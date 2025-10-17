@@ -16,6 +16,7 @@ const CreatePost = () => {
   const [cropRatio, setCropRatio] = useState("original");
   const [activeTab, setActiveTab] = useState("adjustments"); // filters, adjustments
   const [location, setLocation] = useState("");
+  const navigate = useRef(null);
 
   // Image adjustments
   const [brightness, setBrightness] = useState(50);
@@ -135,6 +136,7 @@ const CreatePost = () => {
         setPostText("");
         setSelectedImages([]);
         setCurrentStep("select");
+        navigate("/home")
       } else {
         alert("Failed to create post ❌");
       }

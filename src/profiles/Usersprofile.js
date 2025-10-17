@@ -41,6 +41,8 @@ const UserProfile = () => {
         setProfile(data.data);
         if (data.data.savedPosts && data.data.savedPosts.length > 0) {
           fetchSavedPosts(data.data.savedPosts);
+        } else {
+          setSavedPostsData([]);
         }
       } else {
         setError('Failed to load profile');
@@ -57,14 +59,28 @@ const UserProfile = () => {
     try {
       const savedPostsDetails = await Promise.all(
         savedPostsIds.map(async (postId) => {
-          const res = await fetch(`https://social-media-nty4.onrender.com/api/posts/${userId}/${postId}`);
-          const data = await res.json();
-          return data.success ? data.data : null;
+          try {
+            const res = await fetch(`https://social-media-nty4.onrender.com/api/posts/user/${postId}`);
+            const data = await res.json();
+            console.log('Fetched saved post data:', data);
+            
+            if (data.success && data.data) {
+              return data.data;
+            }
+            return null;
+          } catch (err) {
+            console.error(`Error fetching post ${postId}:`, err);
+            return null;
+          }
         })
       );
-      setSavedPostsData(savedPostsDetails.filter(Boolean));
+      
+      // Filter out null values and set the saved posts
+      const validSavedPosts = savedPostsDetails.filter(Boolean);
+      setSavedPostsData(validSavedPosts);
     } catch (err) {
       console.error('Error fetching saved posts:', err);
+      setSavedPostsData([]);
     }
   };
 
@@ -129,7 +145,7 @@ const UserProfile = () => {
 
   const fetchPostDetails = async (postId) => {
     try {
-      const response = await fetch(`https://social-media-nty4.onrender.com/api/posts/${userId}/${postId}`);
+      const response = await fetch(`https://social-media-nty4.onrender.com/api/posts/${postId}`);
       const data = await response.json();
 
       if (data.success) {

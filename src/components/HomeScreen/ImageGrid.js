@@ -91,11 +91,10 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
                       disabled={savingIds.includes(img._id)}
                     >
                       <i
-                        className={`bi ${
-                          isSaved(img._id)
+                        className={`bi ${isSaved(img._id)
                             ? "bi-bookmark-fill text-primary"
                             : "bi-bookmark"
-                        }`}
+                          }`}
                       ></i>
                     </button>
                   </div>
@@ -144,12 +143,30 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
           break-inside: avoid;
           position: relative;
         }
-
-        .masonry-item:hover .image-hover-overlay {
-          opacity: 1 !important;
+          
+        /* Default: large screens — show overlay only on hover */
+        .image-hover-overlay {
+          opacity: 0;
           background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, transparent 100%);
           transition: opacity 0.3s ease;
         }
+
+        .masonry-item:hover .image-hover-overlay {
+          opacity: 1;
+        }
+
+        /* Mobile: always show overlay (no hover needed) */
+        @media (max-width: 768px) {
+          .image-hover-overlay {
+            opacity: 1 !important;
+            background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, transparent 100%);
+          }
+
+          .masonry-item:hover .image-hover-overlay {
+            opacity: 1 !important; /* stays visible even on hover */
+          }
+        }
+
 
         .image-hover-overlay {
           transition: opacity 0.3s ease;

@@ -17,6 +17,8 @@ import axios from 'axios';
 const Sidebar = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showMenu, setShowMenu] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [messageCount, setMessageCount] = useState(0);
   const location = useLocation();
 
   useEffect(() => {
@@ -28,12 +30,36 @@ const Sidebar = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-   
+  // Fetch notification count
+  useEffect(() => {
+    const fetchNotificationCount = async () => {
+      try {
+        const response = await axios.get('https://social-media-nty4.onrender.com/api/notifications/get-live/68c2607ff277cea3b5b4d775');
+        if (response.data.success) {
+          setNotificationCount(response.data.data.counts.unread || 0);
+        }
+      } catch (error) {
+        console.error('Error fetching notification count:', error);
+      }
+    };
+
+    fetchNotificationCount();
+    
+    // Set up interval to periodically check for new notifications
+    const interval = setInterval(fetchNotificationCount, 30000); // Check every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // Mock message count (replace with actual API call)
+  useEffect(() => {
+    setMessageCount(3); // Mock data - replace with actual API call
+  }, []);
 
   const navItems = [
     { to: '/home', icon: <FaHome />, title: 'Home' },
-    { to: '/messages', icon: <FaCommentDots />, title: 'Messages' },
-    { to: '/notification', icon: <FaBell />, title: 'Notifications' },
+    { to: '/messages', icon: <FaCommentDots />, title: 'Messages', count: messageCount },
+    { to: '/notification', icon: <FaBell />, title: 'Notifications', count: notificationCount },
     { to: '/create', icon: <FaPlus />, title: 'Create' },
     { to: '/watch', icon: <FaUserFriends />, title: 'Watch' },
     { to: '/campaign', icon: <FaBullhorn />, title: 'Campaign' },
@@ -90,10 +116,32 @@ const Sidebar = () => {
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             }}
           >
-            <div className="icon-wrapper">
+            <div className="icon-wrapper position-relative">
               <FaHome className="fs-5" />
             </div>
             <small style={{ fontSize: '0.7rem', fontWeight: '500' }}>Home</small>
+          </Link>
+
+          {/* Notifications Icon with Badge */}
+          <Link
+            to="/notification"
+            className={`text-decoration-none d-flex flex-column align-items-center nav-item ${
+              isActiveRoute('/notification') ? 'active' : ''
+            }`}
+            style={{
+              color: isActiveRoute('/notification') ? '#f47c31' : '#6b7280',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          >
+            <div className="icon-wrapper position-relative">
+              <FaBell className="fs-5" />
+              {notificationCount > 0 && (
+                <span className="notification-badge-mobile">
+                  {notificationCount > 99 ? '99+' : notificationCount}
+                </span>
+              )}
+            </div>
+            <small style={{ fontSize: '0.7rem', fontWeight: '500' }}>Alerts</small>
           </Link>
 
           {/* Create/Plus Icon */}
@@ -119,6 +167,28 @@ const Sidebar = () => {
             <small style={{ fontSize: '0.7rem', fontWeight: '500', color: '#6b7280', marginTop: '2px' }}>
               Create
             </small>
+          </Link>
+
+          {/* Messages Icon with Badge */}
+          <Link
+            to="/messages"
+            className={`text-decoration-none d-flex flex-column align-items-center nav-item ${
+              isActiveRoute('/messages') ? 'active' : ''
+            }`}
+            style={{
+              color: isActiveRoute('/messages') ? '#f47c31' : '#6b7280',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          >
+            <div className="icon-wrapper position-relative">
+              <FaCommentDots className="fs-5" />
+              {messageCount > 0 && (
+                <span className="message-badge-mobile">
+                  {messageCount > 99 ? '99+' : messageCount}
+                </span>
+              )}
+            </div>
+            <small style={{ fontSize: '0.7rem', fontWeight: '500' }}>Chats</small>
           </Link>
 
           {/* Menu Button */}
@@ -148,13 +218,13 @@ const Sidebar = () => {
             }}
           >
             {navItems
-              .filter((item) => item.to !== "/home" && item.to !== "/create")
+              .filter((item) => !['/home', '/create', '/notification', '/messages'].includes(item.to))
               .reverse()
               .map((item, index) => (
                 <Link
                   to={item.to}
                   key={index}
-                  className="text-white rounded-circle d-flex align-items-center justify-content-center shadow-lg bubble-btn"
+                  className="text-white rounded-circle d-flex align-items-center justify-content-center shadow-lg bubble-btn position-relative"
                   style={{
                     width: "60px",
                     height: "60px",
@@ -169,6 +239,11 @@ const Sidebar = () => {
                   onClick={() => setShowMenu(false)}
                 >
                   <span className="fs-5">{item.icon}</span>
+                  {item.count > 0 && (
+                    <span className="bubble-menu-badge">
+                      {item.count > 99 ? '99+' : item.count}
+                    </span>
+                  )}
                 </Link>
               ))}
           </div>
@@ -203,6 +278,50 @@ const Sidebar = () => {
                 opacity: 1;
                 transform: scale(1) translateY(0);
               }
+            }
+
+            /* Mobile Badge Styles */
+            .notification-badge-mobile,
+            .message-badge-mobile {
+              position: absolute;
+              top: -5px;
+              right: -5px;
+              min-width: 18px;
+              height: 18px;
+              padding: 0 4px;
+              background: linear-gradient(135deg, #ef4444, #dc2626);
+              color: white;
+              font-size: 0.6rem;
+              font-weight: bold;
+              border-radius: 9px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              border: 2px solid white;
+              animation: pulse 2s infinite;
+            }
+
+            .message-badge-mobile {
+              background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            }
+
+            .bubble-menu-badge {
+              position: absolute;
+              top: -5px;
+              right: -5px;
+              min-width: 20px;
+              height: 20px;
+              padding: 0 4px;
+              background: linear-gradient(135deg, #ef4444, #dc2626);
+              color: white;
+              font-size: 0.65rem;
+              font-weight: bold;
+              border-radius: 10px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              border: 2px solid rgba(255,255,255,0.8);
+              animation: pulse 2s infinite;
             }
 
             .bubble-btn:hover {
@@ -276,6 +395,8 @@ const Sidebar = () => {
             .filter((item) => item.to !== "/settings")
             .map((item, index) => {
               const isActive = isActiveRoute(item.to);
+              const hasCount = item.count > 0;
+              
               return (
                 <Link
                   to={item.to}
@@ -305,7 +426,7 @@ const Sidebar = () => {
                     {/* Active indicator */}
                     {isActive && (
                       <div
-                        className="position-absolute rounded-circle"
+                        className="position-absolute rounded-circle active-indicator"
                         style={{
                           width: '6px',
                           height: '6px',
@@ -315,6 +436,16 @@ const Sidebar = () => {
                           boxShadow: '0 2px 8px rgba(244, 124, 49, 0.4)',
                         }}
                       />
+                    )}
+                    
+                    {/* Notification/Messages Count Badge */}
+                    {hasCount && (
+                      <span className={`position-absolute desktop-badge ${
+                        item.to === '/notification' ? 'notification-badge' : 
+                        item.to === '/messages' ? 'message-badge' : 'default-badge'
+                      }`}>
+                        {item.count > 99 ? '99+' : item.count}
+                      </span>
                     )}
                   </div>
                 </Link>
@@ -354,6 +485,38 @@ const Sidebar = () => {
 
       <style>
         {`
+          /* Desktop Badge Styles */
+          .desktop-badge {
+            top: 6px;
+            right: 6px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 4px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid white;
+            animation: pulse 2s infinite;
+          }
+
+          .notification-badge {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+          }
+
+          .message-badge {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+          }
+
+          .default-badge {
+            background: linear-gradient(135deg, #f47c31, #ff6b35);
+            color: white;
+          }
+
           /* Desktop Navigation Hover Effects */
           .nav-link-modern:hover > div {
             background: linear-gradient(135deg, rgba(244, 124, 49, 0.15), rgba(255, 107, 53, 0.15)) !important;
@@ -458,18 +621,7 @@ const Sidebar = () => {
             color: white !important;
           }
 
-          /* Notification badge styles */
-          .notification-badge {
-            position: absolute;
-            top: -2px;
-            right: -2px;
-            width: 8px;
-            height: 8px;
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-          }
-
+          /* Pulse animation for badges */
           @keyframes pulse {
             0% {
               box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
