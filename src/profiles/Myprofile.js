@@ -157,7 +157,7 @@ const MyProfile = () => {
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-purple-400 via-pink-400 to-orange-400 flex items-center justify-center text-white text-3xl sm:text-5xl lg:text-6xl font-bold">
-                      {profile.profile.firstName?.[0] || 'U'}
+                      {profile.profile.firstName?.[0].toUpperCase() || 'U'}
                     </div>
                   )}
                 </div>

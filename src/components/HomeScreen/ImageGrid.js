@@ -74,13 +74,32 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
                 onClick={() => onImageClick(img)}
                 style={{ cursor: "pointer" }}
               >
-                {/* Media */}
-                <img
-                  src={img.media?.[0]?.url}
-                  alt={`img-${index}`}
-                  className="img-fluid rounded"
-                  style={{ width: "100%", display: "block" }}
-                />
+                {(() => {
+                  const mediaUrl = img.media?.[0]?.url;
+                  const isVideo = mediaUrl?.match(/\.(mp4|webm|ogg)$/i); // Detect video by extension
+
+                  return isVideo ? (
+  <video
+    src={mediaUrl}
+    className="img-fluid rounded"
+    style={{ width: "100%", display: "block", objectFit: "cover" }}
+    autoPlay
+    muted
+    loop
+    playsInline
+    onClick={(e) => e.stopPropagation()} // Prevent modal trigger
+  />
+) : (
+  <img
+    src={mediaUrl}
+    alt={`img-${index}`}
+    className="img-fluid rounded"
+    style={{ width: "100%", display: "block" }}
+  />
+);
+
+                })()}
+
 
                 {/* Hover overlay */}
                 <div className="image-hover-overlay position-absolute top-0 start-0 w-100 h-100 d-flex flex-column justify-content-between p-3 opacity-0">
@@ -92,8 +111,8 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
                     >
                       <i
                         className={`bi ${isSaved(img._id)
-                            ? "bi-bookmark-fill text-primary"
-                            : "bi-bookmark"
+                          ? "bi-bookmark-fill text-primary"
+                          : "bi-bookmark"
                           }`}
                       ></i>
                     </button>
@@ -107,17 +126,44 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
                         handleProfile(img.userId?._id);
                       }}
                     >
-                      <img
-                        src={img.userId?.profile?.image}
-                        alt={img.userId?.fullName}
-                        className="rounded-circle me-2"
-                        style={{
-                          width: "30px",
-                          height: "30px",
-                          objectFit: "cover",
+                      <div
+                        className="d-flex align-items-center mb-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleProfile(img.userId?._id);
                         }}
-                      />
-                      <span className="fw-bold">{img.userId?.fullName}</span>
+                      >
+                        {img.userId?.profile?.image ? (
+                          <img
+                            src={img.userId.profile.image}
+                            alt={img.userId?.fullName}
+                            className="rounded-circle me-2"
+                            style={{
+                              width: "30px",
+                              height: "30px",
+                              objectFit: "cover",
+                            }}
+                          />
+                        ) : (
+                          <div
+                            className="rounded-circle me-2 d-flex justify-content-center align-items-center"
+                            style={{
+                              width: "30px",
+                              height: "30px",
+                              background: "linear-gradient(135deg, #f47c31, #ff6b35)",
+                              color: "#fff",
+                              fontSize: "14px",
+                              fontWeight: "bold",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            {img.userId?.fullName?.[0] || "U"}
+                          </div>
+                        )}
+                        <span className="fw-bold">{img.userId?.fullName}</span>
+                      </div>
+
+
                     </div>
                   </div>
                 </div>

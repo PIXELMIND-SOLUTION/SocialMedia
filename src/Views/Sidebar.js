@@ -44,10 +44,10 @@ const Sidebar = () => {
     };
 
     fetchNotificationCount();
-    
+
     // Set up interval to periodically check for new notifications
     const interval = setInterval(fetchNotificationCount, 30000); // Check every 30 seconds
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -90,7 +90,7 @@ const Sidebar = () => {
             }
           `}
         </style>
-        
+
         {/* Mobile Floating Bottom Navigation */}
         <div
           className="d-flex justify-content-around align-items-center fixed-bottom mx-2 mb-2 shadow-lg"
@@ -108,9 +108,8 @@ const Sidebar = () => {
           {/* Home Icon */}
           <Link
             to="/home"
-            className={`text-decoration-none d-flex flex-column align-items-center nav-item ${
-              isActiveRoute('/home') ? 'active' : ''
-            }`}
+            className={`text-decoration-none d-flex flex-column align-items-center nav-item ${isActiveRoute('/home') ? 'active' : ''
+              }`}
             style={{
               color: isActiveRoute('/home') ? '#f47c31' : '#6b7280',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -125,9 +124,8 @@ const Sidebar = () => {
           {/* Notifications Icon with Badge */}
           <Link
             to="/notification"
-            className={`text-decoration-none d-flex flex-column align-items-center nav-item ${
-              isActiveRoute('/notification') ? 'active' : ''
-            }`}
+            className={`text-decoration-none d-flex flex-column align-items-center nav-item ${isActiveRoute('/notification') ? 'active' : ''
+              }`}
             style={{
               color: isActiveRoute('/notification') ? '#f47c31' : '#6b7280',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -172,9 +170,8 @@ const Sidebar = () => {
           {/* Messages Icon with Badge */}
           <Link
             to="/messages"
-            className={`text-decoration-none d-flex flex-column align-items-center nav-item ${
-              isActiveRoute('/messages') ? 'active' : ''
-            }`}
+            className={`text-decoration-none d-flex flex-column align-items-center nav-item ${isActiveRoute('/messages') ? 'active' : ''
+              }`}
             style={{
               color: isActiveRoute('/messages') ? '#f47c31' : '#6b7280',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -253,8 +250,8 @@ const Sidebar = () => {
         {showMenu && (
           <div
             className="position-fixed top-0 start-0 w-100 h-100"
-            style={{ 
-              zIndex: 999, 
+            style={{
+              zIndex: 999,
               background: "rgba(0,0,0,0.3)",
               backdropFilter: "blur(4px)",
               transition: 'all 0.3s ease',
@@ -373,21 +370,30 @@ const Sidebar = () => {
             background: 'linear-gradient(135deg, #f47c31, #ff6b35)',
             boxShadow: '0 4px 15px rgba(244, 124, 49, 0.3)',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            overflow: 'hidden', // Ensures the image stays within the circle
+            cursor: 'pointer',
           }}
           onMouseEnter={(e) => {
-            e.target.style.transform = 'scale(1.1) rotate(5deg)';
-            e.target.style.boxShadow = '0 6px 20px rgba(244, 124, 49, 0.4)';
+            e.currentTarget.style.transform = 'scale(1.1) rotate(5deg)';
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(244, 124, 49, 0.4)';
           }}
           onMouseLeave={(e) => {
-            e.target.style.transform = 'scale(1) rotate(0deg)';
-            e.target.style.boxShadow = '0 4px 15px rgba(244, 124, 49, 0.3)';
+            e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
+            e.currentTarget.style.boxShadow = '0 4px 15px rgba(244, 124, 49, 0.3)';
           }}
         >
-          <div 
-            className="rounded-circle bg-white"
-            style={{ width: '18px', height: '18px' }}
+          <img
+            src="/logo.png"
+            alt="Profile"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              borderRadius: '50%',
+            }}
           />
         </div>
+
 
         {/* Navigation Icons */}
         <div className="d-flex flex-column align-items-center gap-3 flex-grow-1">
@@ -396,7 +402,7 @@ const Sidebar = () => {
             .map((item, index) => {
               const isActive = isActiveRoute(item.to);
               const hasCount = item.count > 0;
-              
+
               return (
                 <Link
                   to={item.to}
@@ -413,7 +419,7 @@ const Sidebar = () => {
                     style={{
                       width: '50px',
                       height: '50px',
-                      background: isActive 
+                      background: isActive
                         ? 'linear-gradient(135deg, rgba(244, 124, 49, 0.1), rgba(255, 107, 53, 0.1))'
                         : 'transparent',
                       border: isActive ? '1px solid rgba(244, 124, 49, 0.2)' : '1px solid transparent',
@@ -422,7 +428,7 @@ const Sidebar = () => {
                     }}
                   >
                     <span className="fs-5 position-relative z-index-2">{item.icon}</span>
-                    
+
                     {/* Active indicator */}
                     {isActive && (
                       <div
@@ -437,13 +443,12 @@ const Sidebar = () => {
                         }}
                       />
                     )}
-                    
+
                     {/* Notification/Messages Count Badge */}
                     {hasCount && (
-                      <span className={`position-absolute desktop-badge ${
-                        item.to === '/notification' ? 'notification-badge' : 
-                        item.to === '/messages' ? 'message-badge' : 'default-badge'
-                      }`}>
+                      <span className={`position-absolute desktop-badge ${item.to === '/notification' ? 'notification-badge' :
+                          item.to === '/messages' ? 'message-badge' : 'default-badge'
+                        }`}>
                         {item.count > 99 ? '99+' : item.count}
                       </span>
                     )}

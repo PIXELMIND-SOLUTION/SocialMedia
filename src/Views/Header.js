@@ -16,6 +16,7 @@ const Header = () => {
   // Get logged-in user
   const storedUser = JSON.parse(sessionStorage.getItem("userData"));
   const userId = storedUser?.userId;
+  const username = storedUser?.fullName;
 
   // Fetch logged-in user profile
   useEffect(() => {
@@ -178,100 +179,134 @@ const Header = () => {
           </div>
 
           {/* Profile Image Trigger */}
-          <div
-            className="d-flex align-items-center"
-            onClick={() => setShowModal(true)}
-            style={{ cursor: "pointer" }}
-          >
-            {profilePic ? (
-              <img
-                src={profilePic}
-                alt="Profile"
-                style={{
-                  width: "45px",
-                  height: "45px",
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                  border: "2px solid #f47c31",
-                  transition: "transform 0.3s ease",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
-                onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-              />
-            ) : (
-              <FaUserCircle className="text-secondary" size={45} />
-            )}
-          </div>
+        <div
+          className="d-flex align-items-center"
+          onClick={() => setShowModal(true)}
+          style={{ cursor: "pointer", width: "45px", height: "45px" }}
+        >
+          {profilePic ? (
+            <img
+              src={profilePic}
+              alt="Profile"
+              style={{
+                width: "100%",
+                height: "100%",
+                borderRadius: "50%",
+                objectFit: "cover",
+                border: "2px solid #f47c31",
+                transition: "transform 0.3s ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+            />
+          ) : (
+            <div
+              className="bg-gradient-to-br from-purple-400 via-pink-400 to-orange-400 
+                        d-flex justify-content-center align-items-center text-white 
+                        fw-bold"
+              style={{
+                width: "100%",
+                height: "100%",
+                borderRadius: "50%",
+                fontSize: "20px", // Adjust if needed
+                border: "2px solid #f47c31",
+                transition: "transform 0.3s ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+            >
+              {username?.[0]?.toUpperCase() || "U"}
+            </div>
+          )}
+        </div>
+
         </div>
       </nav>
 
       {/* Profile Modal */}
       {showModal && (
-        <>
-          {/* Blur Background */}
-          <div
-            className="position-fixed top-0 start-0 w-100 h-100"
-            style={{
-              backgroundColor: "rgba(0,0,0,0.5)",
-              backdropFilter: "blur(6px)",
-              zIndex: 1040,
-            }}
-            onClick={() => setShowModal(false)}
-          ></div>
+  <>
+    {/* Blur Background */}
+    <div
+      className="position-fixed top-0 start-0 w-100 h-100"
+      style={{
+        backgroundColor: "rgba(0,0,0,0.5)",
+        backdropFilter: "blur(6px)",
+        zIndex: 1040,
+      }}
+      onClick={() => setShowModal(false)}
+    ></div>
 
-          {/* Modal Content */}
-          <div
-            className="position-fixed top-50 start-50 translate-middle bg-white shadow-lg rounded-4 p-4"
-            style={{
-              width: "320px",
-              zIndex: 1050,
-              animation: "fadeIn 0.3s ease-in-out",
-            }}
-          >
-            <div className="text-center">
-              {profilePic ? (
-                <img
-                  src={profilePic}
-                  alt="Profile"
-                  style={{
-                    width: "90px",
-                    height: "90px",
-                    borderRadius: "50%",
-                    objectFit: "cover",
-                    border: "3px solid #f47c31",
-                  }}
-                />
-              ) : (
-                <FaUserCircle className="text-secondary" size={90} />
-              )}
-              <h5 className="mt-3 mb-4 fw-semibold">My Account</h5>
-            </div>
+    {/* Modal Content */}
+    <div
+      className="position-fixed top-50 start-50 translate-middle bg-white shadow-lg rounded-4 p-4"
+      style={{
+        width: "320px",
+        zIndex: 1050,
+        animation: "fadeIn 0.3s ease-in-out",
+      }}
+    >
+      <div className="text-center d-flex flex-column align-items-center">
+  {profilePic ? (
+    <img
+      src={profilePic}
+      alt="Profile"
+      style={{
+        width: "90px",
+        height: "90px",
+        borderRadius: "50%",
+        objectFit: "cover",
+        border: "3px solid #f47c31",
+      }}
+    />
+  ) : (
+    <div
+      className="bg-gradient-to-br from-purple-400 via-pink-400 to-orange-400 
+                 d-flex justify-content-center align-items-center text-white fw-bold"
+      style={{
+        width: "90px",
+        height: "90px",
+        borderRadius: "50%",
+        fontSize: "36px",
+        border: "3px solid #f47c31",
+      }}
+    >
+      {username?.[0]?.toUpperCase() || "U"}
+    </div>
+  )}
 
-            <div className="list-group text-center">
-              <Link
-                to="/myprofile"
-                className="list-group-item list-group-item-action border-0"
-                onClick={() => setShowModal(false)}
-              >
-                View Profile
-              </Link>
-              <Link
-                to="/settings"
-                className="list-group-item list-group-item-action border-0"
-                onClick={() => setShowModal(false)}
-              >
-                Settings
-              </Link>
-              <button
-                className="list-group-item list-group-item-action border-0 text-danger"
-                onClick={handleLogout}
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+  <h5 className="mt-3 mb-4 fw-semibold">
+    {username ? username : "My Account"}
+  </h5>
+</div>
+
+
+      <div className="list-group text-center">
+        <Link
+          to="/myprofile"
+          className="list-group-item list-group-item-action border-0"
+          onClick={() => setShowModal(false)}
+        >
+          View Profile
+        </Link>
+        <Link
+          to="/settings"
+          className="list-group-item list-group-item-action border-0"
+          onClick={() => setShowModal(false)}
+        >
+          Settings
+        </Link>
+        <button
+          className="list-group-item list-group-item-action border-0 text-danger"
+          onClick={handleLogout}
+        >
+          Logout
+        </button>
+      </div>
+    </div>
+  </>
+)}
+
 
       {/* Animations */}
       <style>{`

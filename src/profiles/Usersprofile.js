@@ -63,7 +63,7 @@ const UserProfile = () => {
             const res = await fetch(`https://social-media-nty4.onrender.com/api/posts/user/${postId}`);
             const data = await res.json();
             console.log('Fetched saved post data:', data);
-            
+
             if (data.success && data.data) {
               return data.data;
             }
@@ -74,7 +74,7 @@ const UserProfile = () => {
           }
         })
       );
-      
+
       // Filter out null values and set the saved posts
       const validSavedPosts = savedPostsDetails.filter(Boolean);
       setSavedPostsData(validSavedPosts);
@@ -97,7 +97,7 @@ const UserProfile = () => {
       // Check if request is pending
       const followersResponse = await fetch(`https://social-media-nty4.onrender.com/api/followers/${userId}`);
       const followersData = await followersResponse.json();
-      
+
       if (followersData.success) {
         const pendingIds = (followersData.pendingRequests || []).map(u => u._id);
         setFollowRequestPending(pendingIds.includes(currentUserId));
@@ -217,7 +217,7 @@ const UserProfile = () => {
                   />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-4xl lg:text-6xl font-bold">
-                    {profile.profile.firstName?.[0] || 'U'}
+                    {profile.profile.firstName?.[0].toUpperCase() || 'U'}
                   </div>
                 )}
               </div>
@@ -228,19 +228,18 @@ const UserProfile = () => {
               {/* Username and Actions - Desktop */}
               <div className="hidden lg:flex items-center gap-5 mb-6">
                 <h1 className="text-xl font-light">{profile.profile.username}</h1>
-                
+
                 {!isOwnProfile && (
                   <>
                     <button
                       onClick={handleFollowToggle}
                       disabled={followRequestPending}
-                      className={`px-6 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
-                        isFollowing
+                      className={`px-6 py-1.5 text-sm font-semibold rounded-lg transition-colors ${isFollowing
                           ? 'bg-gray-200 text-black hover:bg-gray-300'
                           : followRequestPending
-                          ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                          : 'bg-blue-500 text-white hover:bg-blue-600'
-                      }`}
+                            ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                            : 'bg-blue-500 text-white hover:bg-blue-600'
+                        }`}
                     >
                       {isFollowing ? (
                         <span className="flex items-center gap-2">
@@ -277,7 +276,7 @@ const UserProfile = () => {
                   <span className="font-semibold">{profile.posts.length}</span>
                   <span className="text-gray-700 ml-1">posts</span>
                 </div>
-                <div 
+                <div
                   className="cursor-pointer hover:text-gray-600"
                   onClick={() => {
                     setFollowModalTab('followers');
@@ -287,7 +286,7 @@ const UserProfile = () => {
                   <span className="font-semibold">{profile.counts.followers}</span>
                   <span className="text-gray-700 ml-1">followers</span>
                 </div>
-                <div 
+                <div
                   className="cursor-pointer hover:text-gray-600"
                   onClick={() => {
                     setFollowModalTab('following');
@@ -323,13 +322,12 @@ const UserProfile = () => {
                   <button
                     onClick={handleFollowToggle}
                     disabled={followRequestPending}
-                    className={`flex-1 px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
-                      isFollowing
+                    className={`flex-1 px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${isFollowing
                         ? 'bg-gray-200 text-black hover:bg-gray-300'
                         : followRequestPending
-                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                        : 'bg-blue-500 text-white hover:bg-blue-600'
-                    }`}
+                          ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}
                   >
                     {isFollowing ? 'Following' : followRequestPending ? 'Requested' : 'Follow'}
                   </button>
@@ -365,22 +363,20 @@ const UserProfile = () => {
           <div className="flex justify-center gap-16">
             <button
               onClick={() => setActiveTab('posts')}
-              className={`flex items-center gap-2 py-4 text-xs font-semibold tracking-widest transition-colors ${
-                activeTab === 'posts'
+              className={`flex items-center gap-2 py-4 text-xs font-semibold tracking-widest transition-colors ${activeTab === 'posts'
                   ? 'border-t-2 border-black text-black -mt-px'
                   : 'text-gray-400 hover:text-gray-600'
-              }`}
+                }`}
             >
               <Grid className="w-3 h-3" />
               POSTS
             </button>
             <button
               onClick={() => setActiveTab('saved')}
-              className={`flex items-center gap-2 py-4 text-xs font-semibold tracking-widest transition-colors ${
-                activeTab === 'saved'
+              className={`flex items-center gap-2 py-4 text-xs font-semibold tracking-widest transition-colors ${activeTab === 'saved'
                   ? 'border-t-2 border-black text-black -mt-px'
                   : 'text-gray-400 hover:text-gray-600'
-              }`}
+                }`}
             >
               <Bookmark className="w-3 h-3" />
               SAVED

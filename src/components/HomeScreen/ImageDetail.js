@@ -104,7 +104,8 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
     if (!url) return;
     const a = document.createElement("a");
     a.href = url;
-    a.download = `post-${image._id}.jpg`;
+    const extension = isVideo(image.media?.[0]?.type) ? 'mp4' : 'jpg';
+    a.download = `post-${image._id}.${extension}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -118,9 +119,76 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
     }
   }
 
+  const isVideo = (type) => {
+    return type && (type.startsWith('video/') || type === 'video');
+  };
+
+  const getInitials = (name) => {
+    if (!name) return "?";
+    const words = name.trim().split(' ');
+    if (words.length === 1) return words[0].charAt(0).toUpperCase();
+    return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
+  };
+
+  const renderProfileImage = (user) => {
+    const profileImage = user?.profile?.image?.trim();
+    const fullName = user?.fullName || "Anonymous";
+    
+    if (profileImage) {
+      return (
+        <img
+          src={profileImage}
+          alt={fullName}
+          className="rounded-circle"
+          width="36"
+          height="36"
+          style={{ objectFit: "cover" }}
+        />
+      );
+    } else {
+      return (
+        <div
+          className="rounded-circle d-flex align-items-center justify-content-center bg-primary text-white fw-bold"
+          style={{ width: "36px", height: "36px", fontSize: "14px" }}
+        >
+          {getInitials(fullName)}
+        </div>
+      );
+    }
+  };
+
+  const renderCommentAvatar = (user) => {
+    const profileImage = user?.profile?.image?.trim();
+    const fullName = user?.fullName || "Anonymous";
+    
+    if (profileImage) {
+      return (
+        <img
+          src={profileImage}
+          alt={fullName}
+          className="rounded-circle me-2"
+          width="28"
+          height="28"
+          style={{ objectFit: "cover" }}
+        />
+      );
+    } else {
+      return (
+        <div
+          className="rounded-circle d-flex align-items-center justify-content-center bg-secondary text-white fw-bold me-2"
+          style={{ width: "28px", height: "28px", fontSize: "12px", flexShrink: 0 }}
+        >
+          {getInitials(fullName)}
+        </div>
+      );
+    }
+  };
+
   if (!image) return null;
   const isLiked = likes.includes(currentUserId);
   const isSaved = saves.includes(currentUserId);
+  const mediaType = image.media?.[0]?.type;
+  const mediaUrl = image.media?.[0]?.url?.trim();
 
   return (
     <div className="image-detail-container d-flex flex-column">
@@ -135,16 +203,27 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
       </div>
 
       <div
-        className="rounded mb-3 overflow-hidden"
-        style={{ height: '250px', cursor: 'pointer' }}
-        onClick={onOpenGalleria}
+        className="rounded mb-3 overflow-hidden bg-dark"
+        style={{ height: '250px', cursor: isVideo(mediaType) ? 'default' : 'pointer' }}
+        onClick={!isVideo(mediaType) ? onOpenGalleria : undefined}
       >
-        <img
-          src={image.media?.[0]?.url?.trim()}
-          alt={image.description || "Post"}
-          className="w-100 h-100"
-          style={{ objectFit: "contain" }}
-        />
+        {isVideo(mediaType) ? (
+          <video
+            src={mediaUrl}
+            controls
+            className="w-100 h-100"
+            style={{ objectFit: "contain" }}
+          >
+            Your browser does not support the video tag.
+          </video>
+        ) : (
+          <img
+            src={mediaUrl}
+            alt={image.description || "Post"}
+            className="w-100 h-100"
+            style={{ objectFit: "contain" }}
+          />
+        )}
       </div>
 
       <p className="fw-medium mb-3">{image.description || "No description"}</p>
@@ -174,14 +253,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
           onClick={() => handleProfile(image.userId?._id)}
           style={{ cursor: "pointer" }}
         >
-          <img
-            src={image.userId?.profile?.image?.trim() || "/default-avatar.png"}
-            alt={image.userId?.fullName}
-            className="rounded-circle"
-            width="36"
-            height="36"
-            style={{ objectFit: "cover" }}
-          />
+          {renderProfileImage(image.userId)}
           <span className="fw-bold">{image.userId?.fullName || "Anonymous"}</span>
         </div>
         <button className="btn btn-sm btn-outline-primary">Follow</button>
@@ -194,8 +266,13 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
         <div>
           {comments.map(comment => (
             <div key={comment._id} className="mb-2 p-2 bg-light rounded">
-              <div className="fw-bold">{comment.userId?.fullName || "Anonymous"}</div>
-              <div>{comment.text}</div>
+              <div className="d-flex align-items-start">
+                {renderCommentAvatar(comment.userId)}
+                <div className="flex-grow-1">
+                  <div className="fw-bold">{comment.userId?.fullName || "Anonymous"}</div>
+                  <div>{comment.text}</div>
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -225,7 +302,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
         className="btn btn-primary w-100 mt-3 rounded-pill py-2"
         onClick={handleDownload}
       >
-        Download Image
+        Download {isVideo(mediaType) ? 'Video' : 'Image'}
       </button>
 
       <style jsx>{`
