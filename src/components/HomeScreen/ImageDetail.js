@@ -148,8 +148,8 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
     } else {
       return (
         <div
-          className="rounded-circle d-flex align-items-center justify-content-center bg-primary text-white fw-bold"
-          style={{ width: "36px", height: "36px", fontSize: "14px" }}
+          className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
+          style={{ width: "36px", height: "36px", fontSize: "14px", background: "linear-gradient(135deg, #f47c31, #ff6b35)" }}
         >
           {getInitials(fullName)}
         </div>

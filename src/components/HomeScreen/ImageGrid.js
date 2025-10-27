@@ -79,24 +79,24 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
                   const isVideo = mediaUrl?.match(/\.(mp4|webm|ogg)$/i); // Detect video by extension
 
                   return isVideo ? (
-  <video
-    src={mediaUrl}
-    className="img-fluid rounded"
-    style={{ width: "100%", display: "block", objectFit: "cover" }}
-    autoPlay
-    muted
-    loop
-    playsInline
-    onClick={(e) => e.stopPropagation()} // Prevent modal trigger
-  />
-) : (
-  <img
-    src={mediaUrl}
-    alt={`img-${index}`}
-    className="img-fluid rounded"
-    style={{ width: "100%", display: "block" }}
-  />
-);
+                    <video
+                      src={mediaUrl}
+                      className="img-fluid rounded"
+                      style={{ width: "100%", display: "block", objectFit: "cover" }}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      onClick={(e) => e.stopPropagation()} // Prevent modal trigger
+                    />
+                  ) : (
+                    <img
+                      src={mediaUrl}
+                      alt={`img-${index}`}
+                      className="img-fluid rounded"
+                      style={{ width: "100%", display: "block" }}
+                    />
+                  );
 
                 })()}
 

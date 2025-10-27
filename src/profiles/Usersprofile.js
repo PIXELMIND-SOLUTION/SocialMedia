@@ -145,7 +145,7 @@ const UserProfile = () => {
 
   const fetchPostDetails = async (postId) => {
     try {
-      const response = await fetch(`https://social-media-nty4.onrender.com/api/posts/${postId}`);
+      const response = await fetch(`https://social-media-nty4.onrender.com/api/posts/${userId}/${postId}`);
       const data = await response.json();
 
       if (data.success) {
