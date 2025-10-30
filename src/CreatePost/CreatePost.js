@@ -1,14 +1,17 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom"; // ✅ for navigation
 import SelectScreen from "./SelectScreen";
 import CropScreen from "./CropScreen";
 import EditScreen from "./EditScreen";
 import PostScreen from "./PostScreen";
 
 const CreatePost = () => {
+  const navigate = useNavigate();
+
   const [currentStep, setCurrentStep] = useState("select"); // select, crop, edit, post
   const [postText, setPostText] = useState("");
-  const [selectedImages, setSelectedImages] = useState([]);
+  const [selectedImages, setSelectedImages] = useState([]); // now holds mixed media
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [hideEngagement, setHideEngagement] = useState(false);
   const [commentsOff, setCommentsOff] = useState(false);
@@ -16,16 +19,15 @@ const CreatePost = () => {
   const [cropRatio, setCropRatio] = useState("original");
   const [activeTab, setActiveTab] = useState("adjustments"); // filters, adjustments
   const [location, setLocation] = useState("");
-  const navigate = useRef(null);
 
-  // Image adjustments
+  // Image adjustments (only for images)
   const [brightness, setBrightness] = useState(50);
   const [contrast, setContrast] = useState(50);
   const [fade, setFade] = useState(50);
   const [saturation, setSaturation] = useState(50);
   const [temperature, setTemperature] = useState(50);
 
-  const fileInputRef = useRef(null);
+  const fileInputRef = React.useRef(null);
 
   const currentUserId = JSON.parse(sessionStorage.getItem("userData"));
   const userId = currentUserId?.userId;
@@ -41,25 +43,44 @@ const CreatePost = () => {
     { name: "Cool", filter: "brightness(1.1) hue-rotate(10deg) saturate(1.3)" },
   ];
 
+  // Cleanup object URLs on unmount or when media changes
+  useEffect(() => {
+    return () => {
+      selectedImages.forEach((item) => {
+        if (item.url) URL.revokeObjectURL(item.url);
+      });
+    };
+  }, [selectedImages]);
+
   const handleFileSelect = (event) => {
     const files = Array.from(event.target.files);
     if (!files.length) return;
-    const images = files.map((file) => ({
-      file,
-      url: URL.createObjectURL(file),
-      name: file.name,
-    }));
-    setSelectedImages((prev) => [...prev, ...images]);
-    setCurrentStep("crop");
+
+    const mediaFiles = files.map((file) => {
+      const isVideo = file.type.startsWith("video/");
+      return {
+        file,
+        url: URL.createObjectURL(file),
+        name: file.name,
+        type: isVideo ? "video" : "image",
+      };
+    });
+
+    setSelectedImages((prev) => [...prev, ...mediaFiles]);
+    setCurrentImageIndex(0);
   };
 
   const handleNext = () => {
     switch (currentStep) {
       case "select":
-        if (selectedImages.length > 0) setCurrentStep("crop");
+        if (selectedImages.length > 0) {
+          const hasVideo = selectedImages.some((item) => item.type === "video");
+          setCurrentStep(hasVideo ? "post" : "crop");
+        }
         break;
       case "crop":
-        setCurrentStep("edit");
+        const hasVideoAfterCrop = selectedImages.some((item) => item.type === "video");
+        setCurrentStep(hasVideoAfterCrop ? "post" : "edit");
         break;
       case "edit":
         setCurrentStep("post");
@@ -79,12 +100,17 @@ const CreatePost = () => {
         setCurrentStep("crop");
         break;
       case "post":
-        setCurrentStep("edit");
+        // Go back to edit if all images, else to select
+        const hasVideo = selectedImages.some((item) => item.type === "video");
+        if (hasVideo) {
+          setCurrentStep("select");
+        } else {
+          setCurrentStep("edit");
+        }
         break;
     }
   };
 
-  // Apply filters/adjustments to an image file using canvas
   const applyFilterToImage = (imageFile, filter) => {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -101,29 +127,46 @@ const CreatePost = () => {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
         canvas.toBlob((blob) => {
+          URL.revokeObjectURL(img.src);
           if (!blob) return reject("Canvas conversion failed");
           const file = new File([blob], imageFile.name, { type: imageFile.type });
           resolve(file);
         }, imageFile.type);
       };
 
-      img.onerror = (err) => reject(err);
+      img.onerror = (err) => {
+        URL.revokeObjectURL(img.src);
+        reject(err);
+      };
     });
   };
 
   const handlePostSubmit = async () => {
+    if (!userId) {
+      alert("User not logged in");
+      return;
+    }
+
     try {
       const formData = new FormData();
       formData.append("userId", userId);
       formData.append("description", postText);
+      if (location) formData.append("location", location);
+      if (hideEngagement) formData.append("hideLikes", "true");
+      if (commentsOff) formData.append("disableComments", "true");
 
-      const filteredImages = await Promise.all(
-        selectedImages.map((img) =>
-          applyFilterToImage(img.file, getCurrentImageFilter())
-        )
+      // Process media: apply filters only to images
+      const processedFiles = await Promise.all(
+        selectedImages.map(async (item) => {
+          if (item.type === "video") {
+            return item.file;
+          } else {
+            return await applyFilterToImage(item.file, getCurrentImageFilter());
+          }
+        })
       );
 
-      filteredImages.forEach((file) => formData.append("media", file));
+      processedFiles.forEach((file) => formData.append("media", file));
 
       const res = await axios.post(
         "https://social-media-nty4.onrender.com/api/posts",
@@ -133,10 +176,11 @@ const CreatePost = () => {
 
       if (res.data.success) {
         alert("Post created successfully ✅");
+        // Reset state
         setPostText("");
         setSelectedImages([]);
         setCurrentStep("select");
-        navigate("/home")
+        navigate("/home");
       } else {
         alert("Failed to create post ❌");
       }
@@ -148,12 +192,16 @@ const CreatePost = () => {
 
   const handleImageRemove = (index) => {
     const newImages = [...selectedImages];
-    newImages.splice(index, 1);
+    const removed = newImages.splice(index, 1)[0];
+    if (removed.url) URL.revokeObjectURL(removed.url);
+
     setSelectedImages(newImages);
 
-    if (!newImages.length) setCurrentStep("select");
-    else if (currentImageIndex >= newImages.length)
+    if (!newImages.length) {
+      setCurrentStep("select");
+    } else if (currentImageIndex >= newImages.length) {
       setCurrentImageIndex(newImages.length - 1);
+    }
   };
 
   const handleAddMoreImages = () => {
@@ -176,6 +224,14 @@ const CreatePost = () => {
     }
     return "none";
   };
+
+  // Auto-advance from select if files are added
+  React.useEffect(() => {
+    if (selectedImages.length > 0 && currentStep === "select") {
+      const hasVideo = selectedImages.some((item) => item.type === "video");
+      setCurrentStep(hasVideo ? "post" : "crop");
+    }
+  }, [selectedImages, currentStep]);
 
   return (
     <div>

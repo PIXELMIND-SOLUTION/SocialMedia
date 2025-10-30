@@ -26,31 +26,49 @@ const HomeScreen = () => {
   useEffect(() => {
     const fetchPosts = async () => {
       try {
-        const res = await axios.get("https://social-media-nty4.onrender.com/api/posts"); // Fixed trailing space
+        const res = await axios.get("https://social-media-nty4.onrender.com/api/posts");
         if (res.data.success) {
-          setPosts(res.data.data.map(post => ({
+          let allPosts = res.data.data.map((post) => ({
             ...post,
             saves: post.saves || [],
             likes: post.likes || [],
             comments: post.comments || [],
             media: post.media || [],
-          })));
+          }));
+
+          // ✅ Show only posts from other users (exclude current user)
+          if (currentUserId) {
+            allPosts = allPosts.filter(
+              (post) => post.userId?._id !== currentUserId && post.userId !== currentUserId
+            );
+          }
+
+          setPosts(allPosts);
         }
       } catch (err) {
         console.error("Failed to fetch posts:", err);
       }
     };
     fetchPosts();
-  }, []);
+  }, [currentUserId]);
 
   // Keyboard navigation for Galleria
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!showGalleria) return;
       switch (e.key) {
-        case "ArrowLeft": e.preventDefault(); navigatePrevious(); break;
-        case "ArrowRight": e.preventDefault(); navigateNext(); break;
-        case "Escape": e.preventDefault(); setShowGalleria(false); break;
+        case "ArrowLeft":
+          e.preventDefault();
+          navigatePrevious();
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          navigateNext();
+          break;
+        case "Escape":
+          e.preventDefault();
+          setShowGalleria(false);
+          break;
       }
     };
 
@@ -80,12 +98,12 @@ const HomeScreen = () => {
     return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
   }, []);
 
-  const navigateNext = () => setGalleriaIndex(prev => (prev + 1) % posts.length);
-  const navigatePrevious = () => setGalleriaIndex(prev => (prev - 1 + posts.length) % posts.length);
+  const navigateNext = () => setGalleriaIndex((prev) => (prev + 1) % posts.length);
+  const navigatePrevious = () => setGalleriaIndex((prev) => (prev - 1 + posts.length) % posts.length);
 
   const openGalleria = () => {
     if (selectedImage) {
-      const index = posts.findIndex(img => img._id === selectedImage._id);
+      const index = posts.findIndex((img) => img._id === selectedImage._id);
       if (index >= 0) {
         setGalleriaIndex(index);
         setShowGalleria(true);
@@ -146,7 +164,7 @@ const HomeScreen = () => {
 
       <div className="row g-4">
         <div className={selectedImage && window.innerWidth >= 768 ? "col-lg-8" : "col-12"}>
-          <div className="overflow-auto hide-scrollbar" style={{ maxHeight: 'calc(100vh)' }}>
+          <div className="overflow-auto hide-scrollbar" style={{ maxHeight: "calc(100vh)" }}>
             <ImageGrid
               images={posts}
               onImageClick={handleImageClick}

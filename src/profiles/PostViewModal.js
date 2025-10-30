@@ -9,17 +9,44 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
   const [commentText, setCommentText] = useState('');
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [showComments, setShowComments] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const isLiked = likes.includes(currentUserId);
   const isSaved = saves.includes(currentUserId);
   const hasMultipleMedia = post.media?.length > 1;
 
-  // ✅ Handle Like Toggle
+  const storedUser = JSON.parse(sessionStorage.getItem("userData"));
+  const name = storedUser?.fullName || "you";
+
+  // ✅ Fetch fresh post data from backend
+  const refreshPostData = async () => {
+    try {
+      setIsRefreshing(true);
+      const res = await fetch(`https://social-media-nty4.onrender.com/api/posts/${post._id}`);
+      const data = await res.json();
+      if (data.success && data.post) {
+        setLikes(data.post.likes || []);
+        setComments(data.post.comments || []);
+        setSaves(data.post.saves || []);
+      }
+    } catch (err) {
+      console.error('Error refreshing post:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // ✅ Handle Like Toggle (Instant + Refresh)
   const handleLike = async () => {
     if (!currentUserId) {
       alert('Please log in to like posts.');
       return;
     }
+
+    // Optimistic UI update
+    setLikes((prev) =>
+      isLiked ? prev.filter((id) => id !== currentUserId) : [...prev, currentUserId]
+    );
 
     try {
       const response = await fetch('https://social-media-nty4.onrender.com/api/posts/like', {
@@ -34,12 +61,8 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
 
       const data = await response.json();
       if (data.success) {
-        if (isLiked) {
-          setLikes((prev) => prev.filter((id) => id !== currentUserId));
-        } else {
-          setLikes((prev) => [...prev, currentUserId]);
-        }
         onLike?.(post._id);
+        await refreshPostData(); // Refresh likes
       } else {
         console.error('Like failed:', data.message);
       }
@@ -48,41 +71,17 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
     }
   };
 
-  // ✅ Handle Comment Submit
-  const handleSubmitComment = async (e) => {
-    e.preventDefault();
-    if (!commentText.trim() || !currentUserId) return;
-
-    try {
-      const response = await fetch('https://social-media-nty4.onrender.com/api/posts/comment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          postId: post._id,
-          userId: currentUserId,
-          text: commentText,
-        }),
-      });
-
-      const data = await response.json();
-      if (data.success && data.comment) {
-        setComments((prev) => [...prev, data.comment]);
-        setCommentText('');
-        onComment?.(post._id, commentText);
-      } else {
-        console.error('Comment failed:', data.message);
-      }
-    } catch (err) {
-      console.error('Error posting comment:', err);
-    }
-  };
-
-  // ✅ Handle Save / Unsave Toggle with API
+  // ✅ Handle Save Toggle (Instant)
   const handleSaveToggle = async () => {
     if (!currentUserId) {
       alert('Please log in to save posts.');
       return;
     }
+
+    // Optimistic update
+    setSaves((prev) =>
+      isSaved ? prev.filter((id) => id !== currentUserId) : [...prev, currentUserId]
+    );
 
     try {
       const response = await fetch('https://social-media-nty4.onrender.com/api/posts/save', {
@@ -96,31 +95,61 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
       });
 
       const data = await response.json();
-      if (data.success) {
-        // toggle locally
-        if (isSaved) {
-          setSaves((prev) => prev.filter((id) => id !== currentUserId));
-        } else {
-          setSaves((prev) => [...prev, currentUserId]);
-        }
-      } else {
-        console.error('Save toggle failed:', data.message);
-      }
+      if (!data.success) console.error('Save toggle failed:', data.message);
     } catch (err) {
       console.error('Error saving post:', err);
     }
   };
 
-  // ✅ Media navigation
+  // ✅ Handle Comment Submit (Instant + Refresh)
+  const handleSubmitComment = async (e) => {
+    e.preventDefault();
+    if (!commentText.trim() || !currentUserId) return;
+
+    const newComment = {
+      _id: `temp-${Date.now()}`,
+      userId: { _id: currentUserId, fullName: name },
+      text: commentText,
+      isTemp: true,
+    };
+
+    // Optimistic UI
+    setComments((prev) => [...prev, newComment]);
+    setCommentText('');
+
+    try {
+      const response = await fetch('https://social-media-nty4.onrender.com/api/posts/comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          postId: post._id,
+          userId: currentUserId,
+          text: newComment.text,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        onComment?.(post._id, commentText);
+        await refreshPostData(); // ✅ Refresh comments and likes after comment
+      } else {
+        console.error('Comment failed:', data.message);
+      }
+    } catch (err) {
+      console.error('Error posting comment:', err);
+    }
+  };
+
+  // ✅ Media Navigation
   const nextMedia = () => {
     if (currentMediaIndex < post.media.length - 1) {
-      setCurrentMediaIndex(currentMediaIndex + 1);
+      setCurrentMediaIndex((i) => i + 1);
     }
   };
 
   const prevMedia = () => {
     if (currentMediaIndex > 0) {
-      setCurrentMediaIndex(currentMediaIndex - 1);
+      setCurrentMediaIndex((i) => i - 1);
     }
   };
 
@@ -172,7 +201,6 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
             />
           )}
 
-          {/* Navigation for multiple media */}
           {hasMultipleMedia && (
             <>
               {currentMediaIndex > 0 && (
@@ -205,18 +233,6 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
                   </svg>
                 </button>
               )}
-
-              {/* Pagination Dots */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                {post.media.map((_, idx) => (
-                  <div
-                    key={idx}
-                    className={`h-1.5 rounded-full transition-all ${
-                      idx === currentMediaIndex ? 'bg-white w-6' : 'bg-white/50 w-1.5'
-                    }`}
-                  />
-                ))}
-              </div>
             </>
           )}
         </div>
@@ -241,19 +257,18 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
             />
             <Send className="w-6 h-6 text-gray-900 cursor-pointer" />
           </div>
-          <div className="flex gap-3 items-center">
-            <Bookmark
-              className={`w-6 h-6 cursor-pointer transition ${
-                isSaved ? 'text-blue-500 fill-blue-500' : 'text-gray-900'
-              }`}
-              onClick={handleSaveToggle}
-            />
-          </div>
+          <Bookmark
+            className={`w-6 h-6 cursor-pointer transition ${
+              isSaved ? 'text-blue-500 fill-blue-500' : 'text-gray-900'
+            }`}
+            onClick={handleSaveToggle}
+          />
         </div>
 
         {/* 👍 Like Count */}
         <p className="px-4 pb-2 text-sm font-semibold text-gray-900">
           {likes.length} {likes.length === 1 ? 'like' : 'likes'}
+          {isRefreshing && <span className="ml-2 text-gray-400 text-xs">(updating...)</span>}
         </p>
 
         {/* 💬 Comments */}

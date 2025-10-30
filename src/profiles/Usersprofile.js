@@ -60,7 +60,7 @@ const UserProfile = () => {
       const savedPostsDetails = await Promise.all(
         savedPostsIds.map(async (postId) => {
           try {
-            const res = await fetch(`https://social-media-nty4.onrender.com/api/posts/user/${postId}`);
+            const res = await fetch(`https://social-media-nty4.onrender.com/api/posts/${userId}/${postId}`);
             const data = await res.json();
             console.log('Fetched saved post data:', data);
 
