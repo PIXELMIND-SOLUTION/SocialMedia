@@ -21,6 +21,9 @@ const Sidebar = () => {
   const [messageCount, setMessageCount] = useState(0);
   const location = useLocation();
 
+  const storedUser = JSON.parse(sessionStorage.getItem('userData') || '{}');
+  const userId = storedUser?.userId;
+
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -53,7 +56,23 @@ const Sidebar = () => {
 
   // Mock message count (replace with actual API call)
   useEffect(() => {
-    setMessageCount(3); // Mock data - replace with actual API call
+    const fetchUnreadMessages = async () => {
+      try {
+        const res = await axios.get(
+          `https://social-media-nty4.onrender.com/api/messages/unread/${userId}`
+        );
+
+        if (res.data.success && res.data.data?.unreadCount !== undefined) {
+          setMessageCount(res.data.data.unreadCount);
+        } else {
+          console.warn("Unexpected response format:", res.data);
+        }
+      } catch (error) {
+        console.error("Error fetching unread messages:", error);
+      }
+    };
+
+    fetchUnreadMessages();
   }, []);
 
   const navItems = [
@@ -447,7 +466,7 @@ const Sidebar = () => {
                     {/* Notification/Messages Count Badge */}
                     {hasCount && (
                       <span className={`position-absolute desktop-badge ${item.to === '/notification' ? 'notification-badge' :
-                          item.to === '/messages' ? 'message-badge' : 'default-badge'
+                        item.to === '/messages' ? 'message-badge' : 'default-badge'
                         }`}>
                         {item.count > 99 ? '99+' : item.count}
                       </span>
