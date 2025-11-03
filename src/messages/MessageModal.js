@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Send, MoreVertical, ArrowLeft, MessageSquare, X, Paperclip } from 'lucide-react';
+import { Search, Send, MoreVertical, ArrowLeft, MessageSquare, X, Paperclip, Trash2 } from 'lucide-react';
 
 const MessageModel = () => {
   const [activeTab, setActiveTab] = useState('messages');
@@ -15,18 +15,19 @@ const MessageModel = () => {
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(1);
   const [fetchingMore, setFetchingMore] = useState(false);
-  const [mediaPreview, setMediaPreview] = useState(null); // For preview
+  const [mediaPreview, setMediaPreview] = useState(null);
+  const [showMessageMenu, setShowMessageMenu] = useState(null);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const menuTimeoutRef = useRef(null);
 
   const storedUser = JSON.parse(sessionStorage.getItem('userData') || '{}');
   const userId = storedUser?.userId;
 
-  // Fix: Trim URLs to avoid trailing spaces
   const API_BASE = 'https://social-media-nty4.onrender.com/api';
 
-  // Fetch friends on mount
+  // Fetch friends + last message on mount
   useEffect(() => {
     if (!userId) {
       setError('User not logged in');
@@ -50,26 +51,48 @@ const MessageModel = () => {
           email: f.email,
         }));
 
-        const friendsWithChat = await Promise.all(
+        const friendsWithChatAndLastMsg = await Promise.all(
           transformed.map(async (friend) => {
             try {
+              // Get chatId
               const chatRes = await fetch(`${API_BASE}/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId, targetId: friend.id }),
               });
               const chatData = await chatRes.json();
-              if (chatRes.ok && chatData.success) {
-                return { ...friend, chatId: chatData.data._id };
+              if (!chatRes.ok || !chatData.success) {
+                return { ...friend, chatId: null, lastMessagePreview: null };
               }
+              const chatId = chatData.data._id;
+
+              // Get last message
+              const lastMsgRes = await fetch(`${API_BASE}/last-message?chatId=${chatId}`);
+              const lastMsgData = await lastMsgRes.json();
+              let lastMessagePreview = null;
+              if (lastMsgRes.ok && lastMsgData.success && lastMsgData.data) {
+                const msg = lastMsgData.data;
+                const isDeletedForMe = msg.deletedFor?.includes(userId);
+                const displayText = isDeletedForMe
+                  ? 'This message was deleted'
+                  : msg.text?.trim() || (msg.type === 'image' ? '📷 Image' : msg.type === 'video' ? '🎥 Video' : '[No content]');
+                lastMessagePreview = {
+                  text: displayText,
+                  time: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                  isMe: msg.sender._id === userId,
+                  isDeletedForMe,
+                };
+              }
+
+              return { ...friend, chatId, lastMessagePreview };
             } catch (err) {
-              console.warn(`Chat fetch failed for ${friend.id}`);
+              console.warn(`Failed to enrich friend ${friend.id}`, err);
+              return { ...friend, chatId: null, lastMessagePreview: null };
             }
-            return { ...friend, chatId: null };
           })
         );
 
-        setFriends(friendsWithChat);
+        setFriends(friendsWithChatAndLastMsg);
       } catch (err) {
         setError(err.message || 'Failed to load friends');
       } finally {
@@ -114,11 +137,16 @@ const MessageModel = () => {
 
       const newMessages = data.data
         .map((msg) => {
+          const isDeletedForMe = msg.deletedFor?.includes(userId);
+          
           let displayText = '';
           let mediaUrl = null;
           let msgType = 'text';
 
-          if (msg.mediaUrl && msg.mediaUrl.length > 0) {
+          if (isDeletedForMe) {
+            displayText = 'This message was deleted';
+            msgType = 'deleted';
+          } else if (msg.mediaUrl && msg.mediaUrl.length > 0) {
             mediaUrl = msg.mediaUrl[0].trim();
             msgType = msg.type;
             displayText = msgType === 'image' ? '📷 Image' : '🎥 Video';
@@ -131,6 +159,7 @@ const MessageModel = () => {
 
           return {
             id: msg._id,
+            chatId: chatId,
             friendId: friendIdArg,
             text: displayText,
             time: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -139,6 +168,8 @@ const MessageModel = () => {
             type: msgType,
             mediaUrl: mediaUrl,
             senderName: msg.sender.fullName,
+            deletedFor: msg.deletedFor || [],
+            isDeletedForMe: isDeletedForMe,
           };
         })
         .reverse();
@@ -223,6 +254,77 @@ const MessageModel = () => {
     return () => clearInterval(intervalId);
   }, [selectedFriend, userId]);
 
+  // Delete message for me only
+  const handleDeleteForMe = async (messageId) => {
+    if (!messageId || !userId) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/message`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messageId: messageId,
+          userId: userId
+        }),
+      });
+
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        throw new Error(result.message || 'Failed to delete message');
+      }
+
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { 
+              ...msg, 
+              text: 'This message was deleted',
+              type: 'deleted',
+              mediaUrl: null,
+              isDeletedForMe: true 
+            }
+          : msg
+      ));
+
+      setShowMessageMenu(null);
+    } catch (err) {
+      console.error('Error deleting message for me:', err);
+      alert('Failed to delete message: ' + err.message);
+    }
+  };
+
+  // Delete message for everyone
+  const handleDeleteForEveryone = async (messageId) => {
+    if (!messageId || !userId) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/messages/${messageId}/${userId}`, {
+        method: 'DELETE',
+      });
+
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        throw new Error(result.message || 'Failed to delete message for everyone');
+      }
+
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { 
+              ...msg, 
+              text: 'This message was deleted',
+              type: 'deleted',
+              mediaUrl: null,
+              isDeletedForMe: true 
+            }
+          : msg
+      ));
+
+      setShowMessageMenu(null);
+    } catch (err) {
+      console.error('Error deleting message for everyone:', err);
+      alert('Failed to delete message for everyone: ' + err.message);
+    }
+  };
+
   // Send message (text or media)
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -256,6 +358,7 @@ const MessageModel = () => {
 
         const newMsg = {
           id: result.data._id,
+          chatId: chatId,
           friendId: receiverId,
           text: message.trim(),
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -263,6 +366,8 @@ const MessageModel = () => {
           timestamp: Date.now(),
           type: 'text',
           senderName: storedUser?.fullName || 'You',
+          deletedFor: [],
+          isDeletedForMe: false,
         };
         setMessages(prev => [...prev, newMsg]);
         setMessage('');
@@ -293,6 +398,7 @@ const MessageModel = () => {
         const msgType = file.type.startsWith('image') ? 'image' : 'video';
         const newMsg = {
           id: result.data._id,
+          chatId: chatId,
           friendId: receiverId,
           text: msgType === 'image' ? '📷 Image' : '🎥 Video',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -301,6 +407,8 @@ const MessageModel = () => {
           type: msgType,
           mediaUrl: mediaUrl,
           senderName: storedUser?.fullName || 'You',
+          deletedFor: [],
+          isDeletedForMe: false,
         };
         setMessages(prev => [...prev, newMsg]);
         fileInputRef.current.value = '';
@@ -326,28 +434,31 @@ const MessageModel = () => {
     }
   };
 
+  // Message menu handlers
+  const handleMessageMenuToggle = (messageId, e) => {
+    if (e) e.stopPropagation();
+    if (menuTimeoutRef.current) clearTimeout(menuTimeoutRef.current);
+    setShowMessageMenu(showMessageMenu === messageId ? null : messageId);
+  };
+
+  const handleOutsideClick = () => {
+    menuTimeoutRef.current = setTimeout(() => {
+      setShowMessageMenu(null);
+    }, 100);
+  };
+
   // Utility functions
   const getFriendMessages = (friendId) => {
     return messages.filter(msg => msg.friendId === friendId).sort((a, b) => a.timestamp - b.timestamp);
   };
 
-  const filteredFriends = friends.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
-
   const getFilteredFriendsWithMessages = () => {
     if (!searchQuery) return friends;
     return friends.filter(friend => {
       const nameMatch = friend.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const msgs = getFriendMessages(friend.id);
-      const msgMatch = msgs.some(m => m.text.toLowerCase().includes(searchQuery.toLowerCase()));
+      const msgMatch = friend.lastMessagePreview?.text?.toLowerCase().includes(searchQuery.toLowerCase());
       return nameMatch || msgMatch;
     });
-  };
-
-  const getLastMessagePreview = (friendId) => {
-    const msgs = getFriendMessages(friendId);
-    if (msgs.length === 0) return null;
-    const last = msgs[msgs.length - 1];
-    return { text: last.text, time: last.time, isMe: last.isMe };
   };
 
   // Loading / Error UI
@@ -430,13 +541,13 @@ const MessageModel = () => {
             <div className="flex-1 overflow-y-auto p-2">
               {activeTab === 'friends' ? (
                 <div className="friends-list">
-                  {filteredFriends.length === 0 ? (
+                  {getFilteredFriendsWithMessages().length === 0 ? (
                     <div className="text-center p-8 text-gray-500">
                       <div className="mb-2">No friends found</div>
                       <small>Try a different search term</small>
                     </div>
                   ) : (
-                    filteredFriends.map((friend) => (
+                    getFilteredFriendsWithMessages().map((friend) => (
                       <div
                         key={friend.id}
                         onClick={() => handleSelectFriend(friend)}
@@ -473,7 +584,7 @@ const MessageModel = () => {
                     </div>
                   ) : (
                     getFilteredFriendsWithMessages().map((friend) => {
-                      const lastMsg = getLastMessagePreview(friend.id);
+                      const lastMsg = friend.lastMessagePreview;
                       return (
                         <div
                           key={friend.id}
@@ -497,7 +608,7 @@ const MessageModel = () => {
                           <div className="flex-1 min-w-0 mr-2">
                             <div className="font-semibold text-gray-800 truncate">{friend.name}</div>
                             {lastMsg ? (
-                              <div className="text-sm text-gray-500 truncate">
+                              <div className={`text-sm truncate ${lastMsg.isDeletedForMe ? 'text-gray-500 italic' : 'text-gray-500'}`}>
                                 {lastMsg.isMe ? 'You: ' : ''}{lastMsg.text}
                               </div>
                             ) : (
@@ -559,6 +670,7 @@ const MessageModel = () => {
                 ref={messagesContainerRef}
                 onScroll={handleScroll}
                 className="flex-1 overflow-y-auto p-4 bg-gradient-to-br from-gray-100 to-gray-200"
+                onClick={handleOutsideClick}
               >
                 {fetchingMore && page > 1 && (
                   <div className="text-center py-2">
@@ -579,8 +691,14 @@ const MessageModel = () => {
                         key={msg.id}
                         className={`flex mb-4 ${msg.isMe ? 'justify-end' : 'justify-start'}`}
                       >
-                        <div className={`max-w-[70%] p-3 rounded-2xl relative break-words ${msg.isMe ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/30' : 'bg-white text-gray-800 border border-gray-200/80 shadow-md shadow-black/5'}`}>
-                          {msg.type === 'image' && msg.mediaUrl ? (
+                        <div 
+                          className={`relative max-w-[70%] p-3 rounded-2xl break-words ${msg.isMe ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/30' : 'bg-white text-gray-800 border border-gray-200/80 shadow-md shadow-black/5'} ${msg.isDeletedForMe ? 'opacity-70' : ''}`}
+                        >
+                          {msg.type === 'deleted' ? (
+                            <div className="italic text-gray-500">
+                              {msg.text}
+                            </div>
+                          ) : msg.type === 'image' && msg.mediaUrl ? (
                             <div className="mb-1">
                               <img
                                 src={msg.mediaUrl}
@@ -613,9 +731,59 @@ const MessageModel = () => {
                           ) : (
                             <div className="mb-1">{msg.text}</div>
                           )}
-                          <div className={`text-xs ${msg.isMe ? 'text-white/80' : 'text-gray-500'}`}>
-                            {msg.time}
+                          
+                          <div className="flex items-center justify-between mt-1">
+                            <div className={`text-xs ${msg.isMe ? 'text-white/80' : 'text-gray-500'}`}>
+                              {msg.time}
+                            </div>
+                            
+                            {/* Show menu button for ALL messages (both sender and receiver) */}
+                            <button
+                              onClick={(e) => handleMessageMenuToggle(msg.id, e)}
+                              className="ml-2 p-1 rounded-full hover:bg-white/20 transition-colors"
+                            >
+                              <MoreVertical size={14} />
+                            </button>
                           </div>
+
+                          {/* Menu for all messages */}
+                          {showMessageMenu === msg.id && (
+                            <div className="absolute top-2 right-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10 min-w-32">
+                              {msg.isDeletedForMe ? (
+                                // Options for already deleted messages
+                                <div className="text-xs text-gray-500 px-3 py-2 italic">
+                                  Message deleted
+                                </div>
+                              ) : msg.isMe ? (
+                                // Options for sender's messages
+                                <>
+                                  <button
+                                    onClick={() => handleDeleteForMe(msg.id)}
+                                    className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg w-full"
+                                  >
+                                    <Trash2 size={14} className="mr-2" />
+                                    Delete for me
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteForEveryone(msg.id)}
+                                    className="flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg w-full"
+                                  >
+                                    <Trash2 size={14} className="mr-2" />
+                                    Delete for everyone
+                                  </button>
+                                </>
+                              ) : (
+                                // Options for receiver's messages
+                                <button
+                                  onClick={() => handleDeleteForMe(msg.id)}
+                                  className="flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg w-full"
+                                >
+                                  <Trash2 size={14} className="mr-2" />
+                                  Delete for me
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -624,7 +792,6 @@ const MessageModel = () => {
                 )}
               </div>
 
-              {/* Input Area with Media Preview */}
               <div className="p-4 border-t border-gray-200/50 bg-gradient-to-b from-white/95 to-gray-50/95 backdrop-blur-lg">
                 {mediaPreview && (
                   <div className="mb-2 flex justify-end">
