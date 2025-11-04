@@ -33,14 +33,14 @@ const CreatePost = () => {
   const userId = currentUserId?.userId;
 
   const filters = [
-    { name: "Aden", filter: "sepia(0.2) brightness(1.15) saturate(1.4)" },
-    { name: "Clarendon", filter: "contrast(1.2) saturate(1.35)" },
-    { name: "Crema", filter: "sepia(0.5) contrast(1.25) brightness(1.15)" },
-    { name: "B&W", filter: "grayscale(1)" },
-    { name: "Cerma", filter: "sepia(0.3) contrast(1.1)" },
-    { name: "Normal", filter: "none" },
-    { name: "Vintage", filter: "sepia(0.4) contrast(1.1) brightness(1.1)" },
-    { name: "Cool", filter: "brightness(1.1) hue-rotate(10deg) saturate(1.3)" },
+    { name: "Aden", filter: "sepia(0.2) brightness(1.15) saturate(1.4)", image: "/assets/images/filter.png"},
+    { name: "Clarendon", filter: "contrast(1.2) saturate(1.35)", image: "/assets/images/filter.png" },
+    { name: "Crema", filter: "sepia(0.5) contrast(1.25) brightness(1.15)", image: "/assets/images/filter.png" },
+    { name: "B&W", filter: "grayscale(1)", image: "/assets/images/filter.png" },
+    { name: "Cerma", filter: "sepia(0.3) contrast(1.1)", image: "/assets/images/filter.png" },
+    { name: "Normal", filter: "none", image: "/assets/images/filter.png" },
+    { name: "Vintage", filter: "sepia(0.4) contrast(1.1) brightness(1.1)", image: "/assets/images/filter.png" },
+    { name: "Cool", filter: "brightness(1.1) hue-rotate(10deg) saturate(1.3)", image: "/assets/images/filter.png" },
   ];
 
   // Cleanup object URLs on unmount or when media changes

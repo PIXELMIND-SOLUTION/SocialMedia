@@ -97,17 +97,21 @@ const Settings = () => {
         }
 
         // Personal Info
+        // Personal Info
         const personalRes = await axios.get(GET_PERSONAL_INFO_API);
-        if (personalRes.data.success) {
-          const info = personalRes.data.data;
+        if (personalRes?.data?.success && personalRes?.data?.data) {
+          const info = personalRes.data.data || {};
           setAccountData((prev) => ({
             ...prev,
-            birthdate: info.birthdate || "",
-            gender: info.gender || "",
-            country: info.country || "",
-            language: info.language || "",
+            birthdate: info?.birthdate || "",
+            gender: info?.gender || "",
+            country: info?.country || "",
+            language: info?.language || "",
           }));
+        } else {
+          console.warn("No personal info found for user:", userId);
         }
+
 
         // Privacy
         const privacyRes = await axios.get(GET_PRIVACY_API);

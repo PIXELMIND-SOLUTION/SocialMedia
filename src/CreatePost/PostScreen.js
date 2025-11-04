@@ -1,5 +1,5 @@
-import React from 'react';
-import { ChevronLeft, Smile, MapPin } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import { ChevronLeft } from "lucide-react";
 
 const PostScreen = ({
   handleBack,
@@ -17,26 +17,65 @@ const PostScreen = ({
   getCurrentImageFilter,
   cropRatio,
 }) => {
+  const [profileData, setProfileData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // 🔹 Extract current user ID from session
+  const userData = JSON.parse(sessionStorage.getItem("userData"));
+  const currentUserId = userData?.userId;
+
   const currentItem = selectedImages[currentImageIndex];
+  const displayFilter =
+    currentItem?.type === "image" ? getCurrentImageFilter() : "none";
 
-  // Only apply filter if it's an image
-  const displayFilter = currentItem?.type === "image" ? getCurrentImageFilter() : "none";
-
-  // Determine aspect ratio style (only for images)
+  // Handle image aspect ratio
   const aspectStyle = {};
   if (currentItem?.type === "image") {
     if (cropRatio === "1:1") aspectStyle.aspectRatio = "1/1";
     else if (cropRatio === "4:5") aspectStyle.aspectRatio = "4/5";
     else if (cropRatio === "16:9") aspectStyle.aspectRatio = "16/9";
-    // else 'original' → no forced aspect
   }
+
+  // 🔹 Fetch profile data
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        if (!currentUserId) return;
+        const res = await fetch(
+          `https://social-media-nty4.onrender.com/api/profiles/${currentUserId}`
+        );
+        const data = await res.json();
+        if (data.success) {
+          setProfileData(data.data);
+        } else {
+          console.error("Profile fetch failed:", data.message);
+        }
+      } catch (err) {
+        console.error("Error fetching profile:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [currentUserId]);
+
+  // Get profile image or fallback
+  const profileImage = profileData?.profile?.image;
+  const firstLetter = profileData?.profile?.firstName?.charAt(0)?.toUpperCase() || "U";
+  const fullName = profileData?.profile?.firstName
+    ? `${profileData.profile.firstName} ${profileData.profile.lastName || ""}`
+    : "User";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-100 via-yellow-50 to-blue-100 p-6 flex items-center justify-center">
       <div className="bg-white rounded-3xl shadow-xl max-w-2xl w-full overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b">
-          <button onClick={handleBack} className="p-2 hover:bg-gray-100 rounded-full">
+          <button
+            onClick={handleBack}
+            className="p-2 hover:bg-gray-100 rounded-full"
+          >
             <ChevronLeft className="w-6 h-6" />
           </button>
           <h2 className="text-xl font-semibold">Create new post</h2>
@@ -51,10 +90,22 @@ const PostScreen = ({
         <div className="p-6">
           {/* User Profile */}
           <div className="flex items-center mb-6">
-            <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
-              P
-            </div>
-            <span className="ml-3 font-medium text-gray-900">PMS</span>
+            {loading ? (
+              <div className="w-10 h-10 bg-gray-300 rounded-full animate-pulse" />
+            ) : profileImage ? (
+              <img
+                src={profileImage}
+                alt={fullName}
+                className="w-10 h-10 rounded-full object-cover border"
+              />
+            ) : (
+              <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-white font-semibold">
+                {firstLetter}
+              </div>
+            )}
+            <span className="ml-3 font-medium text-gray-900">
+              {profileData?.profile?.username || fullName}
+            </span>
           </div>
 
           {/* Media Preview */}
@@ -82,8 +133,8 @@ const PostScreen = ({
 
               {/* Media counter */}
               {selectedImages.length > 1 && (
-                <div className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1 flex">
-                  <span className="text-white text-sm px-2">
+                <div className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full px-2 py-1">
+                  <span className="text-white text-sm">
                     {currentImageIndex + 1}/{selectedImages.length}
                   </span>
                 </div>
@@ -102,11 +153,11 @@ const PostScreen = ({
               maxLength={2000}
             />
             <div className="flex justify-between items-center mt-2">
-              <span className="text-sm text-gray-400">{postText.length}/2000</span>
+              <span className="text-sm text-gray-400">
+                {postText.length}/2000
+              </span>
             </div>
           </div>
-
-          
         </div>
       </div>
     </div>

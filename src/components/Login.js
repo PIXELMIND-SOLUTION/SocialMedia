@@ -14,6 +14,7 @@ const Login = () => {
   const [error, setError] = useState("");
   const [token, setToken] = useState("");
   const [userId, setUserId] = useState("");
+  const [inputValue, setInputValue] = useState("");
   const navigate = useNavigate();
 
   // Handle OTP input change
@@ -27,6 +28,31 @@ const Login = () => {
     // Auto focus to next input
     if (value && index < 3) {
       document.getElementById(`otp-${index + 1}`).focus();
+    }
+  };
+
+  const handleChange = (e) => {
+    let value = e.target.value.trim();
+
+    // If input is only numbers → restrict to 10 digits
+    if (/^\d*$/.test(value)) {
+      value = value.slice(0, 10);
+    }
+
+    setInputValue(value);
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const mobileRegex = /^[0-9]{10}$/;
+
+    if (emailRegex.test(value)) {
+      setEmail(value);
+      setMobile("");
+    } else if (mobileRegex.test(value)) {
+      setMobile(value);
+      setEmail("");
+    } else {
+      setEmail("");
+      setMobile("");
     }
   };
 
@@ -58,11 +84,9 @@ const Login = () => {
       });
 
       const data = await response.json();
-      // console.log(data)
 
       if (response.ok) {
         setToken(data.data.token);
-        console.log("token:", data.data.token)
         setStep("signupOtp");
       } else {
         setError(data.message || "Registration failed");
@@ -91,7 +115,6 @@ const Login = () => {
           token
         })
       });
-      // console.log(token, otp)
 
       const data = await response.json();
 
@@ -114,7 +137,7 @@ const Login = () => {
     setError("");
 
     try {
-      const identifier = email.includes('@') ? { email } : { mobile: email };
+      const identifier = email.includes('@') ? { email } : { mobile: inputValue };
 
       const response = await fetch('https://social-media-nty4.onrender.com/api/login', {
         method: 'POST',
@@ -158,32 +181,21 @@ const Login = () => {
           token
         })
       });
-      // console.log( otp, "token at verify:", token, "userId:", userId)
+
       const data = await response.json();
-      console.log(data);
 
       if (response.ok) {
-        // Store token separately (optional, for quick access)
         sessionStorage.setItem("authToken", data.data.token);
-
-        // Store full response data (must be stringified)
         sessionStorage.setItem("userData", JSON.stringify(data.data));
-
         navigate("/home");
       } else {
         setError(data.message || "OTP verification failed");
       }
-
     } catch (error) {
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
-
-  // Reset OTP fields
-  const resetOtp = () => {
-    setOtp(["", "", "", ""]);
   };
 
   return (
@@ -195,24 +207,44 @@ const Login = () => {
     >
       {/* Main Content */}
       <div className="container flex-grow-1 d-flex flex-column justify-content-center py-4 py-md-5">
-        <h2 className="fw-bold mb-3 mb-md-4">LOGO</h2>
+        {/* Logo Image */}
+        <div className="text-center mb-3 mb-md-4">
+          <img
+            src="/logo.png" // ✅ Make sure this path is correct
+            alt="Logo"
+            style={{ maxHeight: "60px", height: "auto" }}
+            className="rounded-circle"
+          />
+        </div>
+
         <div className="row justify-content-center align-items-center">
           {/* Left Section */}
-          <div className="col-md-6 col-lg-5 text-white text-center mb-4 mb-md-0 d-flex justify-content-center align-items-center">
-            <h3 className="fw-bold mb-4 mb-md-5">
-              Connect, share <br />
-              and react with <br />
-              people in your life.
-            </h3>
-            <div className="d-none d-md-block">
+          <div className="col-md-6 col-lg-5 text-white d-flex flex-column flex-md-row align-items-center justify-content-center text-center text-md-start mb-4 mb-md-0">
+            {/* Text Section */}
+            <div className="d-flex flex-column justify-content-center align-items-center align-items-md-start mb-4 mb-md-0 me-md-4">
+              <h3 className="fw-bold mb-3 mb-md-4">
+                Connect, share <br />
+                and react with <br />
+                people in your life.
+              </h3>
+            </div>
+
+            {/* Image Section */}
+            <div className="text-center">
               <img
                 src="/assets/images/login-img.png"
                 alt="Illustration"
                 className="img-fluid"
-                style={{ maxHeight: "320px" }}
+                style={{
+                  maxHeight: "280px",
+                  width: "auto",
+                  borderRadius: "15px",
+                  objectFit: "contain",
+                }}
               />
             </div>
           </div>
+
 
           {/* Right Section */}
           <div className="col-md-6 col-lg-5">
@@ -256,6 +288,7 @@ const Login = () => {
                       className="form-control"
                       placeholder="Mobile Number"
                       value={mobile}
+                      maxLength={10}
                       onChange={(e) => setMobile(e.target.value)}
                     />
                   </div>
@@ -280,7 +313,8 @@ const Login = () => {
                     </select>
                   </div>
                   <button
-                    className="btn btn-warning w-100 fw-bold mb-3"
+                    className="btn text-white w-100 fw-bold mb-3"
+                    style={{ backgroundColor: "#ffc107" }}
                     onClick={handleSignUp}
                     disabled={loading}
                   >
@@ -342,19 +376,20 @@ const Login = () => {
                       type="text"
                       className="form-control"
                       placeholder="Email or mobile number"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      value={inputValue}
+                      onChange={handleChange}
                     />
                   </div>
                   <button
-                    className="btn btn-warning w-100 fw-bold mb-3"
+                    className="btn text-white w-100 fw-bold mb-3"
+                    style={{ backgroundColor: "#ffc107" }}
                     onClick={handleLogin}
                     disabled={loading}
                   >
                     {loading ? "Processing..." : "Sign in"}
                   </button>
 
-                  <div className="text-center text-muted mb-3 position-relative">
+                  {/* <div className="text-center text-muted mb-3 position-relative">
                     <hr className="my-0" />
                     <span
                       className="position-absolute bg-white px-2"
@@ -383,7 +418,7 @@ const Login = () => {
                         width="20"
                       />
                     </button>
-                  </div>
+                  </div> */}
 
                   <p className="text-center text-muted mb-0">
                     Don't have an account?{" "}
@@ -403,7 +438,7 @@ const Login = () => {
                 <>
                   <h4 className="fw-bold mb-3 text-center">Verify Your Email</h4>
                   <p className="text-muted text-center mb-4">
-                    We've sent a verification code to <strong>{email}</strong>.
+                    We've sent a verification code to <strong>{email || mobile}</strong>.
                     <br />
                     Enter it below to complete registration.
                   </p>
@@ -430,7 +465,8 @@ const Login = () => {
                     </span>
                   </small>
                   <button
-                    className="btn btn-warning w-100 fw-bold"
+                    className="btn text-white w-100 fw-bold"
+                    style={{ backgroundColor: "#ffc107" }}
                     onClick={verifySignupOtp}
                     disabled={loading}
                   >
@@ -444,7 +480,7 @@ const Login = () => {
                 <>
                   <h4 className="fw-bold mb-3 text-center">Enter OTP</h4>
                   <p className="text-muted text-center mb-4">
-                    We've sent a login code to <strong>{email}</strong>.
+                    We've sent a login code to <strong>{email || mobile}</strong>.
                     <br />
                     Enter it below to log in.
                   </p>
@@ -471,7 +507,8 @@ const Login = () => {
                     </span>
                   </small>
                   <button
-                    className="btn btn-warning w-100 fw-bold"
+                    className="btn text-white w-100 fw-bold"
+                    style={{ backgroundColor: "#ffc107" }}
                     onClick={verifyLoginOtp}
                     disabled={loading}
                   >
@@ -485,7 +522,7 @@ const Login = () => {
       </div>
 
       {/* Footer */}
-      <div className="bg-white border-top py-3 py-md-4">
+      {/* <div className="bg-white border-top py-3 py-md-4">
         <div className="container">
           <div className="text-center">
             <p className="fw-bold mb-3">Login as...</p>
@@ -517,7 +554,7 @@ const Login = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   FaHome,
   FaBell,
@@ -19,7 +19,9 @@ const Sidebar = () => {
   const [showMenu, setShowMenu] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
   const [messageCount, setMessageCount] = useState(0);
+  const [showComingSoon, setShowComingSoon] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const storedUser = JSON.parse(sessionStorage.getItem('userData') || '{}');
   const userId = storedUser?.userId;
@@ -37,7 +39,7 @@ const Sidebar = () => {
   useEffect(() => {
     const fetchNotificationCount = async () => {
       try {
-        const response = await axios.get('https://social-media-nty4.onrender.com/api/notifications/get-live/68c2607ff277cea3b5b4d775');
+        const response = await axios.get(`https://social-media-nty4.onrender.com/api/notifications/get-live/${userId}`);
         if (response.data.success) {
           setNotificationCount(response.data.data.counts.unread || 0);
         }
@@ -46,34 +48,32 @@ const Sidebar = () => {
       }
     };
 
-    fetchNotificationCount();
+    if (userId) fetchNotificationCount();
 
-    // Set up interval to periodically check for new notifications
-    const interval = setInterval(fetchNotificationCount, 30000); // Check every 30 seconds
+    const interval = setInterval(() => {
+      if (userId) fetchNotificationCount();
+    }, 30000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [userId]);
 
-  // Mock message count (replace with actual API call)
+  // Fetch message count
   useEffect(() => {
     const fetchUnreadMessages = async () => {
       try {
         const res = await axios.get(
           `https://social-media-nty4.onrender.com/api/messages/unread/${userId}`
         );
-
         if (res.data.success && res.data.data?.unreadCount !== undefined) {
           setMessageCount(res.data.data.unreadCount);
-        } else {
-          console.warn("Unexpected response format:", res.data);
         }
       } catch (error) {
         console.error("Error fetching unread messages:", error);
       }
     };
 
-    fetchUnreadMessages();
-  }, []);
+    if (userId) fetchUnreadMessages();
+  }, [userId]);
 
   const navItems = [
     { to: '/home', icon: <FaHome />, title: 'Home' },
@@ -88,28 +88,29 @@ const Sidebar = () => {
 
   const isActiveRoute = (path) => location.pathname === path;
 
-  // Mobile view with floating navigation
+  // Handle restricted routes
+  const handleRestrictedRoute = (to) => {
+    if (['/campaign', '/watch', '/mywallet'].includes(to)) {
+      setShowComingSoon(true);
+    } else {
+      // For other routes, let Link handle (but we won't use this in Link now)
+      navigate(to);
+    }
+  };
+
+  // Close modal
+  const closeComingSoon = () => setShowComingSoon(false);
+
+  // Go Home from modal
+  const goToHome = () => {
+    closeComingSoon();
+    navigate('/home');
+  };
+
+  // Mobile view
   if (isMobile) {
     return (
       <>
-        {/* Add padding to body to prevent content from being hidden behind navigation */}
-        <style>
-          {`
-            @media (max-width: 768px) {
-              body {
-                padding-bottom: 80px !important;
-              }
-              
-              /* Alternative: Add margin to main content container if body styling doesn't work */
-              .main-content,
-              .container,
-              .content {
-                margin-bottom: 100px !important;
-              }
-            }
-          `}
-        </style>
-
         {/* Mobile Floating Bottom Navigation */}
         <div
           className="d-flex justify-content-around align-items-center fixed-bottom mx-2 mb-2 shadow-lg"
@@ -127,8 +128,7 @@ const Sidebar = () => {
           {/* Home Icon */}
           <Link
             to="/home"
-            className={`text-decoration-none d-flex flex-column align-items-center nav-item ${isActiveRoute('/home') ? 'active' : ''
-              }`}
+            className={`text-decoration-none d-flex flex-column align-items-center nav-item ${isActiveRoute('/home') ? 'active' : ''}`}
             style={{
               color: isActiveRoute('/home') ? '#f47c31' : '#6b7280',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -140,11 +140,10 @@ const Sidebar = () => {
             <small style={{ fontSize: '0.7rem', fontWeight: '500' }}>Home</small>
           </Link>
 
-          {/* Notifications Icon with Badge */}
+          {/* Notifications */}
           <Link
             to="/notification"
-            className={`text-decoration-none d-flex flex-column align-items-center nav-item ${isActiveRoute('/notification') ? 'active' : ''
-              }`}
+            className={`text-decoration-none d-flex flex-column align-items-center nav-item ${isActiveRoute('/notification') ? 'active' : ''}`}
             style={{
               color: isActiveRoute('/notification') ? '#f47c31' : '#6b7280',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -161,13 +160,11 @@ const Sidebar = () => {
             <small style={{ fontSize: '0.7rem', fontWeight: '500' }}>Alerts</small>
           </Link>
 
-          {/* Create/Plus Icon */}
+          {/* Create */}
           <Link
             to="/create"
             className="text-decoration-none d-flex flex-column align-items-center position-relative"
-            style={{
-              transform: 'translateY(-5px)',
-            }}
+            style={{ transform: 'translateY(-5px)' }}
           >
             <div
               className="rounded-circle d-flex align-items-center justify-content-center text-white shadow-lg"
@@ -186,11 +183,10 @@ const Sidebar = () => {
             </small>
           </Link>
 
-          {/* Messages Icon with Badge */}
+          {/* Messages */}
           <Link
             to="/messages"
-            className={`text-decoration-none d-flex flex-column align-items-center nav-item ${isActiveRoute('/messages') ? 'active' : ''
-              }`}
+            className={`text-decoration-none d-flex flex-column align-items-center nav-item ${isActiveRoute('/messages') ? 'active' : ''}`}
             style={{
               color: isActiveRoute('/messages') ? '#f47c31' : '#6b7280',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -207,7 +203,7 @@ const Sidebar = () => {
             <small style={{ fontSize: '0.7rem', fontWeight: '500' }}>Chats</small>
           </Link>
 
-          {/* Menu Button */}
+          {/* Menu */}
           <button
             className="border-0 bg-transparent d-flex flex-column align-items-center nav-item"
             onClick={() => setShowMenu(!showMenu)}
@@ -236,36 +232,48 @@ const Sidebar = () => {
             {navItems
               .filter((item) => !['/home', '/create', '/notification', '/messages'].includes(item.to))
               .reverse()
-              .map((item, index) => (
-                <Link
-                  to={item.to}
-                  key={index}
-                  className="text-white rounded-circle d-flex align-items-center justify-content-center shadow-lg bubble-btn position-relative"
-                  style={{
-                    width: "60px",
-                    height: "60px",
-                    textDecoration: "none",
-                    background: "linear-gradient(135deg, #f47c31, #ff6b35)",
-                    transform: "scale(0)",
-                    transition: "all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)",
-                    animation: `bubbleAppear 0.5s ${index * 0.1}s forwards`,
-                    border: "2px solid rgba(255,255,255,0.2)",
-                  }}
-                  title={item.title}
-                  onClick={() => setShowMenu(false)}
-                >
-                  <span className="fs-5">{item.icon}</span>
-                  {item.count > 0 && (
-                    <span className="bubble-menu-badge">
-                      {item.count > 99 ? '99+' : item.count}
-                    </span>
-                  )}
-                </Link>
-              ))}
+              .map((item, index) => {
+                const isRestricted = ['/campaign', '/watch', '/mywallet'].includes(item.to);
+                const clickHandler = () => {
+                  setShowMenu(false);
+                  if (isRestricted) {
+                    handleRestrictedRoute(item.to);
+                  } else {
+                    navigate(item.to);
+                  }
+                };
+
+                return (
+                  <div
+                    key={index}
+                    onClick={clickHandler}
+                    className="text-white rounded-circle d-flex align-items-center justify-content-center shadow-lg bubble-btn position-relative"
+                    style={{
+                      width: "60px",
+                      height: "60px",
+                      textDecoration: "none",
+                      background: "linear-gradient(135deg, #f47c31, #ff6b35)",
+                      transform: "scale(0)",
+                      transition: "all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)",
+                      animation: `bubbleAppear 0.5s ${index * 0.1}s forwards`,
+                      border: "2px solid rgba(255,255,255,0.2)",
+                      cursor: 'pointer',
+                    }}
+                    title={item.title}
+                  >
+                    <span className="fs-5">{item.icon}</span>
+                    {item.count > 0 && (
+                      <span className="bubble-menu-badge">
+                        {item.count > 99 ? '99+' : item.count}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
           </div>
         )}
 
-        {/* Backdrop Overlay */}
+        {/* Backdrop */}
         {showMenu && (
           <div
             className="position-fixed top-0 start-0 w-100 h-100"
@@ -273,10 +281,51 @@ const Sidebar = () => {
               zIndex: 999,
               background: "rgba(0,0,0,0.3)",
               backdropFilter: "blur(4px)",
-              transition: 'all 0.3s ease',
             }}
             onClick={() => setShowMenu(false)}
           />
+        )}
+
+        {/* Coming Soon Modal */}
+        {showComingSoon && (
+          <div
+            className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+            style={{
+              zIndex: 2000,
+              background: "rgba(0,0,0,0.7)",
+              backdropFilter: "blur(10px)",
+            }}
+          >
+            <div
+              className="bg-white rounded-4 p-4 p-md-5 text-center shadow-lg"
+              style={{ maxWidth: '400px', width: '90%' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mb-4">
+                <div className="d-inline-block p-3 rounded-circle bg-orange-100 mb-3">
+                  <FaBullhorn className="fs-1 text-orange-600" />
+                </div>
+                <h3 className="mb-3 font-weight-bold">Coming Soon!</h3>
+                <p className="text-muted">
+                  This feature is under development. Stay tuned for exciting updates!
+                </p>
+              </div>
+              <div className="d-flex flex-column gap-2">
+                <button
+                  className="btn btn-primary rounded-pill py-2 px-4"
+                  onClick={goToHome}
+                >
+                  Go Home
+                </button>
+                <button
+                  className="btn btn-outline-secondary rounded-pill py-2 px-4"
+                  onClick={closeComingSoon}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         <style>
@@ -296,7 +345,6 @@ const Sidebar = () => {
               }
             }
 
-            /* Mobile Badge Styles */
             .notification-badge-mobile,
             .message-badge-mobile {
               position: absolute;
@@ -340,22 +388,22 @@ const Sidebar = () => {
               animation: pulse 2s infinite;
             }
 
-            .bubble-btn:hover {
-              background: linear-gradient(135deg, #f47c31, #ff6b35) !important;
-              box-shadow: 0 8px 25px rgba(244, 124, 49, 0.4) !important;
-              transform: scale(1.1) !important;
+            @keyframes pulse {
+              0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+              }
+              70% {
+                box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+              }
+              100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+              }
             }
 
-            .nav-item .icon-wrapper {
-              transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            }
-
-            .nav-item:hover .icon-wrapper {
-              transform: translateY(-2px);
-            }
-
-            .nav-item.active .icon-wrapper {
-              transform: scale(1.2);
+            @media (max-width: 768px) {
+              body {
+                padding-bottom: 100px !important;
+              }
             }
           `}
         </style>
@@ -363,7 +411,7 @@ const Sidebar = () => {
     );
   }
 
-  // Desktop view - Modern Glassmorphism Sidebar
+  // Desktop view
   return (
     <>
       <div
@@ -380,7 +428,7 @@ const Sidebar = () => {
           boxShadow: "4px 0 24px rgba(0,0,0,0.04)",
         }}
       >
-        {/* Modern Logo/Brand */}
+        {/* Logo */}
         <div
           className="rounded-circle mb-5 d-flex align-items-center justify-content-center shadow-sm"
           style={{
@@ -388,18 +436,10 @@ const Sidebar = () => {
             height: '45px',
             background: 'linear-gradient(135deg, #f47c31, #ff6b35)',
             boxShadow: '0 4px 15px rgba(244, 124, 49, 0.3)',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            overflow: 'hidden', // Ensures the image stays within the circle
+            overflow: 'hidden',
             cursor: 'pointer',
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.1) rotate(5deg)';
-            e.currentTarget.style.boxShadow = '0 6px 20px rgba(244, 124, 49, 0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
-            e.currentTarget.style.boxShadow = '0 4px 15px rgba(244, 124, 49, 0.3)';
-          }}
+          onClick={() => navigate('/home')}
         >
           <img
             src="/logo.png"
@@ -413,14 +453,21 @@ const Sidebar = () => {
           />
         </div>
 
-
-        {/* Navigation Icons */}
+        {/* Navigation */}
         <div className="d-flex flex-column align-items-center gap-3 flex-grow-1">
           {navItems
             .filter((item) => item.to !== "/settings")
             .map((item, index) => {
+              const isRestricted = ['/campaign', '/watch', '/mywallet'].includes(item.to);
               const isActive = isActiveRoute(item.to);
               const hasCount = item.count > 0;
+
+              const handleClick = (e) => {
+                if (isRestricted) {
+                  e.preventDefault();
+                  handleRestrictedRoute(item.to);
+                }
+              };
 
               return (
                 <Link
@@ -432,6 +479,7 @@ const Sidebar = () => {
                     color: isActive ? '#f47c31' : '#64748b',
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   }}
+                  onClick={handleClick}
                 >
                   <div
                     className="rounded-xl d-flex align-items-center justify-content-center position-relative"
@@ -448,7 +496,6 @@ const Sidebar = () => {
                   >
                     <span className="fs-5 position-relative z-index-2">{item.icon}</span>
 
-                    {/* Active indicator */}
                     {isActive && (
                       <div
                         className="position-absolute rounded-circle active-indicator"
@@ -463,7 +510,6 @@ const Sidebar = () => {
                       />
                     )}
 
-                    {/* Notification/Messages Count Badge */}
                     {hasCount && (
                       <span className={`position-absolute desktop-badge ${item.to === '/notification' ? 'notification-badge' :
                         item.to === '/messages' ? 'message-badge' : 'default-badge'
@@ -477,7 +523,7 @@ const Sidebar = () => {
             })}
         </div>
 
-        {/* Settings Icon at Bottom with Modern Styling */}
+        {/* Settings */}
         <div className="mt-auto">
           <Link
             to="/settings"
@@ -507,9 +553,52 @@ const Sidebar = () => {
         </div>
       </div>
 
+      {/* Coming Soon Modal (Desktop) */}
+      {showComingSoon && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+          style={{
+            zIndex: 2000,
+            background: "rgba(0,0,0,0.7)",
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <div
+            className="bg-white rounded-4 p-4 p-md-5 text-center shadow-lg"
+            style={{ maxWidth: '500px', width: '90%' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4">
+              <div className="d-inline-block p-3 rounded-circle bg-orange-100 mb-3">
+                <FaBullhorn className="fs-1 text-orange-600" />
+              </div>
+              <h3 className="mb-3" style={{ fontWeight: '700', color: '#333' }}>Coming Soon!</h3>
+              <p className="text-muted" style={{ fontSize: '1.1rem' }}>
+                We're working hard to bring you amazing new features. Stay tuned!
+              </p>
+            </div>
+            <div className="d-flex flex-column flex-md-row gap-3 justify-content-center">
+              <button
+                className="btn btn-primary rounded-pill px-4 py-2"
+                style={{ minWidth: '140px', fontWeight: '600' }}
+                onClick={goToHome}
+              >
+                Go Home
+              </button>
+              <button
+                className="btn btn-outline-secondary rounded-pill px-4 py-2"
+                style={{ minWidth: '140px', fontWeight: '600' }}
+                onClick={closeComingSoon}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>
         {`
-          /* Desktop Badge Styles */
           .desktop-badge {
             top: 6px;
             right: 6px;
@@ -541,7 +630,6 @@ const Sidebar = () => {
             color: white;
           }
 
-          /* Desktop Navigation Hover Effects */
           .nav-link-modern:hover > div {
             background: linear-gradient(135deg, rgba(244, 124, 49, 0.15), rgba(255, 107, 53, 0.15)) !important;
             border: 1px solid rgba(244, 124, 49, 0.3) !important;
@@ -554,68 +642,18 @@ const Sidebar = () => {
             color: #f47c31 !important;
           }
 
-          /* Mobile Bubble Animations */
-          @keyframes bubbleAppear {
+          @keyframes pulse {
             0% {
-              opacity: 0;
-              transform: scale(0) translateY(30px) rotate(-180deg);
+              box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
             }
-            50% {
-              opacity: 0.8;
-              transform: scale(1.15) translateY(-10px) rotate(-90deg);
+            70% {
+              box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
             }
             100% {
-              opacity: 1;
-              transform: scale(1) translateY(0) rotate(0deg);
+              box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
             }
           }
 
-          @keyframes float {
-            0%, 100% {
-              transform: translateY(0px);
-            }
-            50% {
-              transform: translateY(-6px);
-            }
-          }
-
-          .bubble-btn {
-            animation: float 3s ease-in-out infinite;
-          }
-
-          .bubble-btn:hover {
-            background: linear-gradient(135deg, #f47c31, #ff6b35) !important;
-            box-shadow: 0 12px 30px rgba(244, 124, 49, 0.5) !important;
-            transform: scale(1.15) !important;
-            animation-play-state: paused;
-          }
-
-          .bubble-btn:nth-child(even) {
-            animation-delay: -1.5s;
-          }
-
-          /* Mobile Bottom Nav Hover Effects */
-          .nav-item {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: pointer;
-          }
-
-          .nav-item:hover {
-            transform: translateY(-3px);
-          }
-
-          .nav-item.active {
-            color: #f47c31 !important;
-          }
-
-          /* Glassmorphism effects */
-          .glass-effect {
-            backdrop-filter: blur(20px);
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-          }
-
-          /* Smooth scrollbar for webkit browsers */
           ::-webkit-scrollbar {
             width: 6px;
           }
@@ -631,59 +669,6 @@ const Sidebar = () => {
 
           ::-webkit-scrollbar-thumb:hover {
             background: rgba(244, 124, 49, 0.5);
-          }
-
-          /* Create button special hover effect on desktop */
-          .nav-link-modern[href="/create"]:hover > div {
-            background: linear-gradient(135deg, #f47c31, #ff6b35) !important;
-            color: white;
-            transform: translateY(-2px) scale(1.1) rotate(90deg);
-            box-shadow: 0 8px 25px rgba(244, 124, 49, 0.4);
-          }
-
-          .nav-link-modern[href="/create"]:hover {
-            color: white !important;
-          }
-
-          /* Pulse animation for badges */
-          @keyframes pulse {
-            0% {
-              box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-            }
-            70% {
-              box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
-            }
-            100% {
-              box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-            }
-          }
-
-          /* Mobile navigation active state */
-          @media (max-width: 768px) {
-            .nav-item.active .icon-wrapper {
-              transform: scale(1.2);
-            }
-            
-            /* Ensure content is not hidden behind bottom navigation */
-            body {
-              padding-bottom: 100px !important;
-            }
-            
-            /* Alternative selectors for different app structures */
-            #root,
-            .app,
-            .main-content,
-            .container-fluid,
-            .content-wrapper {
-              padding-bottom: 100px !important;
-            }
-            
-            /* Specific for React Router outlet content */
-            .outlet-content,
-            .page-content,
-            .route-content {
-              margin-bottom: 100px !important;
-            }
           }
         `}
       </style>

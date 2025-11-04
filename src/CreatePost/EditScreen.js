@@ -1,5 +1,5 @@
-import React from 'react';
-import { ChevronLeft } from 'lucide-react';
+import React from "react";
+import { ChevronLeft } from "lucide-react";
 
 const EditScreen = ({
   handleBack,
@@ -23,18 +23,41 @@ const EditScreen = ({
   temperature,
   setTemperature,
   getCurrentImageFilter,
-  cropRatio
+  cropRatio,
 }) => {
+  const currentImage =
+    selectedImages[currentImageIndex] || selectedImages[0] || null;
+  const imageUrl = currentImage?.url || "/assets/images/placeholder.jpg";
+
+  // Helper to get aspect ratio class for Tailwind
+  const getAspectRatioClass = () => {
+    switch (cropRatio) {
+      case "1:1":
+        return "aspect-square";
+      case "4:5":
+        return "aspect-[4/5]";
+      case "16:9":
+        return "aspect-video"; // Tailwind built-in 16:9
+      case "full":
+        return "w-full h-[80vh]"; // Full preview area
+      default:
+        return "";
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-yellow-50 to-blue-100 p-6 flex items-center justify-center">
-      <div className="bg-white rounded-3xl shadow-xl max-w-5xl w-full overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-pink-100 via-yellow-50 to-blue-100 p-4 md:p-6 flex items-center justify-center">
+      <div className="bg-white rounded-3xl shadow-xl w-full max-w-5xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b">
-          <button onClick={handleBack} className="p-2 hover:bg-gray-100 rounded-full">
+        <div className="flex items-center justify-between p-4 md:p-6 border-b">
+          <button
+            onClick={handleBack}
+            className="p-2 hover:bg-gray-100 rounded-full"
+          >
             <ChevronLeft className="w-6 h-6" />
           </button>
           <h2 className="text-xl font-semibold">Edit</h2>
-          <button 
+          <button
             onClick={handleNext}
             className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-full font-medium"
           >
@@ -43,64 +66,91 @@ const EditScreen = ({
         </div>
 
         <div className="flex flex-col md:flex-row">
-          {/* Left Side - Image Preview */}
-          <div className="flex-1 p-6 bg-gray-50 flex items-center justify-center">
-            <div className="relative">
-              {selectedImages.length > 0 && (
-                <img 
-                  src={selectedImages[currentImageIndex]?.url} 
-                  alt="Edit preview" 
-                  className="max-w-sm max-h-80 object-cover rounded-lg shadow-lg"
-                  style={{ 
-                    filter: getCurrentImageFilter(),
-                    aspectRatio: cropRatio === '1:1' ? '1/1' : cropRatio === '4:5' ? '4/5' : cropRatio === '16:9' ? '16/9' : 'auto'
-                  }}
-                />
-              )}
-              
-              {/* Image navigation if multiple images */}
+          {/* Left: Preview */}
+          <div className="flex-1 p-4 md:p-6 bg-gray-50 flex items-center justify-center relative overflow-hidden">
+            <div className="relative w-full max-w-sm md:max-w-md">
+              {/* Aspect ratio wrapper */}
+              <div
+                className={`${getAspectRatioClass()} bg-gray-200 rounded-lg overflow-hidden flex items-center justify-center transition-all duration-300`}
+              >
+                {currentImage ? (
+                  currentImage.type === "video" ? (
+                    <video
+                      key={imageUrl}
+                      src={imageUrl}
+                      controls
+                      className="w-full h-full object-cover rounded-lg shadow-lg"
+                      style={{ filter: getCurrentImageFilter() }}
+                    />
+                  ) : (
+                    <img
+                      key={imageUrl} // 👈 Forces re-render when URL changes
+                      src={imageUrl}
+                      alt="Edit preview"
+                      className={`object-cover rounded-lg shadow-lg transition-all duration-300 ${
+                        cropRatio === "full"
+                          ? "w-full h-full"
+                          : "w-full h-full"
+                      }`}
+                      style={{
+                        filter: "",
+                      }}
+                    />
+                  )
+                ) : (
+                  <span className="text-gray-500">No image</span>
+                )}
+              </div>
+
+              {/* Navigation for multiple images */}
               {selectedImages.length > 1 && (
-                <div className="absolute top-4 right-4 bg-black bg-opacity-50 rounded-full p-1 flex">
-                  <button 
-                    onClick={() => setCurrentImageIndex(prev => Math.max(0, prev - 1))}
-                    className="w-6 h-6 text-white flex items-center justify-center"
+                <div className="absolute top-3 right-3 bg-black bg-opacity-50 rounded-full px-2 py-1 flex items-center text-white text-sm shadow-md">
+                  <button
+                    onClick={() =>
+                      setCurrentImageIndex((i) => Math.max(0, i - 1))
+                    }
+                    className="w-6 h-6 flex items-center justify-center"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-                  <span className="text-white text-sm mx-1">
+                  <span className="mx-2 font-medium">
                     {currentImageIndex + 1}/{selectedImages.length}
                   </span>
-                  <button 
-                    onClick={() => setCurrentImageIndex(prev => Math.min(selectedImages.length - 1, prev + 1))}
-                    className="w-6 h-6 text-white flex items-center justify-center"
+                  <button
+                    onClick={() =>
+                      setCurrentImageIndex((i) =>
+                        Math.min(selectedImages.length - 1, i + 1)
+                      )
+                    }
+                    className="w-6 h-6 flex items-center justify-center"
                   >
-                    <ChevronLeft className="w-4 h-4 transform rotate-180" />
+                    <ChevronLeft className="w-4 h-4 rotate-180" />
                   </button>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Right Side - Controls */}
+          {/* Right: Controls */}
           <div className="w-full md:w-80 border-l">
-            {/* Tab Headers */}
+            {/* Tabs */}
             <div className="flex border-b">
               <button
-                onClick={() => setActiveTab('filters')}
-                className={`flex-1 py-4 px-6 font-medium ${
-                  activeTab === 'filters' 
-                    ? 'text-orange-500 border-b-2 border-orange-500' 
-                    : 'text-gray-600 hover:text-gray-800'
+                onClick={() => setActiveTab("filters")}
+                className={`flex-1 py-4 px-4 font-medium ${
+                  activeTab === "filters"
+                    ? "text-orange-500 border-b-2 border-orange-500"
+                    : "text-gray-600 hover:text-gray-800"
                 }`}
               >
                 Filters
               </button>
               <button
-                onClick={() => setActiveTab('adjustments')}
-                className={`flex-1 py-4 px-6 font-medium ${
-                  activeTab === 'adjustments' 
-                    ? 'text-orange-500 border-b-2 border-orange-500' 
-                    : 'text-gray-600 hover:text-gray-800'
+                onClick={() => setActiveTab("adjustments")}
+                className={`flex-1 py-4 px-4 font-medium ${
+                  activeTab === "adjustments"
+                    ? "text-orange-500 border-b-2 border-orange-500"
+                    : "text-gray-600 hover:text-gray-800"
                 }`}
               >
                 Adjustments
@@ -108,104 +158,67 @@ const EditScreen = ({
             </div>
 
             {/* Tab Content */}
-            <div className="p-6 max-h-96 overflow-y-auto">
-              {activeTab === 'filters' ? (
-                <div className="grid grid-cols-3 gap-4">
-                  {filters.map((filter, index) => (
-                    <div key={index} className="text-center">
+            <div className="p-4 md:p-6 max-h-96 overflow-y-auto">
+              {activeTab === "filters" ? (
+                <div className="grid grid-cols-3 gap-3">
+                  {filters.map((filter) => (
+                    <div key={filter.name} className="text-center">
                       <button
                         onClick={() => setSelectedFilter(filter.name)}
-                        className={`w-20 h-20 rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${
-                          selectedFilter === filter.name ? 'border-orange-500 ring-2 ring-orange-200' : 'border-gray-200'
+                        className={`w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 transition-all ${
+                          selectedFilter === filter.name
+                            ? "border-orange-500 ring-2 ring-orange-200 scale-105"
+                            : "border-gray-200 hover:scale-105"
                         }`}
                       >
-                        <img 
-                          src={filter.image} 
+                        <img
+                          src={imageUrl}
                           alt={filter.name}
                           className="w-full h-full object-cover"
                           style={{ filter: filter.filter }}
                         />
                       </button>
-                      <p className="text-xs text-gray-600 mt-2 font-medium">{filter.name}</p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        {filter.name}
+                      </p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {/* Brightness */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-3">
-                      Brightness: {brightness}
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={brightness}
-                      onChange={(e) => setBrightness(parseInt(e.target.value))}
-                      className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                    />
-                  </div>
-
-                  {/* Contrast */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-3">
-                      Contrast: {contrast}
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={contrast}
-                      onChange={(e) => setContrast(parseInt(e.target.value))}
-                      className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                    />
-                  </div>
-
-                  {/* Fade */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-3">
-                      Fade: {fade}%
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={fade}
-                      onChange={(e) => setFade(parseInt(e.target.value))}
-                      className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                    />
-                  </div>
-
-                  {/* Saturation */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-3">
-                      Saturation: {saturation}
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={saturation}
-                      onChange={(e) => setSaturation(parseInt(e.target.value))}
-                      className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                    />
-                  </div>
-
-                  {/* Temperature */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-900 mb-3">
-                      Temperature: {temperature}
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={temperature}
-                      onChange={(e) => setTemperature(parseInt(e.target.value))}
-                      className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                    />
-                  </div>
+                <div className="space-y-4">
+                  {[
+                    {
+                      label: "Brightness",
+                      value: brightness,
+                      setter: setBrightness,
+                    },
+                    { label: "Contrast", value: contrast, setter: setContrast },
+                    { label: "Fade", value: fade, setter: setFade },
+                    {
+                      label: "Saturation",
+                      value: saturation,
+                      setter: setSaturation,
+                    },
+                    {
+                      label: "Temperature",
+                      value: temperature,
+                      setter: setTemperature,
+                    },
+                  ].map(({ label, value, setter }) => (
+                    <div key={label}>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">
+                        {label}: {value}
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={value}
+                        onChange={(e) => setter(Number(e.target.value))}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                      />
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
