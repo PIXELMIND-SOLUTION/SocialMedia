@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom"; // ✅ for navigation
+import { useNavigate } from "react-router-dom";
 import SelectScreen from "./SelectScreen";
 import CropScreen from "./CropScreen";
 import EditScreen from "./EditScreen";
@@ -8,46 +8,46 @@ import PostScreen from "./PostScreen";
 
 const CreatePost = () => {
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
 
-  const [currentStep, setCurrentStep] = useState("select"); // select, crop, edit, post
+  const [currentStep, setCurrentStep] = useState("select");
   const [postText, setPostText] = useState("");
-  const [selectedImages, setSelectedImages] = useState([]); // now holds mixed media
+  const [selectedImages, setSelectedImages] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [hideEngagement, setHideEngagement] = useState(false);
   const [commentsOff, setCommentsOff] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState("");
+  const [selectedFilter, setSelectedFilter] = useState("Normal");
   const [cropRatio, setCropRatio] = useState("original");
-  const [activeTab, setActiveTab] = useState("adjustments"); // filters, adjustments
+  const [activeTab, setActiveTab] = useState("adjustments");
   const [location, setLocation] = useState("");
 
-  // Image adjustments (only for images)
+  // Image adjustments
   const [brightness, setBrightness] = useState(50);
   const [contrast, setContrast] = useState(50);
   const [fade, setFade] = useState(50);
   const [saturation, setSaturation] = useState(50);
   const [temperature, setTemperature] = useState(50);
 
-  const fileInputRef = React.useRef(null);
-
   const currentUserId = JSON.parse(sessionStorage.getItem("userData"));
   const userId = currentUserId?.userId;
 
   const filters = [
-    { name: "Aden", filter: "sepia(0.2) brightness(1.15) saturate(1.4)", image: "/assets/images/filter.png"},
-    { name: "Clarendon", filter: "contrast(1.2) saturate(1.35)", image: "/assets/images/filter.png" },
-    { name: "Crema", filter: "sepia(0.5) contrast(1.25) brightness(1.15)", image: "/assets/images/filter.png" },
-    { name: "B&W", filter: "grayscale(1)", image: "/assets/images/filter.png" },
-    { name: "Cerma", filter: "sepia(0.3) contrast(1.1)", image: "/assets/images/filter.png" },
-    { name: "Normal", filter: "none", image: "/assets/images/filter.png" },
-    { name: "Vintage", filter: "sepia(0.4) contrast(1.1) brightness(1.1)", image: "/assets/images/filter.png" },
-    { name: "Cool", filter: "brightness(1.1) hue-rotate(10deg) saturate(1.3)", image: "/assets/images/filter.png" },
+    { name: "Normal", filter: "none" },
+    { name: "Aden", filter: "sepia(0.2) brightness(1.15) saturate(1.4)" },
+    { name: "Clarendon", filter: "contrast(1.2) saturate(1.35)" },
+    { name: "Crema", filter: "sepia(0.5) contrast(1.25) brightness(1.15)" },
+    { name: "B&W", filter: "grayscale(1)" },
+    { name: "Vintage", filter: "sepia(0.4) contrast(1.1) brightness(1.1)" },
+    { name: "Cool", filter: "brightness(1.1) hue-rotate(10deg) saturate(1.3)" },
   ];
 
-  // Cleanup object URLs on unmount or when media changes
+  // Cleanup object URLs
   useEffect(() => {
     return () => {
       selectedImages.forEach((item) => {
-        if (item.url) URL.revokeObjectURL(item.url);
+        if (item.url && item.url.startsWith('blob:')) {
+          URL.revokeObjectURL(item.url);
+        }
       });
     };
   }, [selectedImages]);
@@ -63,11 +63,18 @@ const CreatePost = () => {
         url: URL.createObjectURL(file),
         name: file.name,
         type: isVideo ? "video" : "image",
+        id: Date.now() + Math.random().toString(36).substr(2, 9),
+        originalUrl: URL.createObjectURL(file), // Keep original URL for edits
       };
     });
 
-    setSelectedImages((prev) => [...prev, ...mediaFiles]);
+    setSelectedImages(mediaFiles);
     setCurrentImageIndex(0);
+    setSelectedFilter("Normal");
+    
+    // Auto-advance to next step
+    const hasVideo = mediaFiles.some(item => item.type === "video");
+    setCurrentStep(hasVideo ? "post" : "crop");
   };
 
   const handleNext = () => {
@@ -100,13 +107,8 @@ const CreatePost = () => {
         setCurrentStep("crop");
         break;
       case "post":
-        // Go back to edit if all images, else to select
         const hasVideo = selectedImages.some((item) => item.type === "video");
-        if (hasVideo) {
-          setCurrentStep("select");
-        } else {
-          setCurrentStep("edit");
-        }
+        setCurrentStep(hasVideo ? "select" : "edit");
         break;
     }
   };
@@ -161,7 +163,8 @@ const CreatePost = () => {
           if (item.type === "video") {
             return item.file;
           } else {
-            return await applyFilterToImage(item.file, getCurrentImageFilter());
+            const filter = getCurrentImageFilter();
+            return await applyFilterToImage(item.file, filter);
           }
         })
       );
@@ -176,7 +179,15 @@ const CreatePost = () => {
 
       if (res.data.success) {
         alert("Post created successfully ✅");
-        // Reset state
+        // Cleanup URLs
+        selectedImages.forEach((item) => {
+          if (item.url && item.url.startsWith('blob:')) {
+            URL.revokeObjectURL(item.url);
+          }
+          if (item.originalUrl && item.originalUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(item.originalUrl);
+          }
+        });
         setPostText("");
         setSelectedImages([]);
         setCurrentStep("select");
@@ -188,24 +199,6 @@ const CreatePost = () => {
       console.error(err);
       alert("Error creating post ❌");
     }
-  };
-
-  const handleImageRemove = (index) => {
-    const newImages = [...selectedImages];
-    const removed = newImages.splice(index, 1)[0];
-    if (removed.url) URL.revokeObjectURL(removed.url);
-
-    setSelectedImages(newImages);
-
-    if (!newImages.length) {
-      setCurrentStep("select");
-    } else if (currentImageIndex >= newImages.length) {
-      setCurrentImageIndex(newImages.length - 1);
-    }
-  };
-
-  const handleAddMoreImages = () => {
-    fileInputRef.current?.click();
   };
 
   const getCurrentImageFilter = () => {
@@ -220,18 +213,10 @@ const CreatePost = () => {
         saturate(${saturation / 50})
         sepia(${(100 - fade) / 100})
         hue-rotate(${(temperature - 50) * 3.6}deg)
-      `;
+      `.replace(/\s+/g, ' ').trim();
     }
     return "none";
   };
-
-  // Auto-advance from select if files are added
-  React.useEffect(() => {
-    if (selectedImages.length > 0 && currentStep === "select") {
-      const hasVideo = selectedImages.some((item) => item.type === "video");
-      setCurrentStep(hasVideo ? "post" : "crop");
-    }
-  }, [selectedImages, currentStep]);
 
   return (
     <div>
@@ -252,8 +237,6 @@ const CreatePost = () => {
           setCurrentImageIndex={setCurrentImageIndex}
           cropRatio={cropRatio}
           setCropRatio={setCropRatio}
-          handleAddMoreImages={handleAddMoreImages}
-          handleImageRemove={handleImageRemove}
           fileInputRef={fileInputRef}
         />
       )}

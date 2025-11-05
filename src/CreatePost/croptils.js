@@ -1,13 +1,14 @@
 export const getCroppedImg = (imageSrc, pixelCrop) => {
-  const canvas = document.createElement("canvas");
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
-  const ctx = canvas.getContext("2d");
-
   return new Promise((resolve, reject) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = pixelCrop.width;
+    canvas.height = pixelCrop.height;
+    const ctx = canvas.getContext("2d");
+
     const image = new Image();
     image.crossOrigin = "anonymous";
     image.src = imageSrc;
+    
     image.onload = () => {
       ctx.drawImage(
         image,
@@ -22,10 +23,16 @@ export const getCroppedImg = (imageSrc, pixelCrop) => {
       );
 
       canvas.toBlob((blob) => {
-        if (!blob) reject("Crop failed");
+        if (!blob) {
+          reject(new Error("Canvas is empty"));
+          return;
+        }
         resolve(blob);
-      }, "image/jpeg");
+      }, "image/jpeg", 0.95);
     };
-    image.onerror = (err) => reject(err);
+    
+    image.onerror = (err) => {
+      reject(err);
+    };
   });
 };

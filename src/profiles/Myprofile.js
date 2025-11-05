@@ -307,7 +307,7 @@ const MyProfile = () => {
 
         {/* Posts Grid */}
         <div className="grid grid-cols-3 gap-0.5 sm:gap-1 md:gap-3 lg:gap-7 mt-0.5 sm:mt-1 -mx-4 sm:-mx-6 lg:mx-0">
-          {posts.map((post) => (
+          {posts.slice().reverse().map((post) => (
             <div
               key={post._id}
               onClick={() => handlePostClick(post)}

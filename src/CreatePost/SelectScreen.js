@@ -9,7 +9,6 @@ const SelectScreen = ({ fileInputRef, handleFileSelect }) => {
 
         <div className="mb-8 flex justify-center">
           <div className="relative">
-            {/* Photo icon only */}
             <div className="w-20 h-16 border-2 border-gray-300 rounded-lg flex items-center justify-center relative">
               <svg
                 className="w-8 h-6"
@@ -31,7 +30,6 @@ const SelectScreen = ({ fileInputRef, handleFileSelect }) => {
           </div>
         </div>
 
-        {/* Updated text */}
         <p className="text-gray-600 mb-8 text-lg">Drag Photos</p>
 
         <button

@@ -30,6 +30,9 @@ const CropScreen = ({
         selectedImages[currentImageIndex].url,
         croppedAreaPixels
       );
+      
+      // Create new URL for cropped image
+      const croppedUrl = URL.createObjectURL(croppedBlob);
       const croppedFile = new File(
         [croppedBlob],
         selectedImages[currentImageIndex].file.name,
@@ -37,10 +40,16 @@ const CropScreen = ({
       );
 
       const updated = [...selectedImages];
+      // Revoke old URL if it's a blob URL
+      if (updated[currentImageIndex].url.startsWith('blob:')) {
+        URL.revokeObjectURL(updated[currentImageIndex].url);
+      }
+      
       updated[currentImageIndex] = {
         ...updated[currentImageIndex],
         file: croppedFile,
-        url: URL.createObjectURL(croppedBlob),
+        url: croppedUrl,
+        croppedUrl: croppedUrl, // Store separately for edits
       };
       setSelectedImages(updated);
       handleNext();
@@ -52,19 +61,22 @@ const CropScreen = ({
 
   const handleRemove = (index) => {
     const newImages = selectedImages.filter((_, i) => i !== index);
+    // Revoke URL of removed image
+    if (selectedImages[index].url.startsWith('blob:')) {
+      URL.revokeObjectURL(selectedImages[index].url);
+    }
     setSelectedImages(newImages);
     if (currentImageIndex >= newImages.length && newImages.length > 0) {
       setCurrentImageIndex(newImages.length - 1);
     }
   };
 
-  // ✅ Define ratios: "full" = 16/9
   const aspectRatios = {
-    original: undefined,   // free crop
+    original: undefined,
     "1:1": 1,
     "4:5": 4 / 5,
     "16:9": 16 / 9,
-    full: 16 / 9, // same as 16:9
+    full: 16 / 9,
   };
 
   const ratioLabels = {
@@ -129,7 +141,7 @@ const CropScreen = ({
       {/* Thumbnails */}
       <div className="flex mt-4 space-x-2 overflow-x-auto pb-2">
         {selectedImages.map((img, idx) => (
-          <div key={idx} className="relative">
+          <div key={img.id} className="relative">
             <img
               src={img.url}
               alt=""
