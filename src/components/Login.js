@@ -321,7 +321,7 @@ const Login = () => {
                     {loading ? "Processing..." : "Sign Up"}
                   </button>
 
-                  <div className="text-center text-muted mb-3 position-relative">
+                  {/* <div className="text-center text-muted mb-3 position-relative">
                     <hr className="my-0" />
                     <span
                       className="position-absolute bg-white px-2"
@@ -350,7 +350,7 @@ const Login = () => {
                         width="20"
                       />
                     </button>
-                  </div>
+                  </div> */}
 
                   <p className="text-center text-muted mb-0">
                     Already have an account?{" "}
