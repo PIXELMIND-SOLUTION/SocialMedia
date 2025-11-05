@@ -386,7 +386,7 @@ const UserProfile = () => {
 
         {/* Posts Grid */}
         <div className="grid grid-cols-3 gap-1 md:gap-4 lg:gap-7 mt-1">
-          {posts.map((post) => (
+          {posts.slice().reverse().map((post) => (
             <div
               key={post._id}
               onClick={() => handlePostClick(post)}
