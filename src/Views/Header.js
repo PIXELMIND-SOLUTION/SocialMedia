@@ -92,7 +92,7 @@ const Header = () => {
         <div className="container-fluid d-flex justify-content-between align-items-center">
           {/* Brand or Logo */}
           <Link to="/home" className="navbar-brand fw-bold fs-4 text-dark">
-            SocialMedia
+            Atoz
           </Link>
 
           {/* Search Bar */}

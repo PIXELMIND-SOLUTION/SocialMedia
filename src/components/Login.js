@@ -460,9 +460,9 @@ const Login = () => {
                   </div>
                   <small className="text-muted d-block text-center mb-4">
                     Your code will be valid for 10 minutes.{" "}
-                    <span className="text-primary fw-medium" role="button">
+                    {/* <span className="text-primary fw-medium" role="button">
                       Resend
-                    </span>
+                    </span> */}
                   </small>
                   <button
                     className="btn text-white w-100 fw-bold"
@@ -502,9 +502,9 @@ const Login = () => {
                   </div>
                   <small className="text-muted d-block text-center mb-4">
                     Your code will be valid for 10 minutes.{" "}
-                    <span className="text-primary fw-medium" role="button">
+                    {/* <span className="text-primary fw-medium" role="button">
                       Resend
-                    </span>
+                    </span> */}
                   </small>
                   <button
                     className="btn text-white w-100 fw-bold"
