@@ -26,11 +26,11 @@ const FollowersFollowingModal = ({ isOpen, onClose, userId, initialTab = 'follow
       setLoading(true);
 
       // Fetch followers
-      const followersResponse = await fetch(`https://social-media-nty4.onrender.com/api/followers/${userId}`);
+      const followersResponse = await fetch(`https://apisocial.atozkeysolution.com/api/followers/${userId}`);
       const followersData = await followersResponse.json();
 
       // Fetch following
-      const followingResponse = await fetch(`https://social-media-nty4.onrender.com/api/following/${userId}`);
+      const followingResponse = await fetch(`https://apisocial.atozkeysolution.com/api/following/${userId}`);
       const followingData = await followingResponse.json();
 
       if (followersData.success) {
@@ -74,7 +74,7 @@ const FollowersFollowingModal = ({ isOpen, onClose, userId, initialTab = 'follow
       if (userProfiles[user._id]) return; // Skip if already fetched
 
       try {
-        const response = await fetch(`https://social-media-nty4.onrender.com/api/profiles/${user._id}`);
+        const response = await fetch(`https://apisocial.atozkeysolution.com/api/profiles/${user._id}`);
         const data = await response.json();
 
         if (data.success) {
@@ -94,7 +94,7 @@ const FollowersFollowingModal = ({ isOpen, onClose, userId, initialTab = 'follow
   const initializeFollowingStates = async (users) => {
     // Fetch current user's following list to determine who they follow
     try {
-      const response = await fetch(`https://social-media-nty4.onrender.com/api/following/${currentUserId}`);
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/following/${currentUserId}`);
       const data = await response.json();
 
       if (data.success) {
@@ -122,7 +122,7 @@ const FollowersFollowingModal = ({ isOpen, onClose, userId, initialTab = 'follow
       }));
 
       // Send follow request
-      const response = await fetch(`https://social-media-nty4.onrender.com/api/send-request`, {
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/send-request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -154,7 +154,7 @@ const FollowersFollowingModal = ({ isOpen, onClose, userId, initialTab = 'follow
 
   const handleApproveRequest = async (requesterId) => {
     try {
-      const response = await fetch(`https://social-media-nty4.onrender.com/api/approve-request`, {
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/approve-request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -187,7 +187,7 @@ const FollowersFollowingModal = ({ isOpen, onClose, userId, initialTab = 'follow
 
   const handleRejectRequest = async (followerId) => {
     try {
-      const response = await fetch(`https://social-media-nty4.onrender.com/api/reject-request`, {
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/reject-request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

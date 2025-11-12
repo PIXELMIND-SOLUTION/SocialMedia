@@ -12,9 +12,9 @@ const SettingsSidebar = ({
     { id: "editProfile", label: "Edit profile" },
     { id: "accountManagement", label: "Account management" },
     { id: "profileVisibility", label: "Profile visibility" },
-    { id: "socialPermissions", label: "Social permissions" },
+    // { id: "socialPermissions", label: "Social permissions" },
     { id: "notifications", label: "Notifications" },
-    { id: "blockedAccounts", label: "Blocked accounts" }
+    // { id: "blockedAccounts", label: "Blocked accounts" }
   ];
 
   const getActiveLabel = () => {

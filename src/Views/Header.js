@@ -23,7 +23,7 @@ const Header = () => {
     const fetchProfile = async () => {
       try {
         const res = await axios.get(
-          `https://social-media-nty4.onrender.com/api/profiles/${userId}`
+          `https://apisocial.atozkeysolution.com/api/profiles/${userId}`
         );
         if (res.data.success && res.data.data.profile.image) {
           setProfilePic(res.data.data.profile.image);
@@ -39,7 +39,7 @@ const Header = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await axios.get("https://social-media-nty4.onrender.com/api/users");
+        const res = await axios.get("https://apisocial.atozkeysolution.com/api/users");
         if (res.data.success) {
           setAllUsers(res.data.data);
         }
@@ -104,7 +104,7 @@ const Header = () => {
               <input
                 type="text"
                 className="form-control border-start-0 rounded-end-pill"
-                placeholder="Search users by name or username..."
+                placeholder="Search with username or name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onFocus={() => setShowResults(true)}

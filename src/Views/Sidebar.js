@@ -39,7 +39,7 @@ const Sidebar = () => {
   useEffect(() => {
     const fetchNotificationCount = async () => {
       try {
-        const response = await axios.get(`https://social-media-nty4.onrender.com/api/notifications/get-live/${userId}`);
+        const response = await axios.get(`https://apisocial.atozkeysolution.com/api/notifications/get-live/${userId}`);
         if (response.data.success) {
           setNotificationCount(response.data.data.counts.unread || 0);
         }
@@ -62,7 +62,7 @@ const Sidebar = () => {
     const fetchUnreadMessages = async () => {
       try {
         const res = await axios.get(
-          `https://social-media-nty4.onrender.com/api/messages/unread/${userId}`
+          `https://apisocial.atozkeysolution.com/api/messages/unread/${userId}`
         );
         if (res.data.success && res.data.data?.unreadCount !== undefined) {
           setMessageCount(res.data.data.unreadCount);

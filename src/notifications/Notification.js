@@ -42,11 +42,12 @@ const Notifications = () => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`https://social-media-nty4.onrender.com/api/notifications/get-live/${userId}`);
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/notifications/all-live/${userId}`);
       const data = await response.json();
 
       if (data.success) {
         setNotifications(data.data.notifications);
+        console.log("Fetched notifications:", data.data.notifications);
         setCounts(data.data.counts);
       } else {
         setError('Failed to fetch notifications');
@@ -91,6 +92,59 @@ const Notifications = () => {
     return true;
   });
 
+  console.log("Filtered notifications:", filteredNotifications);
+
+  // Generate notification content based on type and API data
+  const generateNotificationContent = (notification) => {
+    const senderName = notification.sender?.fullName || 'Someone';
+    const username = notification.sender?.profile?.username || 'user';
+
+    switch (notification.type) {
+      case 'like':
+        return {
+          title: `${senderName} liked your post`,
+          message: `${senderName} (@${username}) liked your post`,
+          description: "Your post received a like",
+          link: notification.post ? `/post/${notification.post}` : '#'
+        };
+      case 'comment':
+        return {
+          title: `${senderName} commented on your post`,
+          message: `${senderName} (@${username}) commented on your post`,
+          description: "New comment on your post",
+          link: notification.post ? `/post/${notification.post}` : '#'
+        };
+      case 'follow':
+        return {
+          title: `${senderName} started following you`,
+          message: `${senderName} (@${username}) started following you`,
+          description: "You have a new follower",
+          link: `/userprofile/${notification.sender?._id}`
+        };
+      case 'mention':
+        return {
+          title: `${senderName} mentioned you`,
+          message: `${senderName} (@${username}) mentioned you in a comment`,
+          description: "You were mentioned in a comment",
+          link: notification.post ? `/post/${notification.post}` : '#'
+        };
+      case 'post':
+        return {
+          title: `${senderName} created a new post`,
+          message: `${senderName} (@${username}) shared a new post`,
+          description: "New post from someone you follow",
+          link: notification.post ? `/post/${notification.post}` : '#'
+        };
+      default:
+        return {
+          title: 'New Notification',
+          message: 'You have a new notification',
+          description: "Notification",
+          link: '#'
+        };
+    }
+  };
+
   const openNotificationModal = (notification) => {
     setSelectedNotification(notification);
     setShowModal(true);
@@ -104,20 +158,81 @@ const Notifications = () => {
     setTimeout(() => setSelectedNotification(null), 300);
   };
 
-  const markAsRead = (id) => {
-    setNotifications(prev => prev.map(notification =>
-      notification._id === id ? { ...notification, isRead: true } : notification
-    ));
+  const markAsRead = async (id) => {
+    try {
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/notifications/read/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setNotifications(prev => prev.map(notification =>
+          notification._id === id ? { ...notification, isRead: true } : notification
+        ));
+      } else {
+        console.error("Failed to mark notification as read:", data.message || "Unknown error");
+      }
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(notification => ({ ...notification, isRead: true })));
+  const markAllAsRead = async () => {
+    try {
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/notifications/read-all/${userId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setNotifications(prev => prev.map(notification => ({ ...notification, isRead: true })));
+        fetchNotifications(); // Refresh counts
+      } else {
+        console.error("Failed to mark all notifications as read:", data.message || "Unknown error");
+      }
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+    }
   };
 
-  const deleteNotification = (id) => {
-    setNotifications(prev => prev.filter(notification => notification._id !== id));
-    if (selectedNotification?._id === id) {
-      closeModal();
+  const deleteNotification = async (id) => {
+    console.log("Deleting notification with ID:", id);
+    try {
+      // Send delete request to backend
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/notifications/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Remove notification locally after successful delete
+        setNotifications((prev) => prev.filter((notification) => notification._id !== id));
+
+        // Close modal if it was the selected notification
+        if (selectedNotification?._id === id) {
+          closeModal();
+        }
+
+        console.log("Notification deleted successfully");
+      } else {
+        console.error("Failed to delete notification:", data.message || "Unknown error");
+        alert("Failed to delete notification. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      alert("An error occurred while deleting the notification.");
     }
   };
 
@@ -320,6 +435,8 @@ const Notifications = () => {
                 <div className="divide-y divide-gray-100">
                   {filteredNotifications.map((notification) => {
                     const IconComponent = getNotificationIcon(notification.type);
+                    const content = generateNotificationContent(notification);
+                    
                     return (
                       <div
                         key={notification._id}
@@ -346,19 +463,19 @@ const Notifications = () => {
                               <div className="flex-1 min-w-0">
                                 <h4 className={`text-xs sm:text-sm lg:text-base font-semibold ${!notification.isRead ? "text-gray-900" : "text-gray-700"
                                   }`}>
-                                  <span className="break-words">{notification.content.title}</span>
+                                  <span className="break-words">{content.title}</span>
                                   {!notification.isRead && (
                                     <span className="ml-2 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-orange-600 rounded-full inline-block"></span>
                                   )}
                                 </h4>
                                 <p className="text-xs sm:text-sm text-gray-600 mt-1 leading-relaxed break-words line-clamp-2">
-                                  {notification.message}
+                                  {content.message}
                                 </p>
                                 <p className="text-xs text-gray-500 mt-1.5 sm:mt-2">{formatTime(notification.createdAt)}</p>
                               </div>
 
                               <div className="flex items-center space-x-0.5 sm:space-x-1 flex-shrink-0">
-                                {!notification.isRead && (
+                                {/* {!notification.isRead && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -369,7 +486,7 @@ const Notifications = () => {
                                   >
                                     <Check size={12} className="text-gray-500 sm:w-3.5 sm:h-3.5" />
                                   </button>
-                                )}
+                                )} */}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -382,25 +499,6 @@ const Notifications = () => {
                                 </button>
                               </div>
                             </div>
-
-                            {/* Preview Image/Video */}
-                            {notification.content.preview && notification.postData?.media && (
-                              <div className="mt-2">
-                                {notification.postData.media[0].type === 'image' ? (
-                                  <img
-                                    src={notification.content.preview}
-                                    alt="Preview"
-                                    className="w-full max-w-xs sm:w-28 md:w-32 h-16 sm:h-18 md:h-20 object-cover rounded-lg border border-gray-200"
-                                  />
-                                ) : (
-                                  <video
-                                    src={notification.content.preview}
-                                    className="w-full max-w-xs sm:w-28 md:w-32 h-16 sm:h-18 md:h-20 object-cover rounded-lg border border-gray-200"
-                                    muted
-                                  />
-                                )}
-                              </div>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -451,11 +549,12 @@ const Notifications = () => {
 
                 <div className="flex-1">
                   <h3 className="text-xl font-bold text-white mb-1">
-                    {selectedNotification.content.title}
+                    {generateNotificationContent(selectedNotification).title}
                   </h3>
                   <div className="flex items-center space-x-2 text-white/90 text-sm" onClick={() => handleProfile(selectedNotification.sender._id)}>
                     <User size={14} />
                     <span>{selectedNotification.sender?.fullName || 'Unknown User'}</span>
+                    <span>@{selectedNotification.sender?.profile?.username || 'user'}</span>
                   </div>
                 </div>
               </div>
@@ -474,52 +573,35 @@ const Notifications = () => {
                 <div className="bg-gray-50 rounded-xl p-4">
                   <h4 className="text-sm font-semibold text-gray-700 mb-2">Message</h4>
                   <p className="text-gray-800 leading-relaxed">
-                    {selectedNotification.message}
+                    {generateNotificationContent(selectedNotification).message}
                   </p>
                 </div>
 
                 {/* Description */}
-                {selectedNotification.content.description && (
+                {generateNotificationContent(selectedNotification).description && (
                   <div className="bg-blue-50 rounded-xl p-4 border-l-4 border-blue-500">
                     <h4 className="text-sm font-semibold text-blue-700 mb-2">Content</h4>
                     <p className="text-gray-700 italic">
-                      "{selectedNotification.content.description}"
+                      "{generateNotificationContent(selectedNotification).description}"
                     </p>
                   </div>
                 )}
 
-                {/* Media Preview */}
-                {selectedNotification.content.preview && selectedNotification.postData?.media && (
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-semibold text-gray-700">Media</h4>
-                    {selectedNotification.postData.media[0].type === 'image' ? (
-                      <img
-                        src={selectedNotification.content.preview}
-                        alt="Preview"
-                        className="w-full h-64 object-cover rounded-xl border border-gray-200 shadow-sm"
-                      />
-                    ) : (
-                      <video
-                        src={selectedNotification.content.preview}
-                        className="w-full h-64 object-cover rounded-xl border border-gray-200 shadow-sm"
-                        controls
-                      />
-                    )}
-                  </div>
-                )}
-
                 {/* Action Link */}
-                {selectedNotification.content.link && (
+                {/* {generateNotificationContent(selectedNotification).link && generateNotificationContent(selectedNotification).link !== '#' && (
                   <a
-                    href={selectedNotification.content.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center space-x-2 w-full py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-medium hover:from-orange-600 hover:to-red-600 transition-all shadow-md hover:shadow-lg"
+                    href={generateNotificationContent(selectedNotification).link}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate(generateNotificationContent(selectedNotification).link);
+                      closeModal();
+                    }}
+                    className="flex items-center justify-center space-x-2 w-full py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-medium hover:from-orange-600 hover:to-red-600 transition-all shadow-md hover:shadow-lg cursor-pointer"
                   >
-                    <span>View Full Post</span>
+                    <span>View Details</span>
                     <ExternalLink size={16} />
                   </a>
-                )}
+                )} */}
               </div>
             </div>
 

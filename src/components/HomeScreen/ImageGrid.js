@@ -10,14 +10,21 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
   const storedUser = JSON.parse(sessionStorage.getItem("userData"));
   const userId = storedUser?.userId;
 
-  // Fetch all saved posts of the current user on mount
+  // ✅ Fetch all saved posts of the current user on mount
   useEffect(() => {
     if (!currentUserId) return;
     const fetchSaves = async () => {
       try {
-        const res = await fetch(`https://social-media-nty4.onrender.com/api/saved-posts/${currentUserId}`);
+        const res = await fetch(
+          `https://apisocial.atozkeysolution.com/api/saved-posts/${currentUserId}`
+        );
         const data = await res.json();
-        if (data.success) setSavedPosts(data.savedPosts || []);
+
+        if (data.success && Array.isArray(data.data)) {
+          // Extract post IDs from saved posts array
+          const savedIds = data.data.map((item) => item._id);
+          setSavedPosts(savedIds);
+        }
       } catch (err) {
         console.error("Failed to fetch saved posts:", err);
       }
@@ -25,8 +32,9 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
     fetchSaves();
   }, [currentUserId]);
 
+  // ✅ Handle Save/Unsave Toggle
   const handleSave = async (e, postId, postOwnerId) => {
-    e.stopPropagation(); // prevent triggering onImageClick
+    e.stopPropagation();
 
     if (!currentUserId) {
       alert("You must be logged in.");
@@ -36,20 +44,34 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
     try {
       setSavingIds((prev) => [...prev, postId]);
 
-      const res = await fetch("https://social-media-nty4.onrender.com/api/posts/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postId, userId: currentUserId, postOwnerId }),
-      });
+      const res = await fetch(
+        "https://apisocial.atozkeysolution.com/api/posts/save",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            postId,
+            userId: currentUserId,
+            postOwnerId,
+          }),
+        }
+      );
 
       const data = await res.json();
+
       if (data.success) {
-        setSavedPosts(data.saves || []);
+        // ✅ Toggle saved state locally
+        setSavedPosts((prev) =>
+          prev.includes(postId)
+            ? prev.filter((id) => id !== postId)
+            : [...prev, postId]
+        );
       } else {
-        alert(data.message || "Failed to save.");
+        alert(data.message || "Failed to save post.");
       }
     } catch (err) {
-      alert("Network error.");
+      console.error("Error saving post:", err);
+      alert("Network error while saving post.");
     } finally {
       setSavingIds((prev) => prev.filter((id) => id !== postId));
     }
@@ -76,18 +98,22 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
               >
                 {(() => {
                   const mediaUrl = img.media?.[0]?.url;
-                  const isVideo = mediaUrl?.match(/\.(mp4|webm|ogg)$/i); // Detect video by extension
+                  const isVideo = mediaUrl?.match(/\.(mp4|webm|ogg)$/i);
 
                   return isVideo ? (
                     <video
                       src={mediaUrl}
                       className="img-fluid rounded"
-                      style={{ width: "100%", display: "block", objectFit: "cover" }}
+                      style={{
+                        width: "100%",
+                        display: "block",
+                        objectFit: "cover",
+                      }}
                       autoPlay
                       muted
                       loop
                       playsInline
-                      onClick={(e) => e.stopPropagation()} // Prevent modal trigger
+                      onClick={(e) => e.stopPropagation()}
                     />
                   ) : (
                     <img
@@ -97,12 +123,10 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
                       style={{ width: "100%", display: "block" }}
                     />
                   );
-
                 })()}
 
-
-                {/* Hover overlay */}
-                <div className="image-hover-overlay position-absolute top-0 start-0 w-100 h-100 d-flex flex-column justify-content-between p-3 opacity-0">
+                {/* Hover Overlay */}
+                <div className="image-hover-overlay position-absolute top-0 start-0 w-100 h-100 d-flex flex-column justify-content-between p-3">
                   <div className="d-flex justify-content-end">
                     <button
                       className="btn btn-light btn-sm rounded-circle"
@@ -110,14 +134,16 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
                       disabled={savingIds.includes(img._id)}
                     >
                       <i
-                        className={`bi ${isSaved(img._id)
-                          ? "bi-bookmark-fill text-primary"
-                          : "bi-bookmark"
-                          }`}
+                        className={`bi ${
+                          isSaved(img._id)
+                            ? "bi-bookmark-fill text-primary"
+                            : "bi-bookmark"
+                        }`}
                       ></i>
                     </button>
                   </div>
 
+                  {/* User Info */}
                   <div className="text-white">
                     <div
                       className="d-flex align-items-center mb-2"
@@ -126,44 +152,35 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
                         handleProfile(img.userId?._id);
                       }}
                     >
-                      <div
-                        className="d-flex align-items-center mb-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleProfile(img.userId?._id);
-                        }}
-                      >
-                        {img.userId?.profile?.image ? (
-                          <img
-                            src={img.userId.profile.image}
-                            alt={img.userId?.fullName}
-                            className="rounded-circle me-2"
-                            style={{
-                              width: "30px",
-                              height: "30px",
-                              objectFit: "cover",
-                            }}
-                          />
-                        ) : (
-                          <div
-                            className="rounded-circle me-2 d-flex justify-content-center align-items-center"
-                            style={{
-                              width: "30px",
-                              height: "30px",
-                              background: "linear-gradient(135deg, #f47c31, #ff6b35)",
-                              color: "#fff",
-                              fontSize: "14px",
-                              fontWeight: "bold",
-                              textTransform: "uppercase",
-                            }}
-                          >
-                            {img.userId?.fullName?.[0] || "U"}
-                          </div>
-                        )}
-                        <span className="fw-bold">{img.userId?.fullName}</span>
-                      </div>
-
-
+                      {img.userId?.profile?.image ? (
+                        <img
+                          src={img.userId.profile.image}
+                          alt={img.userId?.fullName}
+                          className="rounded-circle me-2"
+                          style={{
+                            width: "30px",
+                            height: "30px",
+                            objectFit: "cover",
+                          }}
+                        />
+                      ) : (
+                        <div
+                          className="rounded-circle me-2 d-flex justify-content-center align-items-center"
+                          style={{
+                            width: "30px",
+                            height: "30px",
+                            background:
+                              "linear-gradient(135deg, #f47c31, #ff6b35)",
+                            color: "#fff",
+                            fontSize: "14px",
+                            fontWeight: "bold",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {img.userId?.fullName?.[0] || "U"}
+                        </div>
+                      )}
+                      <span className="fw-bold">{img.userId?.fullName}</span>
                     </div>
                   </div>
                 </div>
@@ -189,11 +206,10 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
           break-inside: avoid;
           position: relative;
         }
-          
-        /* Default: large screens — show overlay only on hover */
+
         .image-hover-overlay {
           opacity: 0;
-          background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, transparent 100%);
+          background: linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0.3), transparent);
           transition: opacity 0.3s ease;
         }
 
@@ -201,21 +217,11 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
           opacity: 1;
         }
 
-        /* Mobile: always show overlay (no hover needed) */
         @media (max-width: 768px) {
           .image-hover-overlay {
             opacity: 1 !important;
-            background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, transparent 100%);
+            background: linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0.3), transparent);
           }
-
-          .masonry-item:hover .image-hover-overlay {
-            opacity: 1 !important; /* stays visible even on hover */
-          }
-        }
-
-
-        .image-hover-overlay {
-          transition: opacity 0.3s ease;
         }
 
         @media (max-width: 1180px) {

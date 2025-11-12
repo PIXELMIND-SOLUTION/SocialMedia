@@ -1,7 +1,16 @@
 import React from "react";
 import Switch from "./Switch";
 
-const SocialPermissions = ({ socialData, handleSocialChange, isDesktop }) => {
+const SocialPermissions = ({ socialData = {}, handleSocialChange = () => {}, isDesktop = false }) => {
+  // ✅ Safe defaults for all socialData fields
+  const {
+    mentions = "Anyone",
+    allowComments = true,
+    filterMyComments = false,
+    filterOthersComments = false,
+    autoplayVideos = true,
+  } = socialData;
+
   const styles = {
     card: {
       border: "1px solid #dee2e6",
@@ -48,21 +57,33 @@ const SocialPermissions = ({ socialData, handleSocialChange, isDesktop }) => {
 
   return (
     <div>
-      <h4 style={{ marginBottom: "0.5rem", fontWeight: "600", color: "#495057", fontSize: "1.25rem" }}>Social permissions</h4>
-      <p style={{ color: "#6c757d", marginBottom: "1.5rem", fontSize: "0.9rem" }}>Control who can engage with you on Name and adjust permissions for the latest tools.</p>
-      
+      <h4 style={{ marginBottom: "0.5rem", fontWeight: "600", color: "#495057", fontSize: "1.25rem" }}>
+        Social permissions
+      </h4>
+      <p style={{ color: "#6c757d", marginBottom: "1.5rem", fontSize: "0.9rem" }}>
+        Control who can engage with you on Name and adjust permissions for the latest tools.
+      </p>
+
+      {/* Mentions */}
       <div style={{ marginBottom: "2rem" }}>
-        <h5 style={{ fontWeight: "600", marginBottom: "0.5rem", color: "#495057", fontSize: "1.1rem" }}>@Mentions</h5>
-        <p style={{ color: "#6c757d", fontSize: "0.875rem", marginBottom: "1rem" }}>Choose who can @mention you</p>
+        <h5 style={{ fontWeight: "600", marginBottom: "0.5rem", color: "#495057", fontSize: "1.1rem" }}>
+          @Mentions
+        </h5>
+        <p style={{ color: "#6c757d", fontSize: "0.875rem", marginBottom: "1rem" }}>
+          Choose who can @mention you
+        </p>
         <div style={styles.mentionOptions}>
           {["Anyone", "Only people you follow", "Turn off"].map(option => (
-            <label key={option} style={{ display: "flex", alignItems: "center", marginBottom: "0.5rem" }}>
+            <label
+              key={option}
+              style={{ display: "flex", alignItems: "center", marginBottom: "0.5rem" }}
+            >
               <input
                 type="radio"
                 name="mentions"
                 value={option}
-                checked={socialData.mentions === option}
-                onChange={(e) => handleSocialChange('mentions', e.target.value)}
+                checked={mentions === option}
+                onChange={(e) => handleSocialChange("mentions", e.target.value)}
                 style={{ marginRight: "0.75rem" }}
               />
               {option}
@@ -71,51 +92,69 @@ const SocialPermissions = ({ socialData, handleSocialChange, isDesktop }) => {
         </div>
       </div>
 
+      {/* Comments Section */}
       <div style={{ marginBottom: "2rem" }}>
-        <h5 style={{ fontWeight: "600", marginBottom: "1rem", color: "#495057", fontSize: "1.1rem" }}>Comments</h5>
-        
+        <h5 style={{ fontWeight: "600", marginBottom: "1rem", color: "#495057", fontSize: "1.1rem" }}>
+          Comments
+        </h5>
+
+        {/* Allow Comments */}
         <div style={styles.card}>
           <div style={styles.cardBody}>
             <div style={styles.cardContent}>
               <div style={styles.cardTextContent}>
-                <h6 style={{ fontWeight: "600", marginBottom: "0.25rem", color: "#495057", fontSize: "0.95rem" }}>Allow comments on your Posts</h6>
-                <p style={{ color: "#6c757d", fontSize: "0.875rem", marginBottom: 0 }}>Comments are automatically turned on for both new and current posts.</p>
+                <h6 style={{ fontWeight: "600", marginBottom: "0.25rem", color: "#495057", fontSize: "0.95rem" }}>
+                  Allow comments on your Posts
+                </h6>
+                <p style={{ color: "#6c757d", fontSize: "0.875rem", marginBottom: 0 }}>
+                  Comments are automatically turned on for both new and current posts.
+                </p>
               </div>
               <Switch
-                checked={socialData.allowComments}
-                onChange={() => handleSocialChange('allowComments')}
+                checked={allowComments}
+                onChange={() => handleSocialChange("allowComments")}
                 isDesktop={isDesktop}
               />
             </div>
           </div>
         </div>
 
+        {/* Filter My Comments */}
         <div style={styles.card}>
           <div style={styles.cardBody}>
             <div style={styles.cardContent}>
               <div style={styles.cardTextContent}>
-                <h6 style={{ fontWeight: "600", marginBottom: "0.25rem", color: "#495057", fontSize: "0.95rem" }}>Filter comments on my Posts</h6>
-                <p style={{ color: "#6c757d", fontSize: "0.875rem", marginBottom: 0 }}>Automatically hide comments on your posts that include certain words or phrases.</p>
+                <h6 style={{ fontWeight: "600", marginBottom: "0.25rem", color: "#495057", fontSize: "0.95rem" }}>
+                  Filter comments on my Posts
+                </h6>
+                <p style={{ color: "#6c757d", fontSize: "0.875rem", marginBottom: 0 }}>
+                  Automatically hide comments on your posts that include certain words or phrases.
+                </p>
               </div>
               <Switch
-                checked={socialData.filterMyComments}
-                onChange={() => handleSocialChange('filterMyComments')}
+                checked={filterMyComments}
+                onChange={() => handleSocialChange("filterMyComments")}
                 isDesktop={isDesktop}
               />
             </div>
           </div>
         </div>
 
+        {/* Filter Others' Comments */}
         <div style={styles.card}>
           <div style={styles.cardBody}>
             <div style={styles.cardContent}>
               <div style={styles.cardTextContent}>
-                <h6 style={{ fontWeight: "600", marginBottom: "0.25rem", color: "#495057", fontSize: "0.95rem" }}>Filter comments on others' Posts</h6>
-                <p style={{ color: "#6c757d", fontSize: "0.875rem", marginBottom: 0 }}>Automatically hide comments on others' posts containing specific words or phrases.</p>
+                <h6 style={{ fontWeight: "600", marginBottom: "0.25rem", color: "#495057", fontSize: "0.95rem" }}>
+                  Filter comments on others' Posts
+                </h6>
+                <p style={{ color: "#6c757d", fontSize: "0.875rem", marginBottom: 0 }}>
+                  Automatically hide comments on others' posts containing specific words or phrases.
+                </p>
               </div>
               <Switch
-                checked={socialData.filterOthersComments}
-                onChange={() => handleSocialChange('filterOthersComments')}
+                checked={filterOthersComments}
+                onChange={() => handleSocialChange("filterOthersComments")}
                 isDesktop={isDesktop}
               />
             </div>
@@ -123,32 +162,41 @@ const SocialPermissions = ({ socialData, handleSocialChange, isDesktop }) => {
         </div>
       </div>
 
+      {/* Blocked Accounts */}
       <div style={{ marginBottom: "2rem" }}>
         <div style={styles.card}>
           <div style={styles.cardBody}>
             <div style={styles.cardContent}>
               <div style={styles.cardTextContent}>
-                <h5 style={{ fontWeight: "600", marginBottom: "0.25rem", color: "#495057", fontSize: "1rem" }}>Blocked accounts</h5>
-                <p style={{ color: "#6c757d", fontSize: "0.875rem", marginBottom: 0 }}>When you block someone, you'll both still see each other's profiles, but can't message, follow, or save each other's content.</p>
+                <h5 style={{ fontWeight: "600", marginBottom: "0.25rem", color: "#495057", fontSize: "1rem" }}>
+                  Blocked accounts
+                </h5>
+                <p style={{ color: "#6c757d", fontSize: "0.875rem", marginBottom: 0 }}>
+                  When you block someone, you'll both still see each other's profiles,
+                  but can't message, follow, or save each other's content.
+                </p>
               </div>
-              <button style={styles.button}>
-                Edit list
-              </button>
+              <button style={styles.button}>Edit list</button>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Autoplay Videos */}
       <div style={styles.card}>
         <div style={styles.cardBody}>
           <div style={styles.cardContent}>
             <div style={styles.cardTextContent}>
-              <h5 style={{ fontWeight: "600", marginBottom: "0.25rem", color: "#495057", fontSize: "1rem" }}>Autoplay videos</h5>
-              <p style={{ color: "#6c757d", fontSize: "0.875rem", marginBottom: 0 }}>Autoplay videos on desktop</p>
+              <h5 style={{ fontWeight: "600", marginBottom: "0.25rem", color: "#495057", fontSize: "1rem" }}>
+                Autoplay videos
+              </h5>
+              <p style={{ color: "#6c757d", fontSize: "0.875rem", marginBottom: 0 }}>
+                Autoplay videos on desktop
+              </p>
             </div>
             <Switch
-              checked={socialData.autoplayVideos}
-              onChange={() => handleSocialChange('autoplayVideos')}
+              checked={autoplayVideos}
+              onChange={() => handleSocialChange("autoplayVideos")}
               isDesktop={isDesktop}
             />
           </div>

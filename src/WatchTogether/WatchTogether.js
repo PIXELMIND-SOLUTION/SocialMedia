@@ -39,7 +39,7 @@ const WatchTogether = () => {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState('');
 
-  const API_BASE = 'https://social-media-nty4.onrender.com/api';
+  const API_BASE = 'https://apisocial.atozkeysolution.com/api';
   
   // ZegoCloud credentials (DUMMY CREDENTIALS - REPLACE IN PRODUCTION)
   const ZEGO_APP_ID = 1150075754; // Replace with your ZegoCloud App ID

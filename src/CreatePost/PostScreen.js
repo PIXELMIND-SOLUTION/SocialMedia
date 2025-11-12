@@ -93,7 +93,7 @@ const PostScreen = ({
         }
         
         const res = await fetch(
-          `https://social-media-nty4.onrender.com/api/profiles/${currentUserId}`
+          `https://apisocial.atozkeysolution.com/api/profiles/${currentUserId}`
         );
         
         if (res.ok) {

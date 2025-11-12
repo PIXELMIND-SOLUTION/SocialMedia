@@ -25,7 +25,7 @@ const MessageModel = () => {
   const storedUser = JSON.parse(sessionStorage.getItem('userData') || '{}');
   const userId = storedUser?.userId;
 
-  const API_BASE = 'https://social-media-nty4.onrender.com/api';
+  const API_BASE = 'https://apisocial.atozkeysolution.com/api';
 
   // Fetch friends + last message on mount
   useEffect(() => {

@@ -26,7 +26,7 @@ const HomeScreen = () => {
   useEffect(() => {
     const fetchPosts = async () => {
       try {
-        const res = await axios.get("https://social-media-nty4.onrender.com/api/posts");
+        const res = await axios.get("https://apisocial.atozkeysolution.com/api/posts");
         if (res.data.success) {
           let allPosts = res.data.data.map((post) => ({
             ...post,

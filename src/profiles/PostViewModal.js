@@ -31,7 +31,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
   const refreshPostData = async () => {
     try {
       setIsRefreshing(true);
-      const res = await fetch(`https://social-media-nty4.onrender.com/api/posts/${post._id}`);
+      const res = await fetch(`https://apisocial.atozkeysolution.com/api/posts/${post._id}`);
       const data = await res.json();
       if (data.success && data.post) {
         setLikes(data.post.likes || []);
@@ -49,7 +49,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
   const fetchFollowers = async () => {
     if (!currentUserId) return;
     try {
-      const res = await fetch(`https://social-media-nty4.onrender.com/api/followers/${currentUserId}`);
+      const res = await fetch(`https://apisocial.atozkeysolution.com/api/followers/${currentUserId}`);
       const data = await res.json();
       if (data.success) {
         const followerList = data.followers || [];
@@ -119,7 +119,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
     );
 
     try {
-      const response = await fetch('https://social-media-nty4.onrender.com/api/posts/like', {
+      const response = await fetch('https://apisocial.atozkeysolution.com/api/posts/like', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -153,7 +153,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
     );
 
     try {
-      const response = await fetch('https://social-media-nty4.onrender.com/api/posts/save', {
+      const response = await fetch('https://apisocial.atozkeysolution.com/api/posts/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -186,7 +186,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
     setCommentText('');
 
     try {
-      const response = await fetch('https://social-media-nty4.onrender.com/api/posts/comment', {
+      const response = await fetch('https://apisocial.atozkeysolution.com/api/posts/comment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -228,7 +228,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
     setSendingTo(followerId);
 
     try {
-      const response = await fetch('https://social-media-nty4.onrender.com/api/messages/send-post', {
+      const response = await fetch('https://apisocial.atozkeysolution.com/api/messages/send-post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -272,15 +272,22 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
           </button>
 
           <div className="flex items-center gap-3 p-4 border-b border-gray-200">
-            <img
-              src={post.userId?.profile?.image || '/default-avatar.png'}
-              alt={post.userId?.fullName || 'User'}
-              className="w-10 h-10 rounded-full object-cover"
-            />
+            {post.userId?.profile?.image ? (
+              <img
+                src={post.userId.profile.image}
+                alt={post.userId?.fullName || 'User'}
+                className="w-10 h-10 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                {post.userId?.fullName?.[0]?.toUpperCase() || 'U'}
+              </div>
+            )}
             <span className="font-semibold text-gray-900">
               {post.userId?.fullName || 'Anonymous'}
             </span>
           </div>
+
 
           <div className="relative w-full bg-black">
             {post.media?.[currentMediaIndex]?.type === 'video' ? (
@@ -340,15 +347,15 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
                 className="w-6 h-6 text-gray-900 cursor-pointer"
                 onClick={() => setShowComments(!showComments)}
               />
-              <Send
+              {/* <Send
                 className="w-6 h-6 text-gray-900 cursor-pointer"
                 onClick={() => setShowShareModal(true)}
-              />
+              /> */}
             </div>
-            <Bookmark
+            {/* <Bookmark
               className={`w-6 h-6 cursor-pointer transition ${isSaved ? 'text-blue-500 fill-blue-500' : 'text-gray-900'}`}
               onClick={handleSaveToggle}
-            />
+            /> */}
           </div>
 
           <p className="px-4 pb-2 text-sm font-semibold text-gray-900">
@@ -464,8 +471,8 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment }) => {
                         onClick={() => handleSendToFollower(follower._id)}
                         disabled={sendingTo === follower._id}
                         className={`px-2.5 py-1 text-xs rounded font-medium ${sendingTo === follower._id
-                            ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                            : 'bg-blue-500 hover:bg-blue-600 text-white'
+                          ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                          : 'bg-blue-500 hover:bg-blue-600 text-white'
                           }`}
                       >
                         {sendingTo === follower._id ? 'Sending' : 'Send'}

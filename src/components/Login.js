@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -17,9 +17,18 @@ const Login = () => {
   const [inputValue, setInputValue] = useState("");
   const navigate = useNavigate();
 
+  // Create refs for OTP inputs
+  const otpRefs = useRef([]);
+
   // Handle OTP input change
   const handleOtpChange = (index, value) => {
-    if (!/^\d*$/.test(value)) return; // Only allow numbers
+    // Only allow single digit
+    if (value.length > 1) {
+      value = value.slice(-1);
+    }
+
+    // Only allow numbers
+    if (!/^\d*$/.test(value)) return;
 
     const newOtp = [...otp];
     newOtp[index] = value;
@@ -27,7 +36,7 @@ const Login = () => {
 
     // Auto focus to next input
     if (value && index < 3) {
-      document.getElementById(`otp-${index + 1}`).focus();
+      otpRefs.current[index + 1]?.focus();
     }
   };
 
@@ -58,9 +67,54 @@ const Login = () => {
 
   // Handle OTP input key events
   const handleOtpKeyDown = (index, e) => {
-    if (e.key === "Backspace" && !otp[index] && index > 0) {
-      document.getElementById(`otp-${index - 1}`).focus();
+    if (e.key === "Backspace") {
+      if (!otp[index] && index > 0) {
+        // If current field is empty, move to previous field
+        otpRefs.current[index - 1]?.focus();
+      } else {
+        // Clear current field
+        const newOtp = [...otp];
+        newOtp[index] = "";
+        setOtp(newOtp);
+      }
+    } else if (e.key === "ArrowLeft" && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    } else if (e.key === "ArrowRight" && index < 3) {
+      otpRefs.current[index + 1]?.focus();
     }
+  };
+
+  // Handle paste event for OTP
+  const handleOtpPaste = (e) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData("text").trim();
+
+    // Only process if pasted data contains only digits
+    if (!/^\d+$/.test(pastedData)) return;
+
+    const digits = pastedData.slice(0, 4).split("");
+    const newOtp = [...otp];
+
+    digits.forEach((digit, index) => {
+      if (index < 4) {
+        newOtp[index] = digit;
+      }
+    });
+
+    setOtp(newOtp);
+
+    // Focus on the next empty field or last field
+    const nextEmptyIndex = newOtp.findIndex(val => !val);
+    if (nextEmptyIndex !== -1) {
+      otpRefs.current[nextEmptyIndex]?.focus();
+    } else {
+      otpRefs.current[3]?.focus();
+    }
+  };
+
+  // Reset OTP when changing steps
+  const resetOtp = () => {
+    setOtp(["", "", "", ""]);
   };
 
   // Register API call
@@ -69,7 +123,7 @@ const Login = () => {
     setError("");
 
     try {
-      const response = await fetch('https://social-media-nty4.onrender.com/api/register', {
+      const response = await fetch('https://apisocial.atozkeysolution.com/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -87,6 +141,7 @@ const Login = () => {
 
       if (response.ok) {
         setToken(data.data.token);
+        resetOtp();
         setStep("signupOtp");
       } else {
         setError(data.message || "Registration failed");
@@ -105,7 +160,13 @@ const Login = () => {
 
     try {
       const otpString = otp.join('');
-      const response = await fetch('https://social-media-nty4.onrender.com/api/verify-otp', {
+      if (otpString.length !== 4) {
+        setError("Please enter complete OTP");
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch('https://apisocial.atozkeysolution.com/api/verify-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -119,6 +180,7 @@ const Login = () => {
       const data = await response.json();
 
       if (response.ok) {
+        resetOtp();
         setStep("login");
         alert("Registration successful! Please login.");
       } else {
@@ -139,7 +201,7 @@ const Login = () => {
     try {
       const identifier = email.includes('@') ? { email } : { mobile: inputValue };
 
-      const response = await fetch('https://social-media-nty4.onrender.com/api/login', {
+      const response = await fetch('https://apisocial.atozkeysolution.com/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -152,6 +214,7 @@ const Login = () => {
       if (response.ok) {
         setUserId(data.data.userId);
         setToken(data.data.token);
+        resetOtp();
         setStep("loginOtp");
       } else {
         setError(data.message || "Login failed");
@@ -170,7 +233,13 @@ const Login = () => {
 
     try {
       const otpString = otp.join('');
-      const response = await fetch('https://social-media-nty4.onrender.com/api/verify-login-otp', {
+      if (otpString.length !== 4) {
+        setError("Please enter complete OTP");
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch('https://apisocial.atozkeysolution.com/api/verify-login-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -210,7 +279,7 @@ const Login = () => {
         {/* Logo Image */}
         <div className="text-center mb-3 mb-md-4">
           <img
-            src="/logo.png" // ✅ Make sure this path is correct
+            src="/logo.png"
             alt="Logo"
             style={{ maxHeight: "60px", height: "auto" }}
             className="rounded-circle"
@@ -244,7 +313,6 @@ const Login = () => {
               />
             </div>
           </div>
-
 
           {/* Right Section */}
           <div className="col-md-6 col-lg-5">
@@ -280,11 +348,18 @@ const Login = () => {
                       placeholder="E-mail"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      onBlur={() => {
+                        if (email && !/^[a-zA-Z0-9._%+-]+@gmail\.com$/.test(email)) {
+                          alert("Please enter a valid Gmail address (example@gmail.com)");
+                          setEmail("");
+                        }
+                      }}
                     />
                   </div>
+
                   <div className="mb-3">
                     <input
-                      type="tel"
+                      type="number"
                       className="form-control"
                       placeholder="Mobile Number"
                       value={mobile}
@@ -299,6 +374,7 @@ const Login = () => {
                       placeholder="Username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
+                      required
                     />
                   </div>
                   <div className="mb-4">
@@ -357,7 +433,10 @@ const Login = () => {
                     <span
                       role="button"
                       className="text-primary fw-medium"
-                      onClick={() => setStep("login")}
+                      onClick={() => {
+                        setStep("login");
+                        setError("");
+                      }}
                     >
                       Sign in
                     </span>
@@ -425,7 +504,10 @@ const Login = () => {
                     <span
                       role="button"
                       className="text-primary fw-medium"
-                      onClick={() => setStep("signup")}
+                      onClick={() => {
+                        setStep("signup");
+                        setError("");
+                      }}
                     >
                       Sign Up
                     </span>
@@ -446,20 +528,22 @@ const Login = () => {
                     {otp.map((digit, index) => (
                       <input
                         key={index}
-                        id={`otp-${index}`}
+                        ref={(el) => (otpRefs.current[index] = el)}
                         type="text"
+                        inputMode="numeric"
                         maxLength="1"
                         className="form-control text-center py-2"
                         style={{ width: "50px", fontSize: "1.1rem" }}
                         value={digit}
                         onChange={(e) => handleOtpChange(index, e.target.value)}
                         onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                        onPaste={handleOtpPaste}
                         onFocus={(e) => e.target.select()}
                       />
                     ))}
                   </div>
                   <small className="text-muted d-block text-center mb-4">
-                    Your code will be valid for 10 minutes.{" "}
+                    Your code will be valid for 30 seconds.{" "}
                     {/* <span className="text-primary fw-medium" role="button">
                       Resend
                     </span> */}
@@ -488,20 +572,22 @@ const Login = () => {
                     {otp.map((digit, index) => (
                       <input
                         key={index}
-                        id={`otp-${index}`}
+                        ref={(el) => (otpRefs.current[index] = el)}
                         type="text"
+                        inputMode="numeric"
                         maxLength="1"
                         className="form-control text-center py-2"
                         style={{ width: "50px", fontSize: "1.1rem" }}
                         value={digit}
                         onChange={(e) => handleOtpChange(index, e.target.value)}
                         onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                        onPaste={handleOtpPaste}
                         onFocus={(e) => e.target.select()}
                       />
                     ))}
                   </div>
-                  <small className="text-muted d-block text-center mb-4">
-                    Your code will be valid for 10 minutes.{" "}
+                  <small className="text-black d-block text-center mb-4">
+                    Your code will be valid for <span className="text-success fw-bold">30 seconds.</span>{" "}
                     {/* <span className="text-primary fw-medium" role="button">
                       Resend
                     </span> */}

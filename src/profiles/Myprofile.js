@@ -1,79 +1,93 @@
-import React, { useState, useEffect } from 'react';
-import { Grid, Bookmark, Film, Settings, Info, MessageCircle, Heart, ChevronLeft } from 'lucide-react';
-import PostViewModal from './PostViewModal';
-import AboutModal from './AboutModal';
-import { useNavigate } from 'react-router-dom';
-import FollowersFollowingModal from './FollowersFollowingModal';
+import React, { useState, useEffect } from "react";
+import {
+  Grid,
+  Bookmark,
+  Film,
+  Settings,
+  Info,
+  MessageCircle,
+  Heart,
+  ChevronLeft,
+} from "lucide-react";
+import PostViewModal from "./PostViewModal";
+import AboutModal from "./AboutModal";
+import { useNavigate } from "react-router-dom";
+import FollowersFollowingModal from "./FollowersFollowingModal";
 
 const MyProfile = () => {
   const [profile, setProfile] = useState(null);
   const [selectedPost, setSelectedPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('posts');
+  const [activeTab, setActiveTab] = useState("posts");
   const [showAbout, setShowAbout] = useState(false);
   const [showFollowModal, setShowFollowModal] = useState(false);
-  const [followModalTab, setFollowModalTab] = useState('followers');
+  const [followModalTab, setFollowModalTab] = useState("followers");
   const [savedPostsData, setSavedPostsData] = useState([]);
 
   const navigate = useNavigate();
-
-  // Get logged-in user
   const storedUser = JSON.parse(sessionStorage.getItem("userData"));
   const userId = storedUser?.userId;
 
   useEffect(() => {
     fetchProfile();
+    fetchSavedPosts();
   }, []);
 
+  // Fetch profile info
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`https://social-media-nty4.onrender.com/api/profiles/${userId}`);
+      const response = await fetch(
+        `https://apisocial.atozkeysolution.com/api/profiles/${userId}`
+      );
       const data = await response.json();
 
       if (data.success) {
         setProfile(data.data);
-        // Fetch saved posts if available
-        if (data.data.savedPosts && data.data.savedPosts.length > 0) {
-          fetchSavedPosts(data.data.savedPosts);
-        }
       } else {
-        setError('Failed to load profile');
+        setError("Failed to load profile");
       }
     } catch (err) {
-      setError('Error loading profile');
+      setError("Error loading profile");
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchSavedPosts = async (savedPostsIds) => {
+  // ✅ Fetch saved posts
+  const fetchSavedPosts = async () => {
     try {
-      const savedPostsDetails = await Promise.all(
-        savedPostsIds.map(async (postId) => {
-          const res = await fetch(`https://social-media-nty4.onrender.com/api/posts/${userId}/${postId}`);
-          const data = await res.json();
-          return data.success ? data.data : null;
-        })
+      const res = await fetch(
+        `https://apisocial.atozkeysolution.com/api/saved-posts/${userId}`
       );
-      setSavedPostsData(savedPostsDetails.filter(Boolean));
+      const data = await res.json();
+
+      if (data.success && Array.isArray(data.data)) {
+        setSavedPostsData(data.data.slice().reverse());
+      } else {
+        setSavedPostsData([]);
+      }
     } catch (err) {
-      console.error('Error fetching saved posts:', err);
+      console.error("Error fetching saved posts:", err);
+      setSavedPostsData([]);
     }
   };
 
+  // Fetch post details for modal
   const fetchPostDetails = async (postId) => {
     try {
-      const response = await fetch(`https://social-media-nty4.onrender.com/api/posts/${userId}/${postId}`);
+      const response = await fetch(
+        `https://apisocial.atozkeysolution.com/api/posts/${userId}/${postId}`
+      );
       const data = await response.json();
 
       if (data.success) {
         setSelectedPost(data.data);
       }
     } catch (err) {
-      console.error('Error loading post:', err);
+      console.error("Error loading post:", err);
     }
   };
 
@@ -82,11 +96,11 @@ const MyProfile = () => {
   };
 
   const handleLike = async (postId) => {
-    console.log('Like post:', postId);
+    console.log("Like post:", postId);
   };
 
   const handleComment = async (postId, text) => {
-    console.log('Comment on post:', postId, text);
+    console.log("Comment on post:", postId, text);
   };
 
   if (loading) {
@@ -107,8 +121,12 @@ const MyProfile = () => {
           <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
             <span className="text-red-500 text-3xl">!</span>
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Profile Not Found</h2>
-          <p className="text-gray-600 mb-6">{error || 'Unable to load profile data'}</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Profile Not Found
+          </h2>
+          <p className="text-gray-600 mb-6">
+            {error || "Unable to load profile data"}
+          </p>
           <button
             onClick={fetchProfile}
             className="px-6 py-2.5 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-lg hover:from-pink-600 hover:to-purple-600 transition-all shadow-md hover:shadow-lg font-medium"
@@ -120,7 +138,7 @@ const MyProfile = () => {
     );
   }
 
-  const posts = activeTab === 'posts' ? profile.posts : savedPostsData;
+  const posts = activeTab === "posts" ? profile.posts : savedPostsData;
 
   return (
     <div className="min-h-screen bg-white">
@@ -128,15 +146,17 @@ const MyProfile = () => {
       <div className="lg:hidden sticky top-0 bg-white/95 backdrop-blur-md border-b border-gray-200 px-4 py-3 z-20">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <ChevronLeft 
-              className="w-6 h-6 cursor-pointer text-gray-700 hover:text-black" 
+            <ChevronLeft
+              className="w-6 h-6 cursor-pointer text-gray-700 hover:text-black"
               onClick={() => navigate(-1)}
             />
-            <h1 className="text-lg font-semibold">{profile.profile.username}</h1>
+            <h1 className="text-lg font-semibold">
+              {profile.profile.username}
+            </h1>
           </div>
-          <Settings 
-            className="w-6 h-6 cursor-pointer text-gray-700 hover:text-black" 
-            onClick={() => navigate('/settings')} 
+          <Settings
+            className="w-6 h-6 cursor-pointer text-gray-700 hover:text-black"
+            onClick={() => navigate("/settings")}
           />
         </div>
       </div>
@@ -157,7 +177,7 @@ const MyProfile = () => {
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-purple-400 via-pink-400 to-orange-400 flex items-center justify-center text-white text-3xl sm:text-5xl lg:text-6xl font-bold">
-                      {profile.profile.firstName?.[0].toUpperCase() || 'U'}
+                      {profile.profile.firstName?.[0].toUpperCase() || "U"}
                     </div>
                   )}
                 </div>
@@ -166,12 +186,13 @@ const MyProfile = () => {
 
             {/* Profile Info */}
             <div className="flex-1 w-full">
-              {/* Desktop Header */}
               <div className="hidden lg:flex items-center gap-4 mb-6">
-                <h1 className="text-2xl font-light text-gray-900">{profile.profile.username}</h1>
-                <button 
+                <h1 className="text-2xl font-light text-gray-900">
+                  {profile.profile.username}
+                </h1>
+                <button
                   className="px-5 py-1.5 bg-gray-200 text-gray-900 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-all"
-                  onClick={() => navigate('/settings')}
+                  onClick={() => navigate("/settings")}
                 >
                   Edit Profile
                 </button>
@@ -182,98 +203,46 @@ const MyProfile = () => {
                   <Info className="w-4 h-4" />
                   About
                 </button>
-                <Settings 
-                  className="w-6 h-6 cursor-pointer text-gray-600 hover:text-gray-900 transition-colors" 
-                  onClick={() => navigate('/settings')} 
-                />
-              </div>
-
-              {/* Mobile Username */}
-              <div className="lg:hidden text-center mb-4">
-                <h1 className="text-xl sm:text-2xl font-light text-gray-900">{profile.profile.username}</h1>
               </div>
 
               {/* Stats */}
               <div className="flex justify-center lg:justify-start gap-6 sm:gap-10 lg:gap-12 mb-5 text-sm sm:text-base">
                 <div className="text-center lg:text-left">
-                  <div className="font-semibold text-gray-900">{profile.posts.length}</div>
+                  <div className="font-semibold text-gray-900">
+                    {profile.posts.length}
+                  </div>
                   <div className="text-gray-600 text-xs sm:text-sm">posts</div>
                 </div>
-                <div 
+                <div
                   className="cursor-pointer hover:opacity-70 transition-opacity text-center lg:text-left"
                   onClick={() => {
-                    setFollowModalTab('followers');
+                    setFollowModalTab("followers");
                     setShowFollowModal(true);
                   }}
                 >
-                  <div className="font-semibold text-gray-900">{profile.counts.followers}</div>
-                  <div className="text-gray-600 text-xs sm:text-sm">followers</div>
+                  <div className="font-semibold text-gray-900">
+                    {profile.counts.followers}
+                  </div>
+                  <div className="text-gray-600 text-xs sm:text-sm">
+                    followers
+                  </div>
                 </div>
-                <div 
+                <div
                   className="cursor-pointer hover:opacity-70 transition-opacity text-center lg:text-left"
                   onClick={() => {
-                    setFollowModalTab('following');
+                    setFollowModalTab("following");
                     setShowFollowModal(true);
                   }}
                 >
-                  <div className="font-semibold text-gray-900">{profile.counts.following}</div>
-                  <div className="text-gray-600 text-xs sm:text-sm">following</div>
+                  <div className="font-semibold text-gray-900">
+                    {profile.counts.following}
+                  </div>
+                  <div className="text-gray-600 text-xs sm:text-sm">
+                    following
+                  </div>
                 </div>
-              </div>
-
-              {/* Bio - Desktop */}
-              <div className="hidden lg:block">
-                <h2 className="font-semibold text-sm text-gray-900 mb-1">{profile.fullName}</h2>
-                {profile.profile.about && (
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed mb-1">{profile.profile.about}</p>
-                )}
-                {profile.profile.website && (
-                  <a
-                    href={profile.profile.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 font-medium text-sm hover:underline inline-block"
-                  >
-                    {profile.profile.website}
-                  </a>
-                )}
-              </div>
-
-              {/* Mobile Action Buttons */}
-              <div className="flex gap-2 lg:hidden mt-5">
-                <button 
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-900 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-all"
-                  onClick={() => navigate('/settings')}
-                >
-                  Edit Profile
-                </button>
-                <button
-                  onClick={() => setShowAbout(true)}
-                  className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 text-gray-900 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-all"
-                >
-                  <Info className="w-4 h-4" />
-                  <span className="hidden sm:inline">About</span>
-                </button>
               </div>
             </div>
-          </div>
-
-          {/* Mobile Bio */}
-          <div className="lg:hidden text-center px-2 sm:px-4">
-            <h2 className="font-semibold text-sm text-gray-900 mb-1">{profile.fullName}</h2>
-            {profile.profile.about && (
-              <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed mb-1">{profile.profile.about}</p>
-            )}
-            {profile.profile.website && (
-              <a
-                href={profile.profile.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 font-medium text-sm hover:underline inline-block"
-              >
-                {profile.profile.website}
-              </a>
-            )}
           </div>
         </div>
 
@@ -281,22 +250,22 @@ const MyProfile = () => {
         <div className="border-t border-gray-300 -mx-4 sm:-mx-6 lg:mx-0">
           <div className="flex justify-center gap-12 sm:gap-16">
             <button
-              onClick={() => setActiveTab('posts')}
+              onClick={() => setActiveTab("posts")}
               className={`flex items-center gap-2 py-3 sm:py-4 text-xs font-semibold tracking-widest transition-colors ${
-                activeTab === 'posts'
-                  ? 'border-t-2 border-black text-black -mt-px'
-                  : 'text-gray-400 hover:text-gray-600'
+                activeTab === "posts"
+                  ? "border-t-2 border-black text-black -mt-px"
+                  : "text-gray-400 hover:text-gray-600"
               }`}
             >
               <Grid className="w-3 h-3" />
               <span className="hidden sm:inline">POSTS</span>
             </button>
             <button
-              onClick={() => setActiveTab('saved')}
+              onClick={() => setActiveTab("saved")}
               className={`flex items-center gap-2 py-3 sm:py-4 text-xs font-semibold tracking-widest transition-colors ${
-                activeTab === 'saved'
-                  ? 'border-t-2 border-black text-black -mt-px'
-                  : 'text-gray-400 hover:text-gray-600'
+                activeTab === "saved"
+                  ? "border-t-2 border-black text-black -mt-px"
+                  : "text-gray-400 hover:text-gray-600"
               }`}
             >
               <Bookmark className="w-3 h-3" />
@@ -313,7 +282,7 @@ const MyProfile = () => {
               onClick={() => handlePostClick(post)}
               className="aspect-square bg-gray-100 cursor-pointer relative group overflow-hidden"
             >
-              {post.media[0]?.type === 'video' ? (
+              {post.media?.[0]?.type === "video" ? (
                 <div className="relative w-full h-full">
                   <video
                     src={post.media[0].url}
@@ -321,38 +290,31 @@ const MyProfile = () => {
                     muted
                     playsInline
                   />
-                  <Film className="absolute top-2 right-2 w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-white drop-shadow-lg" />
+                  <Film className="absolute top-2 right-2 w-4 h-4 text-white drop-shadow-lg" />
                 </div>
               ) : (
                 <img
-                  src={post.media[0]?.url}
+                  src={post.media?.[0]?.url}
                   alt={post.description}
                   className="w-full h-full object-cover"
                   loading="lazy"
                 />
               )}
 
-              {/* Hover Overlay - Desktop Only */}
               <div className="hidden lg:flex absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center gap-8 text-white">
                 <div className="flex items-center gap-2">
                   <Heart className="w-6 h-6 fill-white" />
-                  <span className="font-semibold text-lg">{post.likes?.length || 0}</span>
+                  <span className="font-semibold text-lg">
+                    {post.likes?.length || 0}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <MessageCircle className="w-6 h-6 fill-white" />
-                  <span className="font-semibold text-lg">{post.comments?.length || 0}</span>
+                  <span className="font-semibold text-lg">
+                    {post.comments?.length || 0}
+                  </span>
                 </div>
               </div>
-
-              {/* Multiple Media Indicator */}
-              {post.media?.length > 1 && (
-                <div className="absolute top-2 right-2 lg:top-3 lg:right-3">
-                  <div className="flex gap-1 bg-black/60 rounded-full px-1.5 py-1 backdrop-blur-sm">
-                    <div className="w-1 h-1 bg-white rounded-full" />
-                    <div className="w-1 h-1 bg-white rounded-full" />
-                  </div>
-                </div>
-              )}
             </div>
           ))}
         </div>
@@ -360,24 +322,28 @@ const MyProfile = () => {
         {/* Empty State */}
         {posts.length === 0 && (
           <div className="text-center py-12 sm:py-16 text-gray-400">
-            {activeTab === 'posts' ? (
+            {activeTab === "posts" ? (
               <>
-                <Grid className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 opacity-30" />
-                <p className="text-xl sm:text-2xl font-light mb-2">No posts yet</p>
-                <p className="text-sm text-gray-500">Share your first moment!</p>
+                <Grid className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 opacity-30" />
+                <p className="text-xl font-light mb-2">No posts yet</p>
+                <p className="text-sm text-gray-500">
+                  Share your first moment!
+                </p>
               </>
             ) : (
               <>
-                <Bookmark className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 opacity-30" />
-                <p className="text-xl sm:text-2xl font-light mb-2">No saved posts</p>
-                <p className="text-sm text-gray-500">Save posts you like to see them here</p>
+                <Bookmark className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 opacity-30" />
+                <p className="text-xl font-light mb-2">No saved posts</p>
+                <p className="text-sm text-gray-500">
+                  Save posts you like to see them here
+                </p>
               </>
             )}
           </div>
         )}
       </div>
 
-      {/* Post View Modal */}
+      {/* Modals */}
       {selectedPost && (
         <PostViewModal
           post={selectedPost}
@@ -388,15 +354,10 @@ const MyProfile = () => {
         />
       )}
 
-      {/* About Modal */}
       {showAbout && (
-        <AboutModal
-          profile={profile}
-          onClose={() => setShowAbout(false)}
-        />
+        <AboutModal profile={profile} onClose={() => setShowAbout(false)} />
       )}
 
-      {/* Followers/Following Modal */}
       {showFollowModal && (
         <FollowersFollowingModal
           isOpen={showFollowModal}

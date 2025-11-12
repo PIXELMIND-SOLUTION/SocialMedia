@@ -15,6 +15,7 @@ const UserProfile = () => {
   const [showFollowModal, setShowFollowModal] = useState(false);
   const [followModalTab, setFollowModalTab] = useState('followers');
   const [savedPostsData, setSavedPostsData] = useState([]);
+  const [savedPostIds, setSavedPostIds] = useState(new Set()); // Track saved post IDs
 
   const { id } = useParams();
   const userId = id;
@@ -23,6 +24,10 @@ const UserProfile = () => {
   const storedUser = JSON.parse(sessionStorage.getItem("userData"));
   const currentUserId = storedUser?.userId;
   const isOwnProfile = userId === currentUserId;
+
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [messageModalText, setMessageModalText] = useState('');
+
 
   useEffect(() => {
     fetchProfile();
@@ -34,15 +39,17 @@ const UserProfile = () => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`https://social-media-nty4.onrender.com/api/profiles/${userId}`);
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/profiles/${userId}`);
       const data = await response.json();
 
       if (data.success) {
         setProfile(data.data);
         if (data.data.savedPosts && data.data.savedPosts.length > 0) {
+          setSavedPostIds(new Set(data.data.savedPosts)); // Update saved post IDs
           fetchSavedPosts(data.data.savedPosts);
         } else {
           setSavedPostsData([]);
+          setSavedPostIds(new Set());
         }
       } else {
         setError('Failed to load profile');
@@ -60,7 +67,7 @@ const UserProfile = () => {
       const savedPostsDetails = await Promise.all(
         savedPostsIds.map(async (postId) => {
           try {
-            const res = await fetch(`https://social-media-nty4.onrender.com/api/posts/${userId}/${postId}`);
+            const res = await fetch(`https://apisocial.atozkeysolution.com/api/posts/${userId}/${postId}`);
             const data = await res.json();
             console.log('Fetched saved post data:', data);
 
@@ -86,7 +93,7 @@ const UserProfile = () => {
 
   const checkFollowStatus = async () => {
     try {
-      const response = await fetch(`https://social-media-nty4.onrender.com/api/following/${currentUserId}`);
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/following/${currentUserId}`);
       const data = await response.json();
 
       if (data.success) {
@@ -95,7 +102,7 @@ const UserProfile = () => {
       }
 
       // Check if request is pending
-      const followersResponse = await fetch(`https://social-media-nty4.onrender.com/api/followers/${userId}`);
+      const followersResponse = await fetch(`https://apisocial.atozkeysolution.com/api/followers/${userId}`);
       const followersData = await followersResponse.json();
 
       if (followersData.success) {
@@ -119,7 +126,7 @@ const UserProfile = () => {
         setIsFollowing(false);
       } else {
         // Send follow request
-        const response = await fetch(`https://social-media-nty4.onrender.com/api/send-request`, {
+        const response = await fetch(`https://apisocial.atozkeysolution.com/api/send-request`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -145,7 +152,7 @@ const UserProfile = () => {
 
   const fetchPostDetails = async (postId) => {
     try {
-      const response = await fetch(`https://social-media-nty4.onrender.com/api/posts/${userId}/${postId}`);
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/posts/${userId}/${postId}`);
       const data = await response.json();
 
       if (data.success) {
@@ -194,6 +201,40 @@ const UserProfile = () => {
 
   const posts = activeTab === 'posts' ? profile.posts : savedPostsData;
 
+  const handleMessageClick = async () => {
+    if (!currentUserId) {
+      setMessageModalText("Please login to send a message.");
+      setShowMessageModal(true);
+      return;
+    }
+
+    try {
+      const res = await fetch(`https://apisocial.atozkeysolution.com/api/get-friends/${currentUserId}`);
+      const data = await res.json();
+
+      if (data.success && Array.isArray(data.data)) {
+        const isFriend = data.data.some(
+          (relation) => relation._id === userId && relation.status === "friends"
+        );
+
+        if (isFriend) {
+          navigate('/messages'); // ✅ allow access to messages page
+        } else {
+          setMessageModalText("You need to be  mutual followers to send a message.");
+          setShowMessageModal(true);
+        }
+      } else {
+        setMessageModalText("Unable to verify friendship status. Please try again later.");
+        setShowMessageModal(true);
+      }
+    } catch (error) {
+      console.error("Error checking friends:", error);
+      setMessageModalText("An error occurred. Please try again later.");
+      setShowMessageModal(true);
+    }
+  };
+
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header - Mobile */}
@@ -235,10 +276,10 @@ const UserProfile = () => {
                       onClick={handleFollowToggle}
                       disabled={followRequestPending}
                       className={`px-6 py-1.5 text-sm font-semibold rounded-lg transition-colors ${isFollowing
-                          ? 'bg-gray-200 text-black hover:bg-gray-300'
-                          : followRequestPending
-                            ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                            : 'bg-blue-500 text-white hover:bg-blue-600'
+                        ? 'bg-gray-200 text-black hover:bg-gray-300'
+                        : followRequestPending
+                          ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
                         }`}
                     >
                       {isFollowing ? (
@@ -258,9 +299,13 @@ const UserProfile = () => {
                         </span>
                       )}
                     </button>
-                    <button className="px-6 py-1.5 bg-gray-200 text-black text-sm font-semibold rounded-lg hover:bg-gray-300 transition-colors">
+                    <button
+                      onClick={() => handleMessageClick()}
+                      className="px-6 py-1.5 bg-gray-200 text-black text-sm font-semibold rounded-lg hover:bg-gray-300 transition-colors"
+                    >
                       Message
                     </button>
+
                   </>
                 )}
               </div>
@@ -323,10 +368,10 @@ const UserProfile = () => {
                     onClick={handleFollowToggle}
                     disabled={followRequestPending}
                     className={`flex-1 px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${isFollowing
-                        ? 'bg-gray-200 text-black hover:bg-gray-300'
-                        : followRequestPending
-                          ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      ? 'bg-gray-200 text-black hover:bg-gray-300'
+                      : followRequestPending
+                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                        : 'bg-blue-500 text-white hover:bg-blue-600'
                       }`}
                   >
                     {isFollowing ? 'Following' : followRequestPending ? 'Requested' : 'Follow'}
@@ -364,8 +409,8 @@ const UserProfile = () => {
             <button
               onClick={() => setActiveTab('posts')}
               className={`flex items-center gap-2 py-4 text-xs font-semibold tracking-widest transition-colors ${activeTab === 'posts'
-                  ? 'border-t-2 border-black text-black -mt-px'
-                  : 'text-gray-400 hover:text-gray-600'
+                ? 'border-t-2 border-black text-black -mt-px'
+                : 'text-gray-400 hover:text-gray-600'
                 }`}
             >
               <Grid className="w-3 h-3" />
@@ -374,11 +419,11 @@ const UserProfile = () => {
             <button
               onClick={() => setActiveTab('saved')}
               className={`flex items-center gap-2 py-4 text-xs font-semibold tracking-widest transition-colors ${activeTab === 'saved'
-                  ? 'border-t-2 border-black text-black -mt-px'
-                  : 'text-gray-400 hover:text-gray-600'
+                ? 'border-t-2 border-black text-black -mt-px'
+                : 'text-gray-400 hover:text-gray-600'
                 }`}
             >
-              <Bookmark className="w-3 h-3" />
+              <Bookmark className={`w-3 h-3 ${activeTab === 'saved' ? 'fill-current' : ''}`} />
               SAVED
             </button>
           </div>
@@ -419,6 +464,15 @@ const UserProfile = () => {
                   <MessageCircle className="w-6 h-6 fill-white" />
                   <span className="font-semibold text-lg">{post.comments.length}</span>
                 </div>
+                {activeTab === 'posts' && (
+                  <Bookmark
+                    className={`w-6 h-6 ${savedPostIds.has(post._id) ? 'fill-white' : 'fill-none'} cursor-pointer`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Add your save/unsave logic here
+                    }}
+                  />
+                )}
               </div>
 
               {/* Multiple Media Indicator */}
@@ -464,6 +518,22 @@ const UserProfile = () => {
           initialTab={followModalTab}
         />
       )}
+
+      {showMessageModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-6 max-w-sm w-full text-center animate-fadeIn">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">Notice</h3>
+            <p className="text-gray-600 mb-5">{messageModalText}</p>
+            <button
+              onClick={() => setShowMessageModal(false)}
+              className="px-5 py-2 bg-orange-500 text-white rounded-lg hover:bg-pink-600 transition"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

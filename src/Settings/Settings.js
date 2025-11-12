@@ -8,10 +8,13 @@ import SocialPermissions from "./SocialPermissions";
 import Notifications from "./Notifications";
 import BlockedAccounts from "./BlockedAccounts";
 import Swal from "sweetalert2";
+import { useNavigate } from "react-router-dom";
 
 const Settings = () => {
   const [activeSection, setActiveSection] = useState("editProfile");
   const [loading, setLoading] = useState(true);
+
+  const navigate = useNavigate();
 
   // Get logged-in user
   const storedUser = JSON.parse(sessionStorage.getItem("userData"));
@@ -60,7 +63,7 @@ const Settings = () => {
   ]);
 
   // API URLs
-  const BASE_URL = "https://social-media-nty4.onrender.com/api";
+  const BASE_URL = "https://apisocial.atozkeysolution.com/api";
 
   const GET_PROFILE_API = `${BASE_URL}/profiles/${userId}`;
   const UPDATE_PROFILE_API = `${BASE_URL}/Profile`;
@@ -217,6 +220,7 @@ const Settings = () => {
       await axios.post(PERSONAL_INFO_API, personalPayload);
 
       Swal.fire("Success", "Profile updated successfully ✅", "success");
+      navigate('/home')
     } catch (err) {
       Swal.fire("Error", "Failed to update settings", "error");
     }

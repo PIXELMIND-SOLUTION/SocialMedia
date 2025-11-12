@@ -172,7 +172,7 @@ const CreatePost = () => {
       processedFiles.forEach((file) => formData.append("media", file));
 
       const res = await axios.post(
-        "https://social-media-nty4.onrender.com/api/posts",
+        "https://apisocial.atozkeysolution.com/api/posts",
         formData,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
