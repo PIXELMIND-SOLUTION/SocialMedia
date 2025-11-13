@@ -240,7 +240,7 @@ const UserProfile = () => {
       {/* Header - Mobile */}
       <div className="lg:hidden sticky top-0 bg-white border-b border-gray-200 px-4 py-3 z-10 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{profile.profile.username}</h1>
-        <MoreVertical className="w-6 h-6 cursor-pointer" />
+        {/* <MoreVertical className="w-6 h-6 cursor-pointer" /> */}
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-6 lg:py-10">
@@ -416,7 +416,7 @@ const UserProfile = () => {
               <Grid className="w-3 h-3" />
               POSTS
             </button>
-            <button
+            {/* <button
               onClick={() => setActiveTab('saved')}
               className={`flex items-center gap-2 py-4 text-xs font-semibold tracking-widest transition-colors ${activeTab === 'saved'
                 ? 'border-t-2 border-black text-black -mt-px'
@@ -425,7 +425,7 @@ const UserProfile = () => {
             >
               <Bookmark className={`w-3 h-3 ${activeTab === 'saved' ? 'fill-current' : ''}`} />
               SAVED
-            </button>
+            </button> */}
           </div>
         </div>
 

@@ -36,7 +36,7 @@ const SelectScreen = ({ fileInputRef, handleFileSelect }) => {
           onClick={() => fileInputRef.current?.click()}
           className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-full font-medium transition-colors"
         >
-          Select from computer
+          Select from Gallery
         </button>
       </div>
     </div>

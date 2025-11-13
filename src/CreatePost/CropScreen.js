@@ -84,7 +84,7 @@ const CropScreen = ({
     "1:1": "1:1",
     "4:5": "4:5",
     "16:9": "16:9",
-    full: "Full Screen",
+    // full: "Full Screen",
   };
 
   const currentImage = selectedImages[currentImageIndex];
