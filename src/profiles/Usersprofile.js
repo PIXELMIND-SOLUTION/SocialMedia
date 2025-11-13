@@ -243,7 +243,7 @@ const UserProfile = () => {
         {/* <MoreVertical className="w-6 h-6 cursor-pointer" /> */}
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-6 lg:py-10">
+      <div className="max-w-5xl mx-auto px-4 py-6 lg:py-10"> 
         {/* Profile Header */}
         <div className="mb-11">
           <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6 lg:gap-20 mb-6">
