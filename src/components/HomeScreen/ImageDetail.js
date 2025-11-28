@@ -9,14 +9,13 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
   const navigate = useNavigate();
   const [likes, setLikes] = useState(image.likes || []);
   const [comments, setComments] = useState(image.comments || []);
-  const [saves, setSaves] = useState([]); // we'll fetch user-specific saves
+  const [saves, setSaves] = useState([]);
   const [followStatus, setFollowStatus] = useState("none");
   const [newComment, setNewComment] = useState("");
   const [loadingLike, setLoadingLike] = useState(false);
   const [loadingComment, setLoadingComment] = useState(false);
   const [loadingSave, setLoadingSave] = useState(false);
   const [loadingFollow, setLoadingFollow] = useState(false);
-  const [showRequestModal, setShowRequestModal] = useState(false);
 
   const storedUser = JSON.parse(sessionStorage.getItem("userData"));
   const userId = storedUser?.userId;
@@ -87,12 +86,20 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
     fetchFollowStatus();
   }, [userId, image.userId]);
 
-  // ---------- LIKE ----------
+  // ---------- LIKE / UNLIKE (TOGGLE) ----------
   const handleLike = async () => {
     if (!currentUserId) return alert("You must be logged in.");
+
     try {
       setLoadingLike(true);
-      const res = await fetch(`${API_BASE}/posts/like`, {
+
+      const isLiked = likes.some(like => like._id === currentUserId);
+
+      const endpoint = isLiked
+        ? `${API_BASE}/posts/unlike`
+        : `${API_BASE}/posts/like`;
+
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -101,11 +108,16 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
           postOwnerId: image.userId?._id,
         }),
       });
+
       const data = await res.json();
-      if (data.success) setLikes(data.likes || []);
-      else alert(data.message || "Failed to like post.");
+
+      if (data.success) {
+        setLikes(data.likes || []);
+      } else {
+        alert(data.message || "Failed to update like.");
+      }
     } catch {
-      alert("Network error while liking post.");
+      alert("Network error while updating like.");
     } finally {
       setLoadingLike(false);
     }
@@ -136,8 +148,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
       } else {
         alert(data.message || "Failed to save/unsave post.");
       }
-    } catch (error) {
-      console.error("Error saving post:", error);
+    } catch {
       alert("Network error while saving post.");
     } finally {
       setLoadingSave(false);
@@ -184,7 +195,6 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
       let newStatus;
 
       if (followStatus === "following") {
-        // Unfollow
         res = await fetch(`${API_BASE}/unfollow`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -195,7 +205,6 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
         });
         newStatus = "none";
       } else if (followStatus === "requested") {
-        // Cancel request
         res = await fetch(`${API_BASE}/cancel-request`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -206,7 +215,6 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
         });
         newStatus = "none";
       } else {
-        // Follow (send request)
         res = await fetch(`${API_BASE}/send-request`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -234,7 +242,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
   // ---------- DOWNLOAD ----------
   const handleDownload = () => {
     const url = image.media?.[0]?.url?.trim();
-    if (!url) return alert("No media available for download.");
+    if (!url) return alert("No media available.");
     const a = document.createElement("a");
     a.href = url;
     a.target = "_blank";
@@ -281,7 +289,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
 
   if (!image) return null;
 
-  const isLiked = likes.includes(currentUserId);
+  const isLiked = likes.some(like => like._id === currentUserId);
   const isSaved = saves.includes(image._id);
   const mediaType = image.media?.[0]?.type;
   const mediaUrl = image.media?.[0]?.url?.trim();
@@ -291,42 +299,80 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h5 className="mb-0">Post Details</h5>
-        <button className="btn btn-sm btn-outline-secondary rounded-circle" onClick={onBack}>
+        <button
+          className="btn btn-sm btn-outline-secondary rounded-circle"
+          onClick={onBack}
+        >
           ✕
         </button>
       </div>
 
       {/* Media */}
-      <div className="rounded mb-3 overflow-hidden bg-dark d-flex align-items-center justify-content-center" style={{ height: "250px" }}>
+      <div
+        className="rounded mb-3 overflow-hidden bg-dark d-flex align-items-center justify-content-center"
+        style={{ height: "250px" }}
+      >
         {mediaType?.includes("video") ? (
-          <video src={mediaUrl} controls className="w-100 h-100" style={{ objectFit: "contain" }} />
+          <video
+            src={mediaUrl}
+            controls
+            className="w-100 h-100"
+            style={{ objectFit: "contain" }}
+          />
         ) : (
-          <img src={mediaUrl} alt={image.description || "Post"} className="w-100 h-100" style={{ objectFit: "contain" }} />
+          <img
+            src={mediaUrl}
+            alt={image.description || "Post"}
+            className="w-100 h-100"
+            style={{ objectFit: "contain" }}
+          />
         )}
       </div>
 
-      <p className="fw-medium mb-3">{image.description || "No description available"}</p>
+      <p className="fw-medium mb-3">
+        {image.description || "No description available"}
+      </p>
 
       {/* Like & Save Buttons */}
       <div className="d-flex gap-3 mb-3">
-        <button className="btn btn-sm d-flex align-items-center gap-1" onClick={handleLike} disabled={loadingLike}>
-          <i className={`bi ${isLiked ? "bi-heart-fill text-danger" : "bi-heart"}`}></i>
+        <button
+          className="btn btn-sm d-flex align-items-center gap-1"
+          onClick={handleLike}
+          disabled={loadingLike}
+        >
+          <i
+            className={`bi ${
+              isLiked ? "bi-heart-fill text-danger" : "bi-heart"
+            }`}
+          ></i>
           {likes.length} Likes
         </button>
 
-        <button className="btn btn-sm d-flex align-items-center gap-1" onClick={handleSave} disabled={loadingSave}>
-          <i className={`bi ${isSaved ? "bi-bookmark-fill text-primary" : "bi-bookmark"}`}></i>
+        <button
+          className="btn btn-sm d-flex align-items-center gap-1"
+          onClick={handleSave}
+          disabled={loadingSave}
+        >
+          <i
+            className={`bi ${
+              isSaved ? "bi-bookmark-fill text-primary" : "bi-bookmark"
+            }`}
+          ></i>
           {isSaved ? "Saved" : "Save"}
         </button>
       </div>
 
       {/* User Info */}
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <div className="d-flex align-items-center" onClick={() => handleProfile(image.userId?._id)} style={{ cursor: "pointer" }}>
+        <div
+          className="d-flex align-items-center"
+          onClick={() => handleProfile(image.userId?._id)}
+          style={{ cursor: "pointer" }}
+        >
           {renderAvatar(image.userId, 36)}
           <span className="fw-bold">{image.userId?.fullName || "Anonymous"}</span>
         </div>
-        
+
         {/* Follow Button */}
         {followStatus !== "self" && (
           <button
@@ -352,14 +398,19 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
       </div>
 
       {/* Comments Section */}
-      <div className="flex-grow-1 overflow-auto mb-3" style={{ maxHeight: "300px" }}>
+      <div
+        className="flex-grow-1 overflow-auto mb-3"
+        style={{ maxHeight: "300px" }}
+      >
         <h6 className="mb-2">Comments ({comments.length})</h6>
         {comments.map((comment) => (
           <div key={comment._id} className="mb-2 p-2 bg-light rounded">
             <div className="d-flex align-items-start">
               {renderAvatar(comment.userId, 28)}
               <div>
-                <div className="fw-bold">{comment.userId?.fullName || "Anonymous"}</div>
+                <div className="fw-bold">
+                  {comment.userId?.fullName || "Anonymous"}
+                </div>
                 <div>{comment.text}</div>
               </div>
             </div>
@@ -378,14 +429,21 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
             onChange={(e) => setNewComment(e.target.value)}
             disabled={loadingComment}
           />
-          <button className="btn btn-primary btn-sm" type="submit" disabled={!newComment.trim() || loadingComment}>
+          <button
+            className="btn btn-primary btn-sm"
+            type="submit"
+            disabled={!newComment.trim() || loadingComment}
+          >
             {loadingComment ? "Posting..." : "Post"}
           </button>
         </div>
       </form>
 
       {/* Download Button */}
-      <button className="btn btn-primary w-100 mt-3 rounded-pill py-2" onClick={handleDownload}>
+      <button
+        className="btn btn-primary w-100 mt-3 rounded-pill py-2"
+        onClick={handleDownload}
+      >
         Download {mediaType?.includes("video") ? "Video" : "Image"}
       </button>
     </div>

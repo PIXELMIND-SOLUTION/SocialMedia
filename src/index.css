@@ -6,3 +6,26 @@
 .bg-main {
     background-color: #FDD9CC;
 }
+
+.dot-typing {
+  width: 6px;
+  height: 6px;
+  background-color: #f97316; /* orange-500 */
+  border-radius: 50%;
+  display: inline-block;
+  animation: typingDot 1s infinite ease-in-out;
+}
+
+.animation-delay-200 {
+  animation-delay: 0.2s;
+}
+
+.animation-delay-400 {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingDot {
+  0% { opacity: 0.2; transform: translateY(0px); }
+  50% { opacity: 1; transform: translateY(-3px); }
+  100% { opacity: 0.2; transform: translateY(0px); }
+}

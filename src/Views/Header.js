@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FaUserCircle, FaSearch } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -17,6 +17,25 @@ const Header = () => {
   const storedUser = JSON.parse(sessionStorage.getItem("userData"));
   const userId = storedUser?.userId;
   const username = storedUser?.fullName;
+
+
+
+const dropdownRef = useRef(null);
+
+useEffect(() => {
+  function handleClickOutside(event) {
+    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      setShowResults(false);
+    }
+  }
+
+  document.addEventListener("mousedown", handleClickOutside);
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, []);
+
 
   // Fetch logged-in user profile
   useEffect(() => {
@@ -115,6 +134,7 @@ const Header = () => {
             {showResults && filteredUsers.length > 0 && (
               <div
                 className="position-absolute bg-white shadow-lg rounded-4 mt-2 w-100 overflow-auto"
+                ref={dropdownRef}
                 style={{
                   zIndex: 1050,
                   maxHeight: "350px",

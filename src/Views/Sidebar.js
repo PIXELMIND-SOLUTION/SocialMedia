@@ -35,45 +35,41 @@ const Sidebar = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Fetch notification count
-  useEffect(() => {
-    const fetchNotificationCount = async () => {
-      try {
-        const response = await axios.get(`https://apisocial.atozkeysolution.com/api/notifications/get-live/${userId}`);
-        if (response.data.success) {
-          setNotificationCount(response.data.data.counts.unread || 0);
-        }
-      } catch (error) {
-        console.error('Error fetching notification count:', error);
+ useEffect(() => {
+  if (!userId) return;
+
+  const fetchData = async () => {
+    try {
+      // Fetch notification count
+      const notifRes = await axios.get(
+        `https://apisocial.atozkeysolution.com/api/notifications/all-live/${userId}`
+      );
+      if (notifRes.data.success) {
+        setNotificationCount(notifRes.data.data.counts.unread || 0);
       }
-    };
 
-    if (userId) fetchNotificationCount();
-
-    const interval = setInterval(() => {
-      if (userId) fetchNotificationCount();
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [userId]);
-
-  // Fetch message count
-  useEffect(() => {
-    const fetchUnreadMessages = async () => {
-      try {
-        const res = await axios.get(
-          `https://apisocial.atozkeysolution.com/api/messages/unread/${userId}`
-        );
-        if (res.data.success && res.data.data?.unreadCount !== undefined) {
-          setMessageCount(res.data.data.unreadCount);
-        }
-      } catch (error) {
-        console.error("Error fetching unread messages:", error);
+      // Fetch unread messages count
+      const msgRes = await axios.get(
+        `https://apisocial.atozkeysolution.com/api/messages/unread/${userId}`
+      );
+      if (msgRes.data.success && msgRes.data.data?.unreadCount !== undefined) {
+        setMessageCount(msgRes.data.data.unreadCount);
       }
-    };
+      
+    } catch (error) {
+      console.error("Error refreshing counts:", error);
+    }
+  };
 
-    if (userId) fetchUnreadMessages();
-  }, [userId]);
+  // Initial fetch
+  fetchData();
+
+  // Refresh every 2 seconds (2000ms)
+  const interval = setInterval(fetchData, 2000);
+
+  return () => clearInterval(interval);
+}, [userId]);
+
 
   const navItems = [
     { to: '/home', icon: <FaHome />, title: 'Home' },
@@ -115,7 +111,7 @@ const Sidebar = () => {
         <div
           className="d-flex justify-content-around align-items-center fixed-bottom mx-2 mb-2 shadow-lg"
           style={{
-            height: "55px",
+            height: "65px",
             padding: "0.75rem 1rem",
             zIndex: 1000,
             borderRadius: "25px",

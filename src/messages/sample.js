@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Send, MoreVertical, ArrowLeft, MessageSquare, X, Paperclip, Trash2, UserX, UserCheck, Download } from 'lucide-react';
+import { Search, Send, MoreVertical, ArrowLeft, MessageSquare, X, Paperclip, Trash2, UserX, UserCheck } from 'lucide-react';
 import io from 'socket.io-client';
 
 const MessageModel = () => {
@@ -18,7 +18,6 @@ const MessageModel = () => {
   const [fetchingMore, setFetchingMore] = useState(false);
   const [mediaPreview, setMediaPreview] = useState(null);
   const [showMessageMenu, setShowMessageMenu] = useState(null);
-  const [blockedUsers, setBlockedUsers] = useState([]);
   const [isChatBlocked, setIsChatBlocked] = useState(false);
   const [blockedBy, setBlockedBy] = useState(null);
   const [socket, setSocket] = useState(null);
@@ -26,8 +25,7 @@ const MessageModel = () => {
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const [typingUsers, setTypingUsers] = useState({});
   const [isTyping, setIsTyping] = useState(false);
-  const [typingTimeout, setTypingTimeout] = useState(null);
-
+  
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -38,17 +36,17 @@ const MessageModel = () => {
   const userId = storedUser?.userId;
   const userName = storedUser?.fullName || 'You';
 
-  const API_BASE = 'http://31.97.206.144:5002/api';
-  const SOCKET_URL = 'http://31.97.206.144:5002';
+  const API_BASE = 'https://apisocial.atozkeysolution.com/api';
+  const SOCKET_URL = 'https://apisocial.atozkeysolution.com';
 
-  // Initialize Socket.IO connection with proper authentication
+  // Initialize Socket.IO connection
   useEffect(() => {
     if (!userId) return;
 
     const newSocket = io(SOCKET_URL, {
-      query: {
+      query: { 
         userId,
-        userName
+        userName 
       },
       transports: ['websocket', 'polling']
     });
@@ -56,10 +54,6 @@ const MessageModel = () => {
     newSocket.on('connect', () => {
       console.log('✅ Connected to server');
       setIsConnected(true);
-
-      // Join user to their personal room
-      newSocket.emit('userOnline', userId);
-      newSocket.emit('joinNotificationRoom', userId);
     });
 
     newSocket.on('disconnect', () => {
@@ -67,11 +61,11 @@ const MessageModel = () => {
       setIsConnected(false);
     });
 
-    newSocket.on('userStatusChanged', (data) => {
-      console.log('User status changed:', data);
+    newSocket.on('userStatusUpdate', (data) => {
+      console.log('🟢 User status update:', data);
       setOnlineUsers(prev => {
         const newOnlineUsers = new Set(prev);
-        if (data.status === 'online') {
+        if (data.isOnline) {
           newOnlineUsers.add(data.userId);
         } else {
           newOnlineUsers.delete(data.userId);
@@ -79,12 +73,11 @@ const MessageModel = () => {
         return newOnlineUsers;
       });
 
-      // Update friends list with online status
       setFriends(prev => prev.map(friend => {
         if (friend.id === data.userId) {
           return {
             ...friend,
-            isOnline: data.status === 'online',
+            isOnline: data.isOnline,
             lastSeen: data.lastSeen
           };
         }
@@ -93,34 +86,24 @@ const MessageModel = () => {
     });
 
     newSocket.on('onlineUsers', (userIds) => {
-      console.log('Online users:', userIds);
+      console.log('👥 Online users:', userIds);
       setOnlineUsers(new Set(userIds));
-
-      // Update friends list with online status
+      
       setFriends(prev => prev.map(friend => ({
         ...friend,
         isOnline: userIds.includes(friend.id)
       })));
     });
 
-    // Handle new messages
     newSocket.on('newMessage', (message) => {
       console.log('📨 New message received:', message);
-
+      
       if (selectedFriend && message.chatId === selectedFriend.chatId) {
         const newMsg = transformMessage(message);
         setMessages(prev => [...prev, newMsg]);
         markAsRead(selectedFriend.chatId);
-
-        // Emit delivery confirmation
-        if (message.sender._id !== userId) {
-          newSocket.emit('messageDelivered', {
-            messageId: message._id,
-            chatId: message.chatId
-          });
-        }
       }
-
+      
       // Update last message preview for the friend
       setFriends(prev => prev.map(friend => {
         if (friend.chatId === message.chatId) {
@@ -128,7 +111,7 @@ const MessageModel = () => {
             ...friend,
             lastMessagePreview: {
               text: getMessagePreviewText(message),
-              time: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              time: formatTime(message.createdAt),
               isMe: message.sender._id === userId,
               isDeletedForMe: message.deletedFor?.includes(userId)
             }
@@ -136,76 +119,22 @@ const MessageModel = () => {
         }
         return friend;
       }));
-    });
-
-    // Handle incoming message notifications
-    newSocket.on('incomingMessage', (message) => {
-      console.log('📢 Incoming message notification:', message);
-
-      if (selectedFriend && message.chatId === selectedFriend.chatId) {
-        const newMsg = transformMessage(message);
-        setMessages(prev => [...prev, newMsg]);
-        markAsRead(selectedFriend.chatId);
-      }
-
-      // Update last message preview
-      setFriends(prev => prev.map(friend => {
-        if (friend.chatId === message.chatId) {
-          return {
-            ...friend,
-            lastMessagePreview: {
-              text: getMessagePreviewText(message),
-              time: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              isMe: message.sender._id === userId,
-              isDeletedForMe: message.deletedFor?.includes(userId)
-            }
-          };
-        }
-        return friend;
-      }));
-    });
-
-    // Handle message deletion
-    newSocket.on('messageRemoved', (data) => {
-      console.log('🗑️ Message removed:', data);
-      if (selectedFriend && data.chatId === selectedFriend.chatId) {
-        setMessages(prev => prev.map(msg =>
-          msg.id === data.messageId
-            ? {
-              ...msg,
-              text: 'This message was deleted',
-              type: 'deleted',
-              mediaUrl: null,
-              isDeletedForMe: true
-            }
-            : msg
-        ));
-      }
     });
 
     newSocket.on('messageDeleted', (data) => {
       console.log('🗑️ Message deleted:', data);
       if (selectedFriend && data.chatId === selectedFriend.chatId) {
-        setMessages(prev => prev.map(msg =>
-          msg.id === data.messageId
-            ? {
-              ...msg,
-              text: 'This message was deleted',
-              type: 'deleted',
-              mediaUrl: null,
-              isDeletedForMe: true
-            }
+        setMessages(prev => prev.map(msg => 
+          msg.id === data.messageId 
+            ? { 
+                ...msg, 
+                text: 'This message was deleted',
+                type: 'deleted',
+                mediaUrl: null,
+                isDeletedForMe: true 
+              }
             : msg
         ));
-      }
-    });
-
-    // Handle chat blocking
-    newSocket.on('chatBlockedNotification', (data) => {
-      console.log('🚫 Chat blocked:', data);
-      if (selectedFriend && data.chatId === selectedFriend.chatId) {
-        setIsChatBlocked(true);
-        setBlockedBy(data.blockedBy);
       }
     });
 
@@ -213,16 +142,7 @@ const MessageModel = () => {
       console.log('🚫 Chat blocked:', data);
       if (selectedFriend && data.chatId === selectedFriend.chatId) {
         setIsChatBlocked(true);
-        setBlockedBy(data.blockedBy);
-      }
-    });
-
-    // Handle chat unblocking
-    newSocket.on('chatUnblockedNotification', (data) => {
-      console.log('✅ Chat unblocked:', data);
-      if (selectedFriend && data.chatId === selectedFriend.chatId) {
-        setIsChatBlocked(false);
-        setBlockedBy(null);
+        setBlockedBy(data.userId);
       }
     });
 
@@ -234,16 +154,14 @@ const MessageModel = () => {
       }
     });
 
-    // Handle typing indicators
     newSocket.on('userTyping', (data) => {
-      console.log('✍️ User typing:', data);
+      console.log('⌨️ User typing:', data);
       if (selectedFriend && data.chatId === selectedFriend.chatId && data.userId !== userId) {
         setTypingUsers(prev => ({
           ...prev,
-          [data.chatId]: data.userName || data.userId
+          [data.chatId]: data.userName
         }));
 
-        // Clear typing indicator after 3 seconds
         clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = setTimeout(() => {
           setTypingUsers(prev => {
@@ -255,84 +173,35 @@ const MessageModel = () => {
       }
     });
 
-    // Handle read receipts
-    newSocket.on('messagesMarkedRead', (data) => {
-      console.log('👀 Messages marked read:', data);
+    newSocket.on('userStopTyping', (data) => {
+      console.log('💤 User stopped typing:', data);
       if (selectedFriend && data.chatId === selectedFriend.chatId) {
-        setMessages(prev => prev.map(msg =>
-          data.messageIds.includes(msg.id)
-            ? { ...msg, status: 'read' }
-            : msg
-        ));
+        setTypingUsers(prev => {
+          const newTyping = { ...prev };
+          delete newTyping[data.chatId];
+          return newTyping;
+        });
       }
-    });
-
-    newSocket.on('messagesRead', (data) => {
-      console.log('👀 Messages read:', data);
-      if (selectedFriend && data.chatId === selectedFriend.chatId) {
-        setMessages(prev => prev.map(msg =>
-          data.messageIds.includes(msg.id)
-            ? { ...msg, status: 'read' }
-            : msg
-        ));
-      }
-    });
-
-    // Handle delivery confirmations
-    newSocket.on('deliveryConfirmed', (data) => {
-      console.log('📨 Delivery confirmed:', data);
-      if (selectedFriend && data.chatId === selectedFriend.chatId) {
-        setMessages(prev => prev.map(msg =>
-          msg.id === data.messageId
-            ? { ...msg, status: 'delivered' }
-            : msg
-        ));
-      }
-    });
-
-    // Handle user joined/left chat
-    newSocket.on('userJoinedChat', (data) => {
-      console.log('👋 User joined chat:', data);
-    });
-
-    newSocket.on('userLeftChat', (data) => {
-      console.log('👋 User left chat:', data);
-    });
-
-    // Handle pong for heartbeat
-    newSocket.on('pong', () => {
-      console.log('❤️ Heartbeat received');
     });
 
     setSocket(newSocket);
 
     return () => {
+      console.log('🔌 Cleaning up socket connection');
       newSocket.close();
       clearTimeout(typingTimeoutRef.current);
-      clearTimeout(typingTimeout);
     };
   }, [userId, selectedFriend]);
 
-  // Fetch blocked users
-  const fetchBlockedUsers = async () => {
-    if (!userId) return;
-
-    try {
-      const res = await fetch(`${API_BASE}/blocked/${userId}`);
-      if (!res.ok) throw new Error('Failed to fetch blocked users');
-      const data = await res.json();
-      if (data.success) {
-        setBlockedUsers(data.blocked || []);
-      }
-    } catch (err) {
-      console.error('Error fetching blocked users:', err);
-    }
+  // Format time helper
+  const formatTime = (timestamp) => {
+    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   // Transform message for display
   const transformMessage = (msg) => {
     const isDeletedForMe = msg.deletedFor?.includes(userId);
-
+    
     let displayText = '';
     let mediaUrl = null;
     let msgType = 'text';
@@ -341,14 +210,18 @@ const MessageModel = () => {
       displayText = 'This message was deleted';
       msgType = 'deleted';
     } else if (msg.mediaUrl && msg.mediaUrl.length > 0) {
-      mediaUrl = msg.mediaUrl[0]?.trim();
+      mediaUrl = msg.mediaUrl[0];
       msgType = msg.type;
-      displayText = msgType === 'image' ? '📷 Image' : '🎥 Video';
-    } else if (msg.text !== undefined && msg.text !== null) {
-      displayText = msg.text?.trim() || '[No content]';
+      displayText = msg.text || (msgType === 'image' ? '📷 Image' : '🎥 Video');
+    } else if (msg.content?.mediaUrl && msg.content.mediaUrl.length > 0) {
+      mediaUrl = msg.content.mediaUrl[0];
+      msgType = msg.type;
+      displayText = msg.content?.text || (msgType === 'image' ? '📷 Image' : '🎥 Video');
+    } else if (msg.text) {
+      displayText = msg.text;
       msgType = 'text';
     } else if (msg.content?.text) {
-      displayText = msg.content.text.trim() || '[No content]';
+      displayText = msg.content.text;
       msgType = 'text';
     } else {
       displayText = '[No content]';
@@ -359,15 +232,15 @@ const MessageModel = () => {
       chatId: msg.chatId,
       friendId: selectedFriend?.id,
       text: displayText,
-      time: new Date(msg.createdAt || msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time: formatTime(msg.createdAt),
       isMe: msg.sender?._id === userId || msg.sender === userId,
-      timestamp: new Date(msg.createdAt || msg.timestamp).getTime(),
+      timestamp: new Date(msg.createdAt).getTime(),
       type: msgType,
       mediaUrl: mediaUrl,
-      senderName: msg.sender?.fullName || msg.senderName || 'Unknown',
+      senderName: msg.sender?.fullName || 'Unknown',
       deletedFor: msg.deletedFor || [],
       isDeletedForMe: isDeletedForMe,
-      status: msg.status || 'sent'
+      status: msg.isRead ? 'read' : 'sent'
     };
   };
 
@@ -375,13 +248,17 @@ const MessageModel = () => {
   const getMessagePreviewText = (msg) => {
     const isDeletedForMe = msg.deletedFor?.includes(userId);
     if (isDeletedForMe) return 'This message was deleted';
+    
     if (msg.mediaUrl && msg.mediaUrl.length > 0) {
       return msg.type === 'image' ? '📷 Image' : '🎥 Video';
     }
     if (msg.content?.mediaUrl && msg.content.mediaUrl.length > 0) {
       return msg.type === 'image' ? '📷 Image' : '🎥 Video';
     }
-    return msg.text?.trim() || msg.content?.text?.trim() || '[No content]';
+    if (msg.text) return msg.text;
+    if (msg.content?.text) return msg.content.text;
+    
+    return '[No content]';
   };
 
   // Handle typing events
@@ -393,29 +270,63 @@ const MessageModel = () => {
       socket.emit('typing', {
         chatId: selectedFriend.chatId,
         userId: userId,
-        isTyping: true
+        userName: userName
       });
     }
 
-    // Clear existing timeout
-    if (typingTimeout) {
-      clearTimeout(typingTimeout);
-    }
-
-    // Set new timeout to stop typing
-    const timeout = setTimeout(() => {
+    clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      socket.emit('typing', {
+      socket.emit('stopTyping', {
         chatId: selectedFriend.chatId,
-        userId: userId,
-        isTyping: false
+        userId: userId
       });
     }, 1000);
-
-    setTypingTimeout(timeout);
   };
 
-  // Fetch friends + last message on mount
+  // Get or create chat
+  const getOrCreateChat = async (friendId) => {
+    try {
+      console.log('🔄 Creating/Getting chat for friend:', friendId);
+      const res = await fetch(`${API_BASE}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, targetId: friendId }),
+      });
+
+      const data = await res.json();
+      console.log('💬 Chat response:', data);
+      
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to create chat');
+      }
+
+      return data.data._id;
+    } catch (err) {
+      console.error('❌ Error creating chat:', err);
+      throw err;
+    }
+  };
+
+  // Get last message for a chat
+  const getLastMessage = async (chatId) => {
+    try {
+      console.log('📝 Getting last message for chat:', chatId);
+      const res = await fetch(`${API_BASE}/last-message?chatId=${chatId}`);
+      const data = await res.json();
+      console.log('📨 Last message response:', data);
+      
+      if (res.ok && data.success && data.data) {
+        return data.data;
+      }
+      return null;
+    } catch (err) {
+      console.error('❌ Error getting last message:', err);
+      return null;
+    }
+  };
+
+  // Fetch friends with chats and last messages
   useEffect(() => {
     if (!userId) {
       setError('User not logged in');
@@ -423,77 +334,106 @@ const MessageModel = () => {
       return;
     }
 
-    const fetchFriends = async () => {
+    const fetchFriendsAndChats = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${API_BASE}/get-friends/${userId}`);
-        if (!res.ok) throw new Error('Failed to fetch friends');
-        const data = await res.json();
-        if (!data.success) throw new Error(data.message || 'Invalid friends response');
+        console.log('🔄 Fetching friends for user:', userId);
+        
+        // Fetch friends
+        const friendsRes = await fetch(`${API_BASE}/get-friends/${userId}`);
+        if (!friendsRes.ok) throw new Error('Failed to fetch friends');
+        
+        const friendsData = await friendsRes.json();
+        console.log('👥 Friends response:', friendsData);
+        
+        if (!friendsData.success) throw new Error(friendsData.message || 'Invalid friends response');
 
-        const mutualFriends = data.data.filter((f) => f.status === 'friends');
-        const transformed = mutualFriends.map((f) => ({
+        const mutualFriends = friendsData.data.filter((f) => f.status === 'friends');
+        console.log('🤝 Mutual friends:', mutualFriends);
+        
+        // Transform friends data
+        const transformedFriends = mutualFriends.map((f) => ({
           id: f._id,
           name: f.fullName,
-          avatar: (f?.image || '').trim() || f.fullName.split(' ').map(n => n[0]).join('').toUpperCase(),
+          avatar: (f.profile?.image || '').trim() || 
+                 f.fullName?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U',
           email: f.email,
           isOnline: false
         }));
 
-        const friendsWithChatAndLastMsg = await Promise.all(
-          transformed.map(async (friend) => {
-            try {
-              // Get or create chat
-              const chatRes = await fetch(`${API_BASE}/chat/get-or-create`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, targetId: friend.id }),
-              });
-              const chatData = await chatRes.json();
-              if (!chatRes.ok || !chatData.success) {
-                return { ...friend, chatId: null, lastMessagePreview: null };
-              }
-              const chatId = chatData.data._id;
+        console.log('👤 Transformed friends:', transformedFriends);
 
-              // Join chat room
-              if (socket) {
-                socket.emit('joinChat', chatId);
+        // Get user chats to find existing chat IDs
+        console.log('🔄 Fetching user chats...');
+        const chatsRes = await fetch(`${API_BASE}/chats/${userId}`);
+        const chatsData = await chatsRes.json();
+        console.log('💬 User chats response:', chatsData);
+
+        let existingChats = [];
+        if (chatsData.success && chatsData.data) {
+          existingChats = chatsData.data;
+        }
+
+        // Get chat IDs and last messages for each friend
+        const friendsWithChats = await Promise.all(
+          transformedFriends.map(async (friend) => {
+            try {
+              let chatId = null;
+              let lastMessagePreview = null;
+
+              // Check if chat already exists
+              const existingChat = existingChats.find(chat => 
+                chat.participants?.some(p => p._id === friend.id)
+              );
+
+              if (existingChat) {
+                chatId = existingChat._id;
+                console.log(`✅ Found existing chat ${chatId} for friend ${friend.name}`);
+              } else {
+                // Create new chat
+                chatId = await getOrCreateChat(friend.id);
+                console.log(`✅ Created new chat ${chatId} for friend ${friend.name}`);
               }
 
               // Get last message
-              const lastMsgRes = await fetch(`${API_BASE}/messages/last?chatId=${chatId}`);
-              console.log('Last message response for chat', chatId, lastMsgRes);
-              const lastMsgData = await lastMsgRes.json();
-              let lastMessagePreview = null;
-              if (lastMsgRes.ok && lastMsgData.success && lastMsgData.data) {
-                const msg = lastMsgData.data;
-                lastMessagePreview = {
-                  text: getMessagePreviewText(msg),
-                  time: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                  isMe: msg.sender._id === userId,
-                  isDeletedForMe: msg.deletedFor?.includes(userId)
-                };
+              if (chatId) {
+                const lastMessage = await getLastMessage(chatId);
+                if (lastMessage) {
+                  lastMessagePreview = {
+                    text: getMessagePreviewText(lastMessage),
+                    time: formatTime(lastMessage.createdAt),
+                    isMe: lastMessage.sender?._id === userId || lastMessage.sender === userId,
+                    isDeletedForMe: lastMessage.deletedFor?.includes(userId)
+                  };
+                }
               }
 
-              return { ...friend, chatId, lastMessagePreview };
+              return { 
+                ...friend, 
+                chatId, 
+                lastMessagePreview 
+              };
             } catch (err) {
-              console.warn(`Failed to enrich friend ${friend.id}`, err);
+              console.warn(`❌ Failed to process friend ${friend.name}:`, err);
               return { ...friend, chatId: null, lastMessagePreview: null };
             }
           })
         );
 
-        setFriends(friendsWithChatAndLastMsg);
-        await fetchBlockedUsers();
+        const validFriends = friendsWithChats.filter(friend => friend.chatId !== null);
+        console.log('✅ Final friends list with chats:', validFriends);
+        setFriends(validFriends);
+
       } catch (err) {
-        setError(err.message || 'Failed to load friends');
+        console.error('❌ Error loading friends and chats:', err);
+        setError(err.message || 'Failed to load conversations');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchFriends();
-  }, [userId, socket]);
+    fetchFriendsAndChats();
+  }, [userId]);
 
   // Handle window resize
   useEffect(() => {
@@ -508,37 +448,58 @@ const MessageModel = () => {
 
   // Scroll to bottom on new messages
   useEffect(() => {
-    if (!fetchingMore) {
+    if (!fetchingMore && messages.length > 0) {
       scrollToBottom();
     }
   }, [messages, fetchingMore]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   };
 
   // Fetch messages for a chat
-  const fetchMessages = async (chatId, friendIdArg, pageNum = 1) => {
+  const fetchMessages = async (chatId, pageNum = 1) => {
     if (fetchingMore) return;
     try {
       setFetchingMore(true);
-      const res = await fetch(`${API_BASE}/messages/${chatId}`);
-      if (!res.ok) throw new Error('Failed to fetch messages');
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message || 'Invalid response');
-
-      const newMessages = data.data
-        .map((msg) => transformMessage(msg))
-        .reverse();
-
-      setMessages(prev => pageNum === 1 ? newMessages : [...newMessages, ...prev]);
-      setHasMore(pageNum < data.totalPages);
-      setPage(pageNum);
-    } catch (err) {
-      console.error('Error fetching messages:', err);
-      if (pageNum === 1) {
-        setError('Failed to load messages');
+      console.log('🔄 Fetching messages for chat:', chatId, 'page:', pageNum);
+      const res = await fetch(`${API_BASE}/messages/${chatId}?page=${pageNum}&limit=20`);
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
       }
+      
+      const data = await res.json();
+      console.log('📨 Messages API response:', data);
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to fetch messages');
+      }
+
+      if (!data.data || !Array.isArray(data.data)) {
+        console.warn('⚠️ No messages array in response, using empty array');
+        setMessages([]);
+        return;
+      }
+
+      console.log('📝 Raw messages from API:', data.data);
+
+      const newMessages = data.data.map((msg) => transformMessage(msg));
+      console.log('🔄 Transformed messages:', newMessages);
+
+      // Sort messages by timestamp (oldest first)
+      const sortedMessages = newMessages.sort((a, b) => a.timestamp - b.timestamp);
+      console.log('📊 Sorted messages:', sortedMessages);
+
+      setMessages(pageNum === 1 ? sortedMessages : [...sortedMessages, ...messages]);
+      setHasMore(pageNum < (data.totalPages || 1));
+      setPage(pageNum);
+
+    } catch (err) {
+      console.error('❌ Error fetching messages:', err);
+      setError('Failed to load messages: ' + err.message);
     } finally {
       setFetchingMore(false);
     }
@@ -547,16 +508,22 @@ const MessageModel = () => {
   // Check if chat is blocked
   const checkChatBlockStatus = async (chatId) => {
     try {
-      const res = await fetch(`${API_BASE}/chat/block-status/${chatId}`);
+      console.log('🔄 Checking block status for chat:', chatId);
+      const res = await fetch(`${API_BASE}/chats/${userId}`);
       if (res.ok) {
         const data = await res.json();
-        if (data.success) {
-          setIsChatBlocked(data.isBlocked);
-          setBlockedBy(data.blockedBy);
+        console.log('🚫 Chat block status response:', data);
+        if (data.success && data.data) {
+          const chat = data.data.find(chat => chat._id === chatId);
+          if (chat) {
+            setIsChatBlocked(chat.isBlocked || false);
+            setBlockedBy(chat.blockedBy || null);
+            console.log('💬 Chat block status:', { isBlocked: chat.isBlocked, blockedBy: chat.blockedBy });
+          }
         }
       }
     } catch (err) {
-      console.error('Error checking chat block status:', err);
+      console.error('❌ Error checking chat block status:', err);
     }
   };
 
@@ -565,7 +532,7 @@ const MessageModel = () => {
     const scrollTopValue = e.target.scrollTop;
     if (scrollTopValue === 0 && hasMore && !fetchingMore && selectedFriend?.chatId) {
       const currentHeight = messagesContainerRef.current?.scrollHeight || 0;
-      fetchMessages(selectedFriend.chatId, selectedFriend.id, page + 1).then(() => {
+      fetchMessages(selectedFriend.chatId, page + 1).then(() => {
         setTimeout(() => {
           const newHeight = messagesContainerRef.current?.scrollHeight || 0;
           if (messagesContainerRef.current) {
@@ -579,99 +546,89 @@ const MessageModel = () => {
   // Mark messages as read
   const markAsRead = async (chatId) => {
     try {
-      const unreadRes = await fetch(`${API_BASE}/messages/unread/count/${userId}/${chatId}`);
-      const unread = await unreadRes.json();
-      if (unread.success && unread.data.unreadCount > 0) {
-        await fetch(`${API_BASE}/messages/mark-read`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chatId, userId }),
-        });
+      console.log('📖 Marking messages as read for chat:', chatId);
+      
+      // Get unread messages for this chat
+      const unreadRes = await fetch(`${API_BASE}/messages/unread/${userId}`);
+      if (!unreadRes.ok) return;
+      
+      const unreadData = await unreadRes.json();
+      console.log('📋 Unread messages:', unreadData);
+      
+      if (unreadData.success && unreadData.data) {
+        const messageIds = unreadData.data
+          .filter(msg => msg.chatId === chatId)
+          .map(msg => msg._id);
 
-        // Emit read receipt via socket
-        if (socket) {
-          // Get unread message IDs for this chat
-          const msgIds = messages
-            .filter(msg => msg.chatId === chatId && !msg.isMe && msg.status !== 'read')
-            .map(msg => msg.id);
+        console.log('📍 Message IDs to mark as read:', messageIds);
 
-          if (msgIds.length > 0) {
-            socket.emit('messageRead', {
-              chatId: chatId,
-              userId: userId,
-              messageIds: msgIds
-            });
-          }
+        if (messageIds.length > 0) {
+          await fetch(`${API_BASE}/messages/read`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messageIds, userId }),
+          });
+
+          // Update UI
+          setMessages(prev => prev.map(msg => 
+            messageIds.includes(msg.id) ? { ...msg, status: 'read' } : msg
+          ));
         }
       }
     } catch (err) {
-      console.warn('Failed to mark as read');
+      console.warn('⚠️ Failed to mark as read:', err);
     }
   };
 
   // Select friend and load messages
-  const handleSelectFriend = (friend) => {
-    if (!friend.chatId) return alert("Chat not available");
-
-    // Leave previous room
-    if (selectedFriend && socket) {
-      socket.emit("leaveChat", selectedFriend.chatId);
+  const handleSelectFriend = async (friend) => {
+    if (!friend.chatId) {
+      alert('Chat not available for this friend');
+      return;
     }
-
-    setMessages([]);        // reset messages
-    setSelectedFriend(friend); // triggers useEffect
+    
+    console.log('👤 Selecting friend:', friend.name, 'chatId:', friend.chatId);
+    setSelectedFriend(friend);
+    setMessages([]);
+    setPage(1);
+    setHasMore(false);
+    setError(null);
+    setIsChatBlocked(false);
+    setBlockedBy(null);
+    
+    await fetchMessages(friend.chatId, 1);
+    await markAsRead(friend.chatId);
+    await checkChatBlockStatus(friend.chatId);
+    
+    if (isMobileView) setIsMobileSidebarOpen(false);
   };
-
-
-  useEffect(() => {
-    if (!selectedFriend) return;
-
-    const chatId = selectedFriend.chatId;
-    const friendId = selectedFriend._id || selectedFriend.id;
-
-    // Join room
-    socket?.emit("joinChat", chatId);
-
-    // Fetch
-    fetchMessages(chatId, friendId, 1);
-    markAsRead(chatId);
-    checkChatBlockStatus(chatId);
-
-  }, [selectedFriend]);
-
 
   // Block/Unblock user
   const handleBlockUser = async () => {
     if (!selectedFriend?.chatId) return;
 
     try {
+      console.log('🚫 Blocking user for chat:', selectedFriend.chatId);
       const res = await fetch(`${API_BASE}/chat/block`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chatId: selectedFriend.chatId,
-          userId: userId,
-          blockedUserId: selectedFriend.id
+          userId: userId
         }),
       });
 
       const result = await res.json();
+      console.log('✅ Block response:', result);
+      
       if (!res.ok || !result.success) {
         throw new Error(result.message || 'Failed to block user');
       }
 
       setIsChatBlocked(true);
       setBlockedBy(userId);
-
-      if (socket) {
-        socket.emit('chatBlocked', {
-          chatId: selectedFriend.chatId,
-          userId: userId,
-          blockedUserId: selectedFriend.id
-        });
-      }
     } catch (err) {
-      console.error('Error blocking user:', err);
+      console.error('❌ Error blocking user:', err);
       alert('Failed to block user: ' + err.message);
     }
   };
@@ -680,6 +637,7 @@ const MessageModel = () => {
     if (!selectedFriend?.chatId) return;
 
     try {
+      console.log('✅ Unblocking user for chat:', selectedFriend.chatId);
       const res = await fetch(`${API_BASE}/chat/unblock`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -690,21 +648,16 @@ const MessageModel = () => {
       });
 
       const result = await res.json();
+      console.log('✅ Unblock response:', result);
+      
       if (!res.ok || !result.success) {
         throw new Error(result.message || 'Failed to unblock user');
       }
 
       setIsChatBlocked(false);
       setBlockedBy(null);
-
-      if (socket) {
-        socket.emit('chatUnblocked', {
-          chatId: selectedFriend.chatId,
-          userId: userId
-        });
-      }
     } catch (err) {
-      console.error('Error unblocking user:', err);
+      console.error('❌ Error unblocking user:', err);
       alert('Failed to unblock user: ' + err.message);
     }
   };
@@ -714,8 +667,9 @@ const MessageModel = () => {
     if (!messageId || !userId) return;
 
     try {
-      const res = await fetch(`${API_BASE}/messages/delete`, {
-        method: 'POST',
+      console.log('🗑️ Deleting message for me:', messageId);
+      const res = await fetch(`${API_BASE}/message`, {
+        method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messageId: messageId,
@@ -724,25 +678,27 @@ const MessageModel = () => {
       });
 
       const result = await res.json();
+      console.log('✅ Delete for me response:', result);
+      
       if (!res.ok || !result.success) {
         throw new Error(result.message || 'Failed to delete message');
       }
 
-      setMessages(prev => prev.map(msg =>
-        msg.id === messageId
-          ? {
-            ...msg,
-            text: 'This message was deleted',
-            type: 'deleted',
-            mediaUrl: null,
-            isDeletedForMe: true
-          }
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { 
+              ...msg, 
+              text: 'This message was deleted',
+              type: 'deleted',
+              mediaUrl: null,
+              isDeletedForMe: true 
+            }
           : msg
       ));
 
       setShowMessageMenu(null);
     } catch (err) {
-      console.error('Error deleting message for me:', err);
+      console.error('❌ Error deleting message for me:', err);
       alert('Failed to delete message: ' + err.message);
     }
   };
@@ -752,30 +708,33 @@ const MessageModel = () => {
     if (!messageId || !userId) return;
 
     try {
-      const res = await fetch(`${API_BASE}/messages/delete/${messageId}/${userId}`, {
+      console.log('🗑️ Deleting message for everyone:', messageId);
+      const res = await fetch(`${API_BASE}/messages/${messageId}/${userId}`, {
         method: 'DELETE',
       });
 
       const result = await res.json();
+      console.log('✅ Delete for everyone response:', result);
+      
       if (!res.ok || !result.success) {
         throw new Error(result.message || 'Failed to delete message for everyone');
       }
 
-      setMessages(prev => prev.map(msg =>
-        msg.id === messageId
-          ? {
-            ...msg,
-            text: 'This message was deleted',
-            type: 'deleted',
-            mediaUrl: null,
-            isDeletedForMe: true
-          }
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { 
+              ...msg, 
+              text: 'This message was deleted',
+              type: 'deleted',
+              mediaUrl: null,
+              isDeletedForMe: true 
+            }
           : msg
       ));
 
       setShowMessageMenu(null);
     } catch (err) {
-      console.error('Error deleting message for everyone:', err);
+      console.error('❌ Error deleting message for everyone:', err);
       alert('Failed to delete message for everyone: ' + err.message);
     }
   };
@@ -795,10 +754,9 @@ const MessageModel = () => {
     // Stop typing when sending message
     if (isTyping && socket) {
       setIsTyping(false);
-      socket.emit('typing', {
+      socket.emit('stopTyping', {
         chatId: selectedFriend.chatId,
-        userId: userId,
-        isTyping: false
+        userId: userId
       });
     }
 
@@ -809,21 +767,26 @@ const MessageModel = () => {
         senderId: userId,
         receiverId,
         type: 'text',
-        text: message.trim()
+        text: message.trim(),
       };
 
       try {
-        const res = await fetch(`${API_BASE}/messages/send`, {
+        console.log('📤 Sending text message:', payload);
+        const res = await fetch(`${API_BASE}/message`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
         const result = await res.json();
+        console.log('✅ Send message response:', result);
+        
         if (!res.ok || !result.success) throw new Error(result.message || 'Failed to send');
 
-        // The message will be added via socket event
+        const newMsg = transformMessage(result.data);
+        setMessages(prev => [...prev, newMsg]);
         setMessage('');
       } catch (err) {
+        console.error('❌ Error sending message:', err);
         alert('Failed to send message: ' + err.message);
       }
     }
@@ -836,19 +799,25 @@ const MessageModel = () => {
       formData.append('senderId', userId);
       formData.append('receiverId', receiverId);
       formData.append('type', file.type.startsWith('image') ? 'image' : 'video');
-      formData.append('media', file);
+      formData.append('file', file);
 
       try {
-        const res = await fetch(`${API_BASE}/messages/send`, {
+        console.log('📤 Sending media message:', { chatId, type: file.type.startsWith('image') ? 'image' : 'video' });
+        const res = await fetch(`${API_BASE}/message`, {
           method: 'POST',
           body: formData,
         });
         const result = await res.json();
+        console.log('✅ Send media response:', result);
+        
         if (!res.ok || !result.success) throw new Error(result.message || 'Failed to send');
 
+        const newMsg = transformMessage(result.data);
+        setMessages(prev => [...prev, newMsg]);
         fileInputRef.current.value = '';
         setMediaPreview(null);
       } catch (err) {
+        console.error('❌ Error sending media:', err);
         alert('Failed to send media: ' + err.message);
       }
     }
@@ -863,7 +832,6 @@ const MessageModel = () => {
     const file = e.target.files[0];
     if (file) {
       const url = URL.createObjectURL(file);
-      console.log('Selected media URL:', url);
       setMediaPreview({ url, type: file.type.startsWith('image') ? 'image' : 'video' });
     } else {
       setMediaPreview(null);
@@ -884,16 +852,11 @@ const MessageModel = () => {
   };
 
   // Utility functions
-  const getFriendMessages = (friendId) => {
-    return messages.filter(msg => msg.friendId === friendId).sort((a, b) => a.timestamp - b.timestamp);
-  };
-
   const getFilteredFriendsWithMessages = () => {
     if (!searchQuery) return friends;
     return friends.filter(friend => {
       const nameMatch = friend.name.toLowerCase().includes(searchQuery.toLowerCase());
       const msgMatch = friend.lastMessagePreview?.text?.toLowerCase().includes(searchQuery.toLowerCase());
-      console.log('Filtering friend:', friend.name, 'Name match:', nameMatch, 'Msg match:', msgMatch);
       return nameMatch || msgMatch;
     });
   };
@@ -907,6 +870,9 @@ const MessageModel = () => {
   // Get status text
   const getStatusText = (friend) => {
     if (friend.isOnline) return 'Online';
+    if (friend.lastSeen) {
+      return `Last seen ${new Date(friend.lastSeen).toLocaleTimeString()}`;
+    }
     return 'Offline';
   };
 
@@ -916,7 +882,7 @@ const MessageModel = () => {
       <div className="h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <div className="text-orange-500 font-semibold">Loading friends...</div>
+          <div className="text-orange-500 font-semibold">Loading conversations...</div>
         </div>
       </div>
     );
@@ -1111,9 +1077,9 @@ const MessageModel = () => {
                     <div className="font-semibold text-gray-800 truncate">{selectedFriend.name}</div>
                     <div className="text-sm text-gray-500">
                       {selectedFriend.isOnline ? 'Online' : 'Offline'}
-                      {/* {typingUsers[selectedFriend.chatId] && (
-                        <span className="text-orange-500 ml-2">• {typingUsers[selectedFriend.chatId]} is typing...</span>
-                      )} */}
+                      {typingUsers[selectedFriend.chatId] && (
+                        <span className="text-orange-500 ml-2">• typing...</span>
+                      )}
                       {isChatBlocked && ` • Chat ${blockedBy === userId ? 'blocked by you' : 'blocked by user'}`}
                     </div>
                   </div>
@@ -1148,8 +1114,8 @@ const MessageModel = () => {
                     </div>
                     <h4 className="font-bold text-red-500 mb-2">Chat Blocked</h4>
                     <p className="text-gray-500 mb-4">
-                      {blockedBy === userId
-                        ? "You have blocked this user. Unblock to send messages."
+                      {blockedBy === userId 
+                        ? "You have blocked this user. Unblock to send messages." 
                         : "This user has blocked you. You cannot send messages."}
                     </p>
                     {blockedBy === userId && (
@@ -1164,7 +1130,7 @@ const MessageModel = () => {
                 </div>
               ) : (
                 <>
-                  <div
+                  <div 
                     ref={messagesContainerRef}
                     onScroll={handleScroll}
                     className="flex-1 overflow-y-auto p-4 bg-gradient-to-br from-gray-100 to-gray-200"
@@ -1175,7 +1141,7 @@ const MessageModel = () => {
                         <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
                       </div>
                     )}
-                    {getFriendMessages(selectedFriend.id).length === 0 ? (
+                    {messages.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full">
                         <div className="w-16 h-16 rounded-full flex items-center justify-center bg-orange-500/10 border border-orange-500/20 text-orange-500 mb-4">
                           <Send size={28} />
@@ -1184,21 +1150,20 @@ const MessageModel = () => {
                       </div>
                     ) : (
                       <>
-                        {getFriendMessages(selectedFriend.id).map((msg) => (
+                        {messages.map((msg) => (
                           <div
                             key={msg.id}
                             className={`flex mb-4 ${msg.isMe ? 'justify-end' : 'justify-start'}`}
                           >
-                            <div
-                              className={`relative max-w-[250px] p-3 rounded-2xl break-words ${msg.isMe ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/30' : 'bg-white text-gray-800 border border-gray-200/80 shadow-md shadow-black/5'} ${msg.isDeletedForMe ? 'opacity-70' : ''}`}
+                            <div 
+                              className={`relative max-w-[70%] p-3 rounded-2xl break-words ${msg.isMe ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/30' : 'bg-white text-gray-800 border border-gray-200/80 shadow-md shadow-black/5'} ${msg.isDeletedForMe ? 'opacity-70' : ''}`}
                             >
                               {msg.type === 'deleted' ? (
-                                <div className="break-words max-w-[150px] leading-relaxed">
+                                <div className="italic text-gray-500">
                                   {msg.text}
                                 </div>
-
                               ) : msg.type === 'image' && msg.mediaUrl ? (
-                                <div className="mb-1 relative group">
+                                <div className="mb-1">
                                   <img
                                     src={msg.mediaUrl}
                                     alt="Attachment"
@@ -1208,43 +1173,49 @@ const MessageModel = () => {
                                       e.target.nextSibling.style.display = 'block';
                                     }}
                                   />
-
-                                  {/* Download Button */}
-                                  <a
-                                    href={msg.mediaUrl}
-                                    download
-                                    className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 p-2 rounded-full opacity-1 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                                    title="Download"
-                                    target="_blank"
-                                  >
-                                    <Download size={16} className="text-white" />
-                                  </a>
-
-
-                                  {/* Fallback message */}
-                                  <div
-                                    className={`text-xs mt-1 ${msg.isMe ? "text-white/80" : "text-gray-500"}`}
-                                    style={{ display: "none" }}
-                                  >
+                                  <div className={`text-xs mt-1 ${msg.isMe ? 'text-white/80' : 'text-gray-500'}`} style={{ display: 'none' }}>
                                     📷 Image unavailable
                                   </div>
+                                  {msg.text && msg.text !== '📷 Image' && (
+                                    <div className={`mt-2 ${msg.isMe ? 'text-white/90' : 'text-gray-700'}`}>
+                                      {msg.text}
+                                    </div>
+                                  )}
                                 </div>
-
+                              ) : msg.type === 'video' && msg.mediaUrl ? (
+                                <div className="mb-1">
+                                  <video
+                                    src={msg.mediaUrl}
+                                    controls
+                                    className="max-w-full h-auto rounded-lg max-h-64"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      e.target.nextSibling.style.display = 'block';
+                                    }}
+                                  />
+                                  <div className={`text-xs mt-1 ${msg.isMe ? 'text-white/80' : 'text-gray-500'}`} style={{ display: 'none' }}>
+                                    🎥 Video unavailable
+                                  </div>
+                                  {msg.text && msg.text !== '🎥 Video' && (
+                                    <div className={`mt-2 ${msg.isMe ? 'text-white/90' : 'text-gray-700'}`}>
+                                      {msg.text}
+                                    </div>
+                                  )}
+                                </div>
                               ) : (
                                 <div className="mb-1">{msg.text}</div>
                               )}
-
+                              
                               <div className="flex items-center justify-between mt-1">
                                 <div className={`text-xs ${msg.isMe ? 'text-white/80' : 'text-gray-500'}`}>
                                   {msg.time}
                                   {msg.isMe && (
                                     <span className="ml-1">
-                                      {msg.status === 'read' ? ' ✓✓' : msg.status === 'delivered' ? ' ✓✓' : ' ✓'}
+                                      {msg.status === 'read' ? ' ✓✓' : ' ✓'}
                                     </span>
                                   )}
                                 </div>
-
-                                {/* Show menu button for ALL messages */}
+                                
                                 <button
                                   onClick={(e) => handleMessageMenuToggle(msg.id, e)}
                                   className="ml-2 p-1 rounded-full hover:bg-white/20 transition-colors"
@@ -1253,7 +1224,6 @@ const MessageModel = () => {
                                 </button>
                               </div>
 
-                              {/* Menu for all messages */}
                               {showMessageMenu === msg.id && (
                                 <div className="absolute top-2 right-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10 min-w-32">
                                   {msg.isDeletedForMe ? (
@@ -1296,7 +1266,7 @@ const MessageModel = () => {
                     )}
                   </div>
 
-                  <div className="p-2 border-t border-gray-200/50 bg-gradient-to-b from-white/95 to-gray-50/95 backdrop-blur-lg">
+                  <div className="p-4 border-t border-gray-200/50 bg-gradient-to-b from-white/95 to-gray-50/95 backdrop-blur-lg">
                     {mediaPreview && (
                       <div className="mb-2 flex justify-end">
                         <div className="relative max-w-xs">
@@ -1307,12 +1277,11 @@ const MessageModel = () => {
                               className="max-h-32 rounded-lg object-cover border border-gray-300"
                             />
                           ) : (
-                            <div></div>
-                            // <video
-                            //   src={mediaPreview.url}
-                            //   controls
-                            //   className="max-h-32 rounded-lg object-cover border border-gray-300"
-                            // />
+                            <video
+                              src={mediaPreview.url}
+                              controls
+                              className="max-h-32 rounded-lg object-cover border border-gray-300"
+                            />
                           )}
                           <button
                             onClick={() => {
@@ -1321,42 +1290,29 @@ const MessageModel = () => {
                             }}
                             className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
                           >
-                            <X size={6} />
+                            <X size={12} />
                           </button>
                         </div>
                       </div>
                     )}
-                    {/* Typing Indicator Above Input */}
-                    {typingUsers[selectedFriend.chatId] && !isChatBlocked && (
-                      <div className="flex items-center mb-2 px-2 text-sm text-orange-500">
-                        typing
-                        <span className="flex ml-2 space-x-1">
-                          <span className="dot-typing"></span>
-                          <span className="dot-typing animation-delay-200"></span>
-                          <span className="dot-typing animation-delay-400"></span>
-                        </span>
-                      </div>
-                    )}
-
-
-                    <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                    <form onSubmit={handleSendMessage} className="flex gap-2">
                       <input
                         type="file"
                         ref={fileInputRef}
                         className="hidden"
-                        accept="image/*" //,video/*
+                        accept="image/*,video/*"
                         onChange={handleFileChange}
                       />
                       <button
                         type="button"
                         onClick={handleMediaSelect}
-                        className="flex items-center justify-center w-8 h-8 rounded-full border border-gray-200/80 bg-orange-500/5 text-gray-500 hover:bg-orange-500/10 transition-colors"
+                        className="flex items-center justify-center w-10 h-10 rounded-full border border-gray-200/80 bg-orange-500/5 text-gray-500 hover:bg-orange-500/10 transition-colors"
                       >
-                        <Paperclip size={16} />
+                        <Paperclip size={18} />
                       </button>
                       <input
                         type="text"
-                        className="flex-1 items-center py-2 px-4 rounded-full border border-gray-200/80 bg-orange-500/5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                        className="flex-1 py-3 px-4 rounded-full border border-gray-200/80 bg-orange-500/5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/50"
                         placeholder="Type your message..."
                         value={message}
                         onChange={(e) => {
@@ -1373,9 +1329,9 @@ const MessageModel = () => {
                       <button
                         type="submit"
                         disabled={!message.trim() && !mediaPreview}
-                        className="w-10 h-10 rounded-full border-none flex items-center justify-center bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/30 transition-all disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed hover:shadow-orange-500/50"
+                        className="w-12 h-12 rounded-full border-none flex items-center justify-center bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/30 transition-all disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed hover:shadow-orange-500/50"
                       >
-                        <Send size={16} />
+                        <Send size={18} />
                       </button>
                     </form>
                   </div>

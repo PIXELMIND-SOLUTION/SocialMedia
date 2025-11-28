@@ -14,7 +14,9 @@ import {
   ChevronDown,
   ExternalLink,
   Clock,
-  User
+  User,
+  UserCheck,
+  UserX
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -28,6 +30,8 @@ const Notifications = () => {
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [friendStatus, setFriendStatus] = useState({});
+  const [processingRequest, setProcessingRequest] = useState(null);
 
   const navigate = useNavigate();
 
@@ -39,6 +43,12 @@ const Notifications = () => {
     fetchNotifications();
   }, []);
 
+  useEffect(() => {
+    if (notifications.length > 0) {
+      fetchFriendStatus();
+    }
+  }, [notifications]);
+
   const fetchNotifications = async () => {
     try {
       setLoading(true);
@@ -48,7 +58,7 @@ const Notifications = () => {
       if (data.success) {
         setNotifications(data.data.notifications);
         console.log("Fetched notifications:", data.data.notifications);
-        setCounts(data.data.counts);
+        setCounts(data.data.notifications.length);
       } else {
         setError('Failed to fetch notifications');
       }
@@ -57,6 +67,23 @@ const Notifications = () => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFriendStatus = async () => {
+    try {
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/get-friends/${userId}`);
+      const data = await response.json();
+
+      if (data.success) {
+        const statusMap = {};
+        data.data.forEach(friend => {
+          statusMap[friend._id] = friend.status;
+        });
+        setFriendStatus(statusMap);
+      }
+    } catch (err) {
+      console.error('Error fetching friend status:', err);
     }
   };
 
@@ -116,9 +143,9 @@ const Notifications = () => {
         };
       case 'follow':
         return {
-          title: `${senderName} started following you`,
-          message: `${senderName} (@${username}) started following you`,
-          description: "You have a new follower",
+          title: `${senderName} wants to follow you`,
+          message: `${senderName} (@${username}) sent you a follow request`,
+          description: "You have a new follow request",
           link: `/userprofile/${notification.sender?._id}`
         };
       case 'mention':
@@ -206,7 +233,6 @@ const Notifications = () => {
   const deleteNotification = async (id) => {
     console.log("Deleting notification with ID:", id);
     try {
-      // Send delete request to backend
       const response = await fetch(`https://apisocial.atozkeysolution.com/api/notifications/${id}`, {
         method: "DELETE",
         headers: {
@@ -217,15 +243,14 @@ const Notifications = () => {
       const data = await response.json();
 
       if (data.success) {
-        // Remove notification locally after successful delete
         setNotifications((prev) => prev.filter((notification) => notification._id !== id));
 
-        // Close modal if it was the selected notification
         if (selectedNotification?._id === id) {
           closeModal();
         }
 
         console.log("Notification deleted successfully");
+        fetchNotifications(); // Refresh notifications and counts
       } else {
         console.error("Failed to delete notification:", data.message || "Unknown error");
         alert("Failed to delete notification. Please try again.");
@@ -233,6 +258,88 @@ const Notifications = () => {
     } catch (error) {
       console.error("Error deleting notification:", error);
       alert("An error occurred while deleting the notification.");
+    }
+  };
+
+  // Handle follow request approval
+  const handleApproveRequest = async (notification) => {
+    if (!notification.sender?._id) return;
+
+    setProcessingRequest(notification._id);
+    try {
+      const response = await fetch('https://social-media-nty4.onrender.com/api/approve-request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userId,
+          requesterId: notification.sender._id
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update friend status locally
+        setFriendStatus(prev => ({
+          ...prev,
+          [notification.sender._id]: 'friends'
+        }));
+        
+        // Delete the notification after successful approval
+        await deleteNotification(notification._id);
+        
+        alert('Follow request approved successfully!');
+      } else {
+        alert('Failed to approve follow request: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error approving follow request:', error);
+      alert('An error occurred while approving the follow request.');
+    } finally {
+      setProcessingRequest(null);
+    }
+  };
+
+  // Handle follow request rejection
+  const handleRejectRequest = async (notification) => {
+    if (!notification.sender?._id) return;
+
+    setProcessingRequest(notification._id);
+    try {
+      const response = await fetch('https://social-media-nty4.onrender.com/api/reject-request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userId,
+          followerId: notification.sender._id
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update friend status locally
+        setFriendStatus(prev => ({
+          ...prev,
+          [notification.sender._id]: 'rejected'
+        }));
+        
+        // Delete the notification after successful rejection
+        await deleteNotification(notification._id);
+        
+        alert('Follow request rejected successfully!');
+      } else {
+        alert('Failed to reject follow request: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error rejecting follow request:', error);
+      alert('An error occurred while rejecting the follow request.');
+    } finally {
+      setProcessingRequest(null);
     }
   };
 
@@ -436,6 +543,7 @@ const Notifications = () => {
                   {filteredNotifications.map((notification) => {
                     const IconComponent = getNotificationIcon(notification.type);
                     const content = generateNotificationContent(notification);
+                    const currentStatus = friendStatus[notification.sender?._id];
                     
                     return (
                       <div
@@ -471,22 +579,26 @@ const Notifications = () => {
                                 <p className="text-xs sm:text-sm text-gray-600 mt-1 leading-relaxed break-words line-clamp-2">
                                   {content.message}
                                 </p>
+                                
+                                {/* Show current status for follow requests */}
+                                {notification.type === 'follow' && currentStatus && (
+                                  <div className="mt-1">
+                                    <span className={`text-xs px-2 py-1 rounded-full ${
+                                      currentStatus === 'friends' 
+                                        ? 'bg-green-100 text-green-800'
+                                        : currentStatus === 'rejected'
+                                        ? 'bg-red-100 text-red-800'
+                                        : 'bg-blue-100 text-blue-800'
+                                    }`}>
+                                      Status: {currentStatus}
+                                    </span>
+                                  </div>
+                                )}
+                                
                                 <p className="text-xs text-gray-500 mt-1.5 sm:mt-2">{formatTime(notification.createdAt)}</p>
                               </div>
 
                               <div className="flex items-center space-x-0.5 sm:space-x-1 flex-shrink-0">
-                                {/* {!notification.isRead && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      markAsRead(notification._id);
-                                    }}
-                                    className="p-1 sm:p-1.5 hover:bg-gray-200 rounded-full transition-colors"
-                                    title="Mark as read"
-                                  >
-                                    <Check size={12} className="text-gray-500 sm:w-3.5 sm:h-3.5" />
-                                  </button>
-                                )} */}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -535,11 +647,14 @@ const Notifications = () => {
                   <img
                     src={selectedNotification.sender.profile.image}
                     alt={selectedNotification.sender.fullName}
-                    className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg"
+                    className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg cursor-pointer"
                     onClick={() => handleProfile(selectedNotification.sender._id)}
                   />
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border-4 border-white shadow-lg">
+                  <div 
+                    className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border-4 border-white shadow-lg cursor-pointer"
+                    onClick={() => handleProfile(selectedNotification.sender._id)}
+                  >
                     {(() => {
                       const IconComponent = getNotificationIcon(selectedNotification.type);
                       return <IconComponent size={28} className="text-white" />;
@@ -551,7 +666,10 @@ const Notifications = () => {
                   <h3 className="text-xl font-bold text-white mb-1">
                     {generateNotificationContent(selectedNotification).title}
                   </h3>
-                  <div className="flex items-center space-x-2 text-white/90 text-sm" onClick={() => handleProfile(selectedNotification.sender._id)}>
+                  <div 
+                    className="flex items-center space-x-2 text-white/90 text-sm cursor-pointer hover:text-white transition-colors" 
+                    onClick={() => handleProfile(selectedNotification.sender._id)}
+                  >
                     <User size={14} />
                     <span>{selectedNotification.sender?.fullName || 'Unknown User'}</span>
                     <span>@{selectedNotification.sender?.profile?.username || 'user'}</span>
@@ -587,21 +705,57 @@ const Notifications = () => {
                   </div>
                 )}
 
-                {/* Action Link */}
-                {/* {generateNotificationContent(selectedNotification).link && generateNotificationContent(selectedNotification).link !== '#' && (
-                  <a
-                    href={generateNotificationContent(selectedNotification).link}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      navigate(generateNotificationContent(selectedNotification).link);
-                      closeModal();
-                    }}
-                    className="flex items-center justify-center space-x-2 w-full py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-medium hover:from-orange-600 hover:to-red-600 transition-all shadow-md hover:shadow-lg cursor-pointer"
-                  >
-                    <span>View Details</span>
-                    <ExternalLink size={16} />
-                  </a>
-                )} */}
+                {/* Follow Request Actions */}
+                {selectedNotification.type === 'follow' && (
+                  <div className="bg-orange-50 rounded-xl p-4 border-l-4 border-orange-500">
+                    <h4 className="text-sm font-semibold text-orange-700 mb-3">Follow Request</h4>
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={() => handleApproveRequest(selectedNotification)}
+                        disabled={processingRequest === selectedNotification._id}
+                        className="flex-1 flex items-center justify-center space-x-2 py-2.5 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {processingRequest === selectedNotification._id ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <UserCheck size={16} />
+                        )}
+                        <span>
+                          {processingRequest === selectedNotification._id ? 'Processing...' : 'Accept'}
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => handleRejectRequest(selectedNotification)}
+                        disabled={processingRequest === selectedNotification._id}
+                        className="flex-1 flex items-center justify-center space-x-2 py-2.5 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {processingRequest === selectedNotification._id ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <UserX size={16} />
+                        )}
+                        <span>
+                          {processingRequest === selectedNotification._id ? 'Processing...' : 'Reject'}
+                        </span>
+                      </button>
+                    </div>
+                    
+                    {/* Current Status */}
+                    {friendStatus[selectedNotification.sender?._id] && (
+                      <div className="mt-3 text-center">
+                        <span className={`text-xs px-3 py-1 rounded-full ${
+                          friendStatus[selectedNotification.sender._id] === 'friends' 
+                            ? 'bg-green-100 text-green-800'
+                            : friendStatus[selectedNotification.sender._id] === 'rejected'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          Current Status: {friendStatus[selectedNotification.sender._id]}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

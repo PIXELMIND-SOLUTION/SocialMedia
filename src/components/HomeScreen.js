@@ -37,11 +37,11 @@ const HomeScreen = () => {
           }));
 
           // ✅ Show only posts from other users (exclude current user)
-          if (currentUserId) {
-            allPosts = allPosts.filter(
-              (post) => post.userId?._id !== currentUserId && post.userId !== currentUserId
-            );
-          }
+          // if (currentUserId) {
+          //   allPosts = allPosts.filter(
+          //     (post) => post.userId?._id !== currentUserId && post.userId !== currentUserId
+          //   );
+          // }
 
           setPosts(allPosts);
         }
