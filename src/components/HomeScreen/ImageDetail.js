@@ -16,9 +16,26 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
   const [loadingComment, setLoadingComment] = useState(false);
   const [loadingSave, setLoadingSave] = useState(false);
   const [loadingFollow, setLoadingFollow] = useState(false);
+  const [allRequests, setAllRequests] = useState([]);
 
   const storedUser = JSON.parse(sessionStorage.getItem("userData"));
   const userId = storedUser?.userId;
+
+  // ---------- Fetch All Follow Requests ----------
+  useEffect(() => {
+    const fetchAllRequests = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/requests/all`);
+        const data = await res.json();
+        if (data.success) {
+          setAllRequests(data.allRequests || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch all requests:", error);
+      }
+    };
+    fetchAllRequests();
+  }, []);
 
   // ---------- Fetch Saved Posts ----------
   useEffect(() => {
@@ -45,15 +62,21 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
     setComments(image.comments || []);
   }, [image]);
 
-  // ---------- FOLLOW STATUS ----------
+  // ---------- FIXED FOLLOW STATUS ----------
   useEffect(() => {
     const fetchFollowStatus = async () => {
-      if (!userId || !image?.userId?._id || image.userId?._id === userId) {
+      if (!userId || !image?.userId?._id) {
+        setFollowStatus("none");
+        return;
+      }
+
+      if (image.userId?._id === userId) {
         setFollowStatus("self");
         return;
       }
 
       try {
+        // Fetch following and followers data
         const [followingRes, followersRes] = await Promise.all([
           fetch(`${API_BASE}/following/${userId}`),
           fetch(`${API_BASE}/followers/${userId}`),
@@ -61,23 +84,57 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
 
         const followingData = await followingRes.json();
         const followersData = await followersRes.json();
+        console.log("Following Data:", followingData);
 
-        const followingList = followingData?.data?.following || [];
-        const pendingOutgoing = followingData?.data?.pendingRequests || [];
-        const followersList = followersData?.data?.followers || [];
-
+        const followingList = followingData?.following || [];
+        const followersList = followersData?.followers || [];
         const targetId = image.userId._id;
 
-        const isFollowing = followingList.some((f) => f._id === targetId);
-        const hasOutgoingRequest = pendingOutgoing.some((r) => r._id === targetId);
-        const hasIncomingRequest = followersList.some(
-          (f) => f._id === targetId && f.status === "pending"
-        );
+        console.log("Following List:", followingList);
+        console.log("Followers List:", followersList);
+        console.log("Target User ID:", targetId);
 
-        if (isFollowing) setFollowStatus("following");
-        else if (hasOutgoingRequest) setFollowStatus("requested");
-        else if (hasIncomingRequest) setFollowStatus("incoming");
-        else setFollowStatus("none");
+        // Check if already following
+        const isFollowing = followingList.some(f => f._id === targetId);
+        if (isFollowing) {
+          setFollowStatus("following");
+          return;
+        }
+
+        // Check if there's an outgoing request (user has sent request to target)
+        const outgoingRequest = allRequests.find(req => req.userId === targetId);
+        if (outgoingRequest) {
+          const hasOutgoingRequest = outgoingRequest.requests.some(
+            req => req._id === userId
+          );
+          if (hasOutgoingRequest) {
+            setFollowStatus("requested");
+            return;
+          }
+        }
+
+        // Check if there's an incoming request (target has sent request to user)
+        const incomingRequest = allRequests.find(req => req.userId === userId);
+        if (incomingRequest) {
+          const hasIncomingRequest = incomingRequest.requests.some(
+            req => req._id === targetId
+          );
+          if (hasIncomingRequest) {
+            setFollowStatus("incoming");
+            return;
+          }
+        }
+
+        // Check in followers list for pending status
+        const pendingFollower = followersList.find(
+          f => f._id === targetId && f.status === "pending"
+        );
+        if (pendingFollower) {
+          setFollowStatus("incoming");
+          return;
+        }
+
+        setFollowStatus("none");
       } catch (error) {
         console.error("Error fetching follow status:", error);
         setFollowStatus("none");
@@ -85,7 +142,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
     };
 
     fetchFollowStatus();
-  }, [userId, image.userId]);
+  }, [userId, image.userId, allRequests]);
 
   // ---------- LIKE / UNLIKE (TOGGLE) ----------
   const handleLike = async () => {
@@ -115,9 +172,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
         body: JSON.stringify({
           postId: image._id,
           userId: currentUserId,
-          // Add postOwnerId if needed by backend
           postOwnerId: image.userId?._id,
-          // Send action to backend (optional)
           action: isLiked ? "unlike" : "like"
         }),
       });
@@ -132,21 +187,16 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
         if (data.likes !== undefined) {
           setLikes(data.likes);
         } else if (data.likesCount !== undefined) {
-          // If backend returns likes count instead of array
-          // We need to toggle the like status manually
           if (isLiked) {
-            // Unlike: remove current user from likes
             setLikes(prev => prev.filter(like =>
               like._id !== currentUserId &&
               like.userId !== currentUserId &&
               like !== currentUserId
             ));
           } else {
-            // Like: add current user to likes
             setLikes(prev => [...prev, { _id: currentUserId, userId: currentUserId }]);
           }
         } else {
-          // Fallback: toggle manually
           if (isLiked) {
             setLikes(prev => prev.filter(like =>
               like._id !== currentUserId &&
@@ -165,6 +215,193 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
       alert("Network error while updating like.");
     } finally {
       setLoadingLike(false);
+    }
+  };
+
+  // ---------- FIXED FOLLOW/UNFOLLOW HANDLER ----------
+  const handleFollow = async () => {
+    if (!currentUserId) {
+      alert("You must be logged in.");
+      return;
+    }
+
+    if (image.userId?._id === currentUserId) {
+      alert("You cannot follow yourself.");
+      return;
+    }
+
+    try {
+      setLoadingFollow(true);
+      let endpoint = "";
+      let method = "POST";
+      let body = {};
+      let expectedNewStatus = "";
+
+      switch (followStatus) {
+        case "following":
+          // Unfollow
+          endpoint = `${API_BASE}/unfollow`;
+          body = {
+            userId: image.userId?._id,
+            followerId: currentUserId,
+          };
+          expectedNewStatus = "none";
+          break;
+
+        case "requested":
+          // Cancel follow request
+          endpoint = `${API_BASE}/cancel-request`;
+          body = {
+            userId: image.userId?._id,
+            followerId: currentUserId,
+          };
+          expectedNewStatus = "none";
+          break;
+
+        case "incoming":
+          // Accept follow request
+          endpoint = `${API_BASE}/accept-request`;
+          body = {
+            requestId: currentUserId, // Current user accepting the request
+            targetId: image.userId?._id, // The user who sent the request
+          };
+          expectedNewStatus = "following";
+          break;
+
+        case "none":
+        default:
+          // Send follow request
+          endpoint = `${API_BASE}/send-request`;
+          body = {
+            userId: image.userId?._id,
+            followerId: currentUserId,
+          };
+          expectedNewStatus = "requested";
+          break;
+      }
+
+      console.log("Sending follow request to:", endpoint);
+      console.log("Request body:", body);
+
+      const res = await fetch(endpoint, {
+        method: method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+      console.log("Follow response:", data);
+
+      if (data.success) {
+        setFollowStatus(expectedNewStatus);
+        
+        // Refresh all requests after follow action
+        try {
+          const requestsRes = await fetch(`${API_BASE}/requests/all`);
+          const requestsData = await requestsRes.json();
+          if (requestsData.success) {
+            setAllRequests(requestsData.allRequests || []);
+          }
+        } catch (err) {
+          console.error("Failed to refresh requests:", err);
+        }
+      } else {
+        alert(data.message || "Failed to update follow status.");
+      }
+    } catch (error) {
+      console.error("Network error:", error);
+      alert("Network error while updating follow status.");
+    } finally {
+      setLoadingFollow(false);
+    }
+  };
+
+  // ---------- ALTERNATIVE FOLLOW HANDLER USING SEPARATE ENDPOINTS ----------
+  const handleFollowAlternative = async () => {
+    if (!currentUserId) {
+      alert("You must be logged in.");
+      return;
+    }
+
+    if (image.userId?._id === currentUserId) {
+      alert("You cannot follow yourself.");
+      return;
+    }
+
+    try {
+      setLoadingFollow(true);
+      let endpoint = "";
+      let body = {};
+
+      switch (followStatus) {
+        case "following":
+          endpoint = `${API_BASE}/unfollow`;
+          body = {
+            userId: image.userId?._id,
+            followerId: currentUserId,
+          };
+          break;
+
+        case "requested":
+          endpoint = `${API_BASE}/requests/cancel`;
+          body = {
+            userId: image.userId?._id,
+            followerId: currentUserId,
+          };
+          break;
+
+        case "incoming":
+          endpoint = `${API_BASE}/requests/accept`;
+          body = {
+            requestId: image.userId?._id, // The user who sent the request
+            userId: currentUserId, // Current user accepting
+          };
+          break;
+
+        case "none":
+        default:
+          endpoint = `${API_BASE}/follow`;
+          body = {
+            userId: image.userId?._id,
+            followerId: currentUserId,
+          };
+          break;
+      }
+
+      console.log("Using alternative endpoint:", endpoint);
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+      console.log("Response:", data);
+
+      if (data.success) {
+        // Update follow status based on response
+        if (endpoint.includes("unfollow") || endpoint.includes("cancel")) {
+          setFollowStatus("none");
+        } else if (endpoint.includes("accept")) {
+          setFollowStatus("following");
+        } else if (endpoint.includes("follow") || endpoint.includes("send-request")) {
+          setFollowStatus("requested");
+        }
+        
+        // Refresh requests
+        const requestsRes = await fetch(`${API_BASE}/requests/all`);
+        const requestsData = await requestsRes.json();
+        if (requestsData.success) {
+          setAllRequests(requestsData.allRequests || []);
+        }
+      } else {
+        alert(data.message || "Failed to update follow status.");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Network error while updating follow status.");
+    } finally {
+      setLoadingFollow(false);
     }
   };
 
@@ -229,61 +466,6 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
     }
   };
 
-  // ---------- FOLLOW ----------
-  const handleFollow = async () => {
-    if (!currentUserId) return alert("You must be logged in.");
-    if (image.userId?._id === currentUserId) return;
-
-    try {
-      setLoadingFollow(true);
-      let res;
-      let newStatus;
-
-      if (followStatus === "following") {
-        res = await fetch(`${API_BASE}/unfollow`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: image.userId?._id,
-            followerId: currentUserId,
-          }),
-        });
-        newStatus = "none";
-      } else if (followStatus === "requested") {
-        res = await fetch(`${API_BASE}/cancel-request`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: image.userId?._id,
-            followerId: currentUserId,
-          }),
-        });
-        newStatus = "none";
-      } else {
-        res = await fetch(`${API_BASE}/send-request`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: image.userId?._id,
-            followerId: currentUserId,
-          }),
-        });
-        newStatus = "requested";
-      }
-
-      const data = await res.json();
-      if (data.success) {
-        setFollowStatus(newStatus);
-      } else {
-        alert(data.message || "Failed to update follow status.");
-      }
-    } catch {
-      alert("Network error while updating follow status.");
-    } finally {
-      setLoadingFollow(false);
-    }
-  };
-
   // ---------- DOWNLOAD ----------
   const handleDownload = () => {
     const url = image.media?.[0]?.url?.trim();
@@ -332,13 +514,47 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
     );
   };
 
+  // Get follow button text based on status
+  const getFollowButtonText = () => {
+    if (loadingFollow) return "...";
+    
+    switch (followStatus) {
+      case "following":
+        return "Following";
+      case "requested":
+        return "Requested";
+      case "incoming":
+        return "Accept Request";
+      case "self":
+        return "";
+      default:
+        return "Follow";
+    }
+  };
+
+  // Get follow button class based on status
+  const getFollowButtonClass = () => {
+    switch (followStatus) {
+      case "following":
+        return "btn-outline-danger";
+      case "requested":
+        return "btn-outline-secondary";
+      case "incoming":
+        return "btn-success";
+      case "self":
+        return "";
+      default:
+        return "btn-primary";
+    }
+  };
+
   if (!image) return null;
 
   const isLiked = likes.some(like =>
-        like._id === currentUserId ||
-        like.userId === currentUserId ||
-        like === currentUserId
-      );
+    like._id === currentUserId ||
+    like.userId === currentUserId ||
+    like === currentUserId
+  );
   const isSaved = saves.includes(image._id);
   const mediaType = image.media?.[0]?.type;
   const mediaUrl = image.media?.[0]?.url?.trim();
@@ -423,24 +639,18 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
         {/* Follow Button */}
         {followStatus !== "self" && (
           <button
-            className={`btn btn-sm ${followStatus === "following"
-                ? "btn-outline-danger"
-                : followStatus === "requested"
-                  ? "btn-outline-secondary"
-                  : "btn-primary"
-              }`}
-            onClick={handleFollow}
+            className={`btn btn-sm ${getFollowButtonClass()}`}
+            onClick={handleFollow} 
             disabled={loadingFollow}
           >
-            {loadingFollow
-              ? "..."
-              : followStatus === "following"
-                ? "Unfollow"
-                : followStatus === "requested"
-                  ? "Requested"
-                  : "Follow"}
+            {getFollowButtonText()}
           </button>
         )}
+      </div>
+
+      {/* Debug Info (remove in production) */}
+      <div className="small text-muted mb-2">
+        Follow Status: {followStatus}
       </div>
 
       {/* Comments Section */}
