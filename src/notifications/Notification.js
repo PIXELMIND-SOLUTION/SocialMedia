@@ -113,7 +113,7 @@ const Notifications = () => {
     if (filter === "read") return notification.isRead;
     if (filter === "likes") return notification.type === "like";
     if (filter === "comments") return notification.type === "comment";
-    if (filter === "follows") return notification.type === "follow";
+    if (filter === "follows") return notification.type === "follow_request";
     if (filter === "mentions") return notification.type === "mention";
     if (filter === "posts") return notification.type === "post";
     return true;
@@ -141,7 +141,7 @@ const Notifications = () => {
           description: "New comment on your post",
           link: notification.post ? `/post/${notification.post}` : '#'
         };
-      case 'follow':
+      case 'follow_request':
         return {
           title: `${senderName} wants to follow you`,
           message: `${senderName} (@${username}) sent you a follow request`,
@@ -185,9 +185,9 @@ const Notifications = () => {
     setTimeout(() => setSelectedNotification(null), 300);
   };
 
-  const markAsRead = async (id) => {
+  const markAsRead = async (notificationId) => {
     try {
-      const response = await fetch(`https://apisocial.atozkeysolution.com/api/notifications/read/${id}`, {
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/notifications/read/${notificationId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -198,7 +198,7 @@ const Notifications = () => {
 
       if (data.success) {
         setNotifications(prev => prev.map(notification =>
-          notification._id === id ? { ...notification, isRead: true } : notification
+          notification._id === notificationId ? { ...notification, isRead: true } : notification
         ));
       } else {
         console.error("Failed to mark notification as read:", data.message || "Unknown error");
@@ -286,11 +286,15 @@ const Notifications = () => {
           ...prev,
           [notification.sender._id]: 'friends'
         }));
+
+        setNotifications((prev) => prev.filter((notification) => notification._id !== notification._id));
         
         // Delete the notification after successful approval
-        await deleteNotification(notification._id);
+        // await deleteNotification(notification._id);
         
         alert('Follow request approved successfully!');
+        setShowModal(false);
+        fetchNotifications();
       } else {
         alert('Failed to approve follow request: ' + (data.message || 'Unknown error'));
       }
@@ -327,11 +331,15 @@ const Notifications = () => {
           ...prev,
           [notification.sender._id]: 'rejected'
         }));
+
+        setNotifications((prev) => prev.filter((notification) => notification._id !== notification._id));
         
         // Delete the notification after successful rejection
-        await deleteNotification(notification._id);
+        // await deleteNotification(notification._id);
         
         alert('Follow request rejected successfully!');
+        setShowModal(false);
+        fetchNotifications();
       } else {
         alert('Failed to reject follow request: ' + (data.message || 'Unknown error'));
       }
@@ -347,7 +355,7 @@ const Notifications = () => {
     switch (type) {
       case "like": return Heart;
       case "comment": return MessageCircle;
-      case "follow": return UserPlus;
+      case "follow_request": return UserPlus;
       case "mention": return AtSign;
       case "post": return FileText;
       case "message": return Mail;
@@ -581,7 +589,7 @@ const Notifications = () => {
                                 </p>
                                 
                                 {/* Show current status for follow requests */}
-                                {notification.type === 'follow' && currentStatus && (
+                                {notification.type === 'follow_request' && currentStatus && (
                                   <div className="mt-1">
                                     <span className={`text-xs px-2 py-1 rounded-full ${
                                       currentStatus === 'friends' 
@@ -706,7 +714,7 @@ const Notifications = () => {
                 )}
 
                 {/* Follow Request Actions */}
-                {selectedNotification.type === 'follow' && (
+                {selectedNotification.type === 'follow_request' && (
                   <div className="bg-orange-50 rounded-xl p-4 border-l-4 border-orange-500">
                     <h4 className="text-sm font-semibold text-orange-700 mb-3">Follow Request</h4>
                     <div className="flex space-x-3">

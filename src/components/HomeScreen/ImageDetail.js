@@ -41,6 +41,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
   // ---------- Update Likes & Comments on Image Change ----------
   useEffect(() => {
     setLikes(image.likes || []);
+    console.log("Updated Likes:", image.likes || []);
     setComments(image.comments || []);
   }, [image]);
 
@@ -88,35 +89,79 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
 
   // ---------- LIKE / UNLIKE (TOGGLE) ----------
   const handleLike = async () => {
-    if (!currentUserId) return alert("You must be logged in.");
+    if (!currentUserId) {
+      alert("You must be logged in.");
+      return;
+    }
 
     try {
       setLoadingLike(true);
 
-      const isLiked = likes.some(like => like._id === currentUserId);
+      // Check if already liked
+      const isLiked = likes.some(like =>
+        like._id === currentUserId ||
+        like.userId === currentUserId ||
+        like === currentUserId
+      );
 
-      const endpoint = isLiked
-        ? `${API_BASE}/posts/unlike`
-        : `${API_BASE}/posts/like`;
+      console.log("Current likes:", likes);
+      console.log("User ID:", currentUserId);
+      console.log("Is liked:", isLiked);
 
-      const res = await fetch(endpoint, {
+      // Use the same endpoint for both like and unlike
+      const res = await fetch(`${API_BASE}/posts/like`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           postId: image._id,
           userId: currentUserId,
+          // Add postOwnerId if needed by backend
           postOwnerId: image.userId?._id,
+          // Send action to backend (optional)
+          action: isLiked ? "unlike" : "like"
         }),
       });
 
       const data = await res.json();
+      console.log("Like/Unlike Response:", data);
 
       if (data.success) {
-        setLikes(data.likes || []);
+        console.log(data.message || "Like updated successfully.");
+
+        // Update likes based on backend response
+        if (data.likes !== undefined) {
+          setLikes(data.likes);
+        } else if (data.likesCount !== undefined) {
+          // If backend returns likes count instead of array
+          // We need to toggle the like status manually
+          if (isLiked) {
+            // Unlike: remove current user from likes
+            setLikes(prev => prev.filter(like =>
+              like._id !== currentUserId &&
+              like.userId !== currentUserId &&
+              like !== currentUserId
+            ));
+          } else {
+            // Like: add current user to likes
+            setLikes(prev => [...prev, { _id: currentUserId, userId: currentUserId }]);
+          }
+        } else {
+          // Fallback: toggle manually
+          if (isLiked) {
+            setLikes(prev => prev.filter(like =>
+              like._id !== currentUserId &&
+              like.userId !== currentUserId &&
+              like !== currentUserId
+            ));
+          } else {
+            setLikes(prev => [...prev, { _id: currentUserId, userId: currentUserId }]);
+          }
+        }
       } else {
         alert(data.message || "Failed to update like.");
       }
-    } catch {
+    } catch (error) {
+      console.error("Error in handleLike:", error);
       alert("Network error while updating like.");
     } finally {
       setLoadingLike(false);
@@ -289,7 +334,11 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
 
   if (!image) return null;
 
-  const isLiked = likes.some(like => like._id === currentUserId);
+  const isLiked = likes.some(like =>
+        like._id === currentUserId ||
+        like.userId === currentUserId ||
+        like === currentUserId
+      );
   const isSaved = saves.includes(image._id);
   const mediaType = image.media?.[0]?.type;
   const mediaUrl = image.media?.[0]?.url?.trim();
@@ -341,9 +390,8 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
           disabled={loadingLike}
         >
           <i
-            className={`bi ${
-              isLiked ? "bi-heart-fill text-danger" : "bi-heart"
-            }`}
+            className={`bi ${isLiked ? "bi-heart-fill text-danger" : "bi-heart"
+              }`}
           ></i>
           {likes.length} Likes
         </button>
@@ -354,9 +402,8 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
           disabled={loadingSave}
         >
           <i
-            className={`bi ${
-              isSaved ? "bi-bookmark-fill text-primary" : "bi-bookmark"
-            }`}
+            className={`bi ${isSaved ? "bi-bookmark-fill text-primary" : "bi-bookmark"
+              }`}
           ></i>
           {isSaved ? "Saved" : "Save"}
         </button>
@@ -376,23 +423,22 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
         {/* Follow Button */}
         {followStatus !== "self" && (
           <button
-            className={`btn btn-sm ${
-              followStatus === "following"
+            className={`btn btn-sm ${followStatus === "following"
                 ? "btn-outline-danger"
                 : followStatus === "requested"
-                ? "btn-outline-secondary"
-                : "btn-primary"
-            }`}
+                  ? "btn-outline-secondary"
+                  : "btn-primary"
+              }`}
             onClick={handleFollow}
             disabled={loadingFollow}
           >
             {loadingFollow
               ? "..."
               : followStatus === "following"
-              ? "Unfollow"
-              : followStatus === "requested"
-              ? "Requested"
-              : "Follow"}
+                ? "Unfollow"
+                : followStatus === "requested"
+                  ? "Requested"
+                  : "Follow"}
           </button>
         )}
       </div>

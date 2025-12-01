@@ -458,11 +458,11 @@ const UserProfile = () => {
               <div className="hidden lg:flex absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center gap-8 text-white">
                 <div className="flex items-center gap-2">
                   <Heart className="w-6 h-6 fill-white" />
-                  <span className="font-semibold text-lg">{post.likes.length}</span>
+                  <span className="font-semibold text-lg">{post?.likes?.length}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <MessageCircle className="w-6 h-6 fill-white" />
-                  <span className="font-semibold text-lg">{post.comments.length}</span>
+                  <span className="font-semibold text-lg">{post?.comments?.length}</span>
                 </div>
                 {activeTab === 'posts' && (
                   <Bookmark

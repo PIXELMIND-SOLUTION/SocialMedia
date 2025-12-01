@@ -27,6 +27,7 @@ const MessageModel = () => {
   const [typingUsers, setTypingUsers] = useState({});
   const [isTyping, setIsTyping] = useState(false);
   const [typingTimeout, setTypingTimeout] = useState(null);
+  const [lastSeenTimestamps, setLastSeenTimestamps] = useState({});
 
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -38,10 +39,29 @@ const MessageModel = () => {
   const userId = storedUser?.userId;
   const userName = storedUser?.fullName || 'You';
 
-  const API_BASE = 'http://31.97.206.144:5002/api';
-  const SOCKET_URL = 'http://31.97.206.144:5002';
+  const API_BASE = 'https://apisocial.atozkeysolution.com/api';
+  const SOCKET_URL = 'https://apisocial.atozkeysolution.com';
 
-  // Initialize Socket.IO connection with proper authentication
+  // Format last seen time
+  const formatLastSeen = (timestamp) => {
+    if (!timestamp) return 'Recently';
+
+    const now = new Date();
+    const lastSeen = new Date(timestamp);
+    const diffMs = now - lastSeen;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    return lastSeen.toLocaleDateString();
+  };
+
+  // Enhanced Socket.IO connection with better status handling
   useEffect(() => {
     if (!userId) return;
 
@@ -50,25 +70,43 @@ const MessageModel = () => {
         userId,
         userName
       },
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
     });
 
     newSocket.on('connect', () => {
       console.log('✅ Connected to server');
       setIsConnected(true);
 
-      // Join user to their personal room
+      // Join user to their personal room and get initial online status
       newSocket.emit('userOnline', userId);
       newSocket.emit('joinNotificationRoom', userId);
+      newSocket.emit('getOnlineUsers');
     });
 
-    newSocket.on('disconnect', () => {
-      console.log('❌ Disconnected from server');
+    newSocket.on('disconnect', (reason) => {
+      console.log('❌ Disconnected from server:', reason);
       setIsConnected(false);
     });
 
+    newSocket.on('reconnect', (attemptNumber) => {
+      console.log('🔄 Reconnected to server after', attemptNumber, 'attempts');
+      setIsConnected(true);
+      newSocket.emit('userOnline', userId);
+      newSocket.emit('getOnlineUsers');
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('🚨 Connection error:', error);
+      setIsConnected(false);
+    });
+
+    // Enhanced user status handling
     newSocket.on('userStatusChanged', (data) => {
-      console.log('User status changed:', data);
+      console.log('👤 User status changed:', data);
+
       setOnlineUsers(prev => {
         const newOnlineUsers = new Set(prev);
         if (data.status === 'online') {
@@ -79,13 +117,22 @@ const MessageModel = () => {
         return newOnlineUsers;
       });
 
-      // Update friends list with online status
+      // Update last seen timestamps
+      if (data.lastSeen) {
+        setLastSeenTimestamps(prev => ({
+          ...prev,
+          [data.userId]: data.lastSeen
+        }));
+      }
+
+      // Update friends list with instant status update
       setFriends(prev => prev.map(friend => {
         if (friend.id === data.userId) {
           return {
             ...friend,
             isOnline: data.status === 'online',
-            lastSeen: data.lastSeen
+            lastSeen: data.lastSeen,
+            status: data.status
           };
         }
         return friend;
@@ -93,19 +140,63 @@ const MessageModel = () => {
     });
 
     newSocket.on('onlineUsers', (userIds) => {
-      console.log('Online users:', userIds);
-      setOnlineUsers(new Set(userIds));
+      console.log('👥 Online users:', userIds);
+      const onlineSet = new Set(userIds);
+      setOnlineUsers(onlineSet);
 
-      // Update friends list with online status
+      // Update all friends with online status instantly
       setFriends(prev => prev.map(friend => ({
         ...friend,
-        isOnline: userIds.includes(friend.id)
+        isOnline: onlineSet.has(friend.id),
+        status: onlineSet.has(friend.id) ? 'online' : 'offline'
       })));
+    });
+
+    newSocket.on('userLastSeen', (data) => {
+      console.log('🕒 User last seen:', data);
+      setLastSeenTimestamps(prev => ({
+        ...prev,
+        [data.userId]: data.lastSeen
+      }));
+
+      setFriends(prev => prev.map(friend => {
+        if (friend.id === data.userId) {
+          return {
+            ...friend,
+            lastSeen: data.lastSeen,
+            isOnline: false
+          };
+        }
+        return friend;
+      }));
     });
 
     // Handle new messages
     newSocket.on('newMessage', (message) => {
       console.log('📨 New message received:', message);
+
+      // Update unread count if message is not from current user and not in current chat
+      const isCurrentChat = selectedFriend && message.chatId === selectedFriend.chatId;
+      const isMyMessage = message.sender._id === userId;
+
+      if (!isMyMessage && !isCurrentChat) {
+        // Increment unread count for the friend
+        setFriends(prev => prev.map(friend => {
+          if (friend.chatId === message.chatId) {
+            return {
+              ...friend,
+              unreadCount: (friend.unreadCount || 0) + 1,
+              lastMessagePreview: {
+                text: getMessagePreviewText(message),
+                time: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                isMe: false,
+                isDeletedForMe: message.deletedFor?.includes(userId)
+              }
+            };
+          }
+          return friend;
+        }));
+      }
 
       if (selectedFriend && message.chatId === selectedFriend.chatId) {
         const newMsg = transformMessage(message);
@@ -121,34 +212,7 @@ const MessageModel = () => {
         }
       }
 
-      // Update last message preview for the friend
-      setFriends(prev => prev.map(friend => {
-        if (friend.chatId === message.chatId) {
-          return {
-            ...friend,
-            lastMessagePreview: {
-              text: getMessagePreviewText(message),
-              time: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              isMe: message.sender._id === userId,
-              isDeletedForMe: message.deletedFor?.includes(userId)
-            }
-          };
-        }
-        return friend;
-      }));
-    });
-
-    // Handle incoming message notifications
-    newSocket.on('incomingMessage', (message) => {
-      console.log('📢 Incoming message notification:', message);
-
-      if (selectedFriend && message.chatId === selectedFriend.chatId) {
-        const newMsg = transformMessage(message);
-        setMessages(prev => [...prev, newMsg]);
-        markAsRead(selectedFriend.chatId);
-      }
-
-      // Update last message preview
+      // Update last message preview for the friend (for current chat too)
       setFriends(prev => prev.map(friend => {
         if (friend.chatId === message.chatId) {
           return {
@@ -166,23 +230,6 @@ const MessageModel = () => {
     });
 
     // Handle message deletion
-    newSocket.on('messageRemoved', (data) => {
-      console.log('🗑️ Message removed:', data);
-      if (selectedFriend && data.chatId === selectedFriend.chatId) {
-        setMessages(prev => prev.map(msg =>
-          msg.id === data.messageId
-            ? {
-              ...msg,
-              text: 'This message was deleted',
-              type: 'deleted',
-              mediaUrl: null,
-              isDeletedForMe: true
-            }
-            : msg
-        ));
-      }
-    });
-
     newSocket.on('messageDeleted', (data) => {
       console.log('🗑️ Message deleted:', data);
       if (selectedFriend && data.chatId === selectedFriend.chatId) {
@@ -256,17 +303,6 @@ const MessageModel = () => {
     });
 
     // Handle read receipts
-    newSocket.on('messagesMarkedRead', (data) => {
-      console.log('👀 Messages marked read:', data);
-      if (selectedFriend && data.chatId === selectedFriend.chatId) {
-        setMessages(prev => prev.map(msg =>
-          data.messageIds.includes(msg.id)
-            ? { ...msg, status: 'read' }
-            : msg
-        ));
-      }
-    });
-
     newSocket.on('messagesRead', (data) => {
       console.log('👀 Messages read:', data);
       if (selectedFriend && data.chatId === selectedFriend.chatId) {
@@ -290,28 +326,37 @@ const MessageModel = () => {
       }
     });
 
-    // Handle user joined/left chat
-    newSocket.on('userJoinedChat', (data) => {
-      console.log('👋 User joined chat:', data);
-    });
-
-    newSocket.on('userLeftChat', (data) => {
-      console.log('👋 User left chat:', data);
-    });
-
-    // Handle pong for heartbeat
+    // Heartbeat for connection monitoring
     newSocket.on('pong', () => {
       console.log('❤️ Heartbeat received');
     });
 
     setSocket(newSocket);
 
+    // Cleanup on unmount
     return () => {
-      newSocket.close();
+      console.log('🧹 Cleaning up socket connection');
+      if (newSocket) {
+        newSocket.emit('userOffline', userId);
+        newSocket.close();
+      }
       clearTimeout(typingTimeoutRef.current);
       clearTimeout(typingTimeout);
     };
   }, [userId, selectedFriend]);
+
+  // Enhanced status update effect for instant updates
+  useEffect(() => {
+    if (!socket || !userId) return;
+
+    // Update friends list with current online status whenever onlineUsers changes
+    setFriends(prev => prev.map(friend => ({
+      ...friend,
+      isOnline: onlineUsers.has(friend.id),
+      status: onlineUsers.has(friend.id) ? 'online' : 'offline'
+    })));
+
+  }, [onlineUsers, socket, userId]);
 
   // Fetch blocked users
   const fetchBlockedUsers = async () => {
@@ -384,7 +429,7 @@ const MessageModel = () => {
     return msg.text?.trim() || msg.content?.text?.trim() || '[No content]';
   };
 
-  // Handle typing events
+  // Enhanced typing handler with better performance
   const handleTyping = () => {
     if (!socket || !selectedFriend || isChatBlocked) return;
 
@@ -393,6 +438,7 @@ const MessageModel = () => {
       socket.emit('typing', {
         chatId: selectedFriend.chatId,
         userId: userId,
+        userName: userName,
         isTyping: true
       });
     }
@@ -408,6 +454,7 @@ const MessageModel = () => {
       socket.emit('typing', {
         chatId: selectedFriend.chatId,
         userId: userId,
+        userName: userName,
         isTyping: false
       });
     }, 1000);
@@ -415,7 +462,7 @@ const MessageModel = () => {
     setTypingTimeout(timeout);
   };
 
-  // Fetch friends + last message on mount
+  // Enhanced friends fetching with better status handling
   useEffect(() => {
     if (!userId) {
       setError('User not logged in');
@@ -437,7 +484,9 @@ const MessageModel = () => {
           name: f.fullName,
           avatar: (f?.image || '').trim() || f.fullName.split(' ').map(n => n[0]).join('').toUpperCase(),
           email: f.email,
-          isOnline: false
+          isOnline: onlineUsers.has(f._id), // Set initial online status
+          lastSeen: f.lastSeen,
+          status: onlineUsers.has(f._id) ? 'online' : 'offline'
         }));
 
         const friendsWithChatAndLastMsg = await Promise.all(
@@ -450,10 +499,14 @@ const MessageModel = () => {
                 body: JSON.stringify({ userId, targetId: friend.id }),
               });
               const chatData = await chatRes.json();
+              console.log('Chat response for friend', friend.id, chatData.data);
               if (!chatRes.ok || !chatData.success) {
-                return { ...friend, chatId: null, lastMessagePreview: null };
+                return { ...friend, chatId: null, lastMessagePreview: null, unreadCount: 0 };
               }
+              setIsChatBlocked(chatData.data.isBlocked);
+              setBlockedBy(chatData.data.blockedBy);
               const chatId = chatData.data._id;
+              console.log('Chat ID for friend', friend.id, chatId);
 
               // Join chat room
               if (socket) {
@@ -461,7 +514,7 @@ const MessageModel = () => {
               }
 
               // Get last message
-              const lastMsgRes = await fetch(`${API_BASE}/messages/last?chatId=${chatId}`);
+              const lastMsgRes = await fetch(`${API_BASE}/messages/last/${chatId}`);
               console.log('Last message response for chat', chatId, lastMsgRes);
               const lastMsgData = await lastMsgRes.json();
               let lastMessagePreview = null;
@@ -475,10 +528,22 @@ const MessageModel = () => {
                 };
               }
 
-              return { ...friend, chatId, lastMessagePreview };
+              // Get unread message count for this chat
+              let unreadCount = 0;
+              try {
+                const unreadRes = await fetch(`${API_BASE}/messages/unread/count/${userId}/${chatId}`);
+                const unreadData = await unreadRes.json();
+                if (unreadRes.ok && unreadData.success) {
+                  unreadCount = unreadData.data.unreadCount || 0;
+                }
+              } catch (err) {
+                console.warn(`Failed to get unread count for ${friend.name}:`, err);
+              }
+
+              return { ...friend, chatId, lastMessagePreview, unreadCount };
             } catch (err) {
               console.warn(`Failed to enrich friend ${friend.id}`, err);
-              return { ...friend, chatId: null, lastMessagePreview: null };
+              return { ...friend, chatId: null, lastMessagePreview: null, unreadCount: 0 };
             }
           })
         );
@@ -493,7 +558,7 @@ const MessageModel = () => {
     };
 
     fetchFriends();
-  }, [userId, socket]);
+  }, [userId, socket, onlineUsers]); // Added onlineUsers dependency for instant updates
 
   // Handle window resize
   useEffect(() => {
@@ -551,8 +616,8 @@ const MessageModel = () => {
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
-          setIsChatBlocked(data.isBlocked);
-          setBlockedBy(data.blockedBy);
+          // setIsChatBlocked(data.isBlocked);
+          // setBlockedBy(data.blockedBy);
         }
       }
     } catch (err) {
@@ -588,6 +653,14 @@ const MessageModel = () => {
           body: JSON.stringify({ chatId, userId }),
         });
 
+        // Reset unread count for this chat in friends list
+        setFriends(prev => prev.map(friend => {
+          if (friend.chatId === chatId) {
+            return { ...friend, unreadCount: 0 };
+          }
+          return friend;
+        }));
+
         // Emit read receipt via socket
         if (socket) {
           // Get unread message IDs for this chat
@@ -620,8 +693,14 @@ const MessageModel = () => {
 
     setMessages([]);        // reset messages
     setSelectedFriend(friend); // triggers useEffect
-  };
 
+    // Reset unread count for selected friend immediately in UI
+    setFriends(prev => prev.map(f =>
+      f.id === friend.id
+        ? { ...f, unreadCount: 0 }
+        : f
+    ));
+  };
 
   useEffect(() => {
     if (!selectedFriend) return;
@@ -638,7 +717,6 @@ const MessageModel = () => {
     checkChatBlockStatus(chatId);
 
   }, [selectedFriend]);
-
 
   // Block/Unblock user
   const handleBlockUser = async () => {
@@ -898,15 +976,27 @@ const MessageModel = () => {
     });
   };
 
-  // Get status indicator color
+  // Enhanced status indicator with better real-time updates
   const getStatusColor = (friend) => {
     if (friend.isOnline) return 'bg-green-500';
     return 'bg-gray-400';
   };
 
-  // Get status text
+  // Enhanced status text with last seen
   const getStatusText = (friend) => {
     if (friend.isOnline) return 'Online';
+    if (friend.lastSeen) {
+      return `Last seen ${formatLastSeen(friend.lastSeen)}`;
+    }
+    return 'Offline';
+  };
+
+  // Enhanced status for chat header
+  const getChatStatusText = (friend) => {
+    if (friend.isOnline) return 'Online';
+    if (friend.lastSeen) {
+      return `Last seen ${formatLastSeen(friend.lastSeen)}`;
+    }
     return 'Offline';
   };
 
@@ -1034,11 +1124,16 @@ const MessageModel = () => {
                   ) : (
                     getFilteredFriendsWithMessages().map((friend) => {
                       const lastMsg = friend.lastMessagePreview;
+                      const hasUnread = friend.unreadCount > 0;
+
                       return (
                         <div
                           key={friend.id}
                           onClick={() => handleSelectFriend(friend)}
-                          className={`flex items-center p-3 rounded-lg cursor-pointer transition-all mb-1 ${selectedFriend?.id === friend.id ? 'bg-gradient-to-br from-orange-500/10 to-orange-600/10 border border-orange-500/20' : 'hover:bg-orange-500/5'}`}
+                          className={`flex items-center p-3 rounded-lg cursor-pointer transition-all mb-1 ${selectedFriend?.id === friend.id
+                              ? 'bg-gradient-to-br from-orange-500/10 to-orange-600/10 border border-orange-500/20'
+                              : 'hover:bg-orange-500/5'
+                            } ${hasUnread ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}`}
                         >
                           <div className="relative mr-3">
                             {friend.avatar.startsWith('http') ? (
@@ -1055,18 +1150,29 @@ const MessageModel = () => {
                             <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white ${getStatusColor(friend)}`} />
                           </div>
                           <div className="flex-1 min-w-0 mr-2">
-                            <div className="font-semibold text-gray-800 truncate">{friend.name}</div>
+                            <div className="flex items-center justify-between">
+                              <div className="font-semibold text-gray-800 truncate">{friend.name}</div>
+                              {lastMsg && (
+                                <div className="text-xs text-gray-500 whitespace-nowrap ml-2">
+                                  {lastMsg.time}
+                                </div>
+                              )}
+                            </div>
                             {lastMsg ? (
-                              <div className={`text-sm truncate ${lastMsg.isDeletedForMe ? 'text-gray-500 italic' : 'text-gray-500'}`}>
+                              <div className={`text-sm truncate ${lastMsg.isDeletedForMe ? 'text-gray-500 italic' : 'text-gray-500'} ${hasUnread ? 'font-semibold text-gray-800' : ''}`}>
                                 {lastMsg.isMe ? 'You: ' : ''}{lastMsg.text}
                               </div>
                             ) : (
-                              <div className="text-sm text-gray-400 truncate">No messages yet</div>
+                              <div className={`${hasUnread ? "text-sm fw-bold text-black-400 truncate" : "text-sm text-gray-400 truncate"}`}>{hasUnread ? "new messages" : "No new messages"}</div>
                             )}
                           </div>
-                          {lastMsg && (
-                            <div className="text-xs text-gray-500 whitespace-nowrap">
-                              {lastMsg.time}
+
+                          {/* Unread message counter */}
+                          {hasUnread && (
+                            <div className="flex-shrink-0 ml-2">
+                              <div className="bg-orange-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-semibold">
+                                {friend.unreadCount > 99 ? '99+' : friend.unreadCount}
+                              </div>
                             </div>
                           )}
                         </div>
@@ -1110,10 +1216,7 @@ const MessageModel = () => {
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold text-gray-800 truncate">{selectedFriend.name}</div>
                     <div className="text-sm text-gray-500">
-                      {selectedFriend.isOnline ? 'Online' : 'Offline'}
-                      {/* {typingUsers[selectedFriend.chatId] && (
-                        <span className="text-orange-500 ml-2">• {typingUsers[selectedFriend.chatId]} is typing...</span>
-                      )} */}
+                      {getChatStatusText(selectedFriend)}
                       {isChatBlocked && ` • Chat ${blockedBy === userId ? 'blocked by you' : 'blocked by user'}`}
                     </div>
                   </div>
@@ -1308,11 +1411,6 @@ const MessageModel = () => {
                             />
                           ) : (
                             <div></div>
-                            // <video
-                            //   src={mediaPreview.url}
-                            //   controls
-                            //   className="max-h-32 rounded-lg object-cover border border-gray-300"
-                            // />
                           )}
                           <button
                             onClick={() => {
@@ -1329,15 +1427,14 @@ const MessageModel = () => {
                     {/* Typing Indicator Above Input */}
                     {typingUsers[selectedFriend.chatId] && !isChatBlocked && (
                       <div className="flex items-center mb-2 px-2 text-sm text-orange-500">
-                        typing
-                        <span className="flex ml-2 space-x-1">
+                        typing  
+                        <span className="flex ml-2 ms-2 space-x-1">
                           <span className="dot-typing"></span>
                           <span className="dot-typing animation-delay-200"></span>
                           <span className="dot-typing animation-delay-400"></span>
                         </span>
                       </div>
                     )}
-
 
                     <form onSubmit={handleSendMessage} className="flex items-center gap-2">
                       <input
@@ -1409,6 +1506,53 @@ const MessageModel = () => {
           )}
         </div>
       </div>
+
+      {/* Add CSS for typing animation */}
+      <style jsx>{`
+        .dot-typing {
+          position: relative;
+          left: -9999px;
+          width: 4px;
+          height: 4px;
+          border-radius: 50%;
+          background-color: #f97316;
+          color: #f97316;
+          box-shadow: 9984px 0 0 0 #f97316, 9999px 0 0 0 #f97316, 10014px 0 0 0 #f97316;
+          animation: dot-typing 1.5s infinite linear;
+        }
+
+        .animation-delay-200 {
+          animation-delay: 0.2s;
+        }
+
+        .animation-delay-400 {
+          animation-delay: 0.4s;
+        }
+
+        @keyframes dot-typing {
+          0% {
+            box-shadow: 9984px 0 0 0 #f97316, 9999px 0 0 0 #f97316, 10014px 0 0 0 #f97316;
+          }
+          16.667% {
+            box-shadow: 9984px -10px 0 0 #f97316, 9999px 0 0 0 #f97316, 10014px 0 0 0 #f97316;
+          }
+          33.333% {
+            box-shadow: 9984px 0 0 0 #f97316, 9999px 0 0 0 #f97316, 10014px 0 0 0 #f97316;
+          }
+          50% {
+            box-shadow: 9984px 0 0 0 #f97316, 9999px -10px 0 0 #f97316, 10014px 0 0 0 #f97316;
+          }
+          66.667% {
+            box-shadow: 9984px 0 0 0 #f97316, 9999px 0 0 0 #f97316, 10014px 0 0 0 #f97316;
+          }
+          83.333% {
+            box-shadow: 9984px 0 0 0 #f97316, 9999px 0 0 0 #f97316, 10014px -10px 0 0 #f97316;
+          }
+          100% {
+            box-shadow: 9984px 0 0 0 #f97316, 9999px 0 0 0 #f97316, 10014px 0 0 0 #f97316;
+          }
+        }
+      `}</style>
     </div>
   );
 };

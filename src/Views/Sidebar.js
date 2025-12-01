@@ -45,12 +45,12 @@ const Sidebar = () => {
         `https://apisocial.atozkeysolution.com/api/notifications/all-live/${userId}`
       );
       if (notifRes.data.success) {
-        setNotificationCount(notifRes.data.data.counts.unread || 0);
+        setNotificationCount(notifRes.data.data.counts.unread || 0); {/* user.unreadItems */}
       }
 
       // Fetch unread messages count
       const msgRes = await axios.get(
-        `https://apisocial.atozkeysolution.com/api/messages/unread/${userId}`
+        `https://apisocial.atozkeysolution.com/api/messages/unread/count/${userId}`
       );
       if (msgRes.data.success && msgRes.data.data?.unreadCount !== undefined) {
         setMessageCount(msgRes.data.data.unreadCount);
@@ -554,7 +554,7 @@ const Sidebar = () => {
         <div
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
           style={{
-            zIndex: 2000,
+            zIndex: 9999,
             background: "rgba(0,0,0,0.7)",
             backdropFilter: "blur(10px)",
           }}
