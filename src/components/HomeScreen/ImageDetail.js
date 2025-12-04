@@ -316,95 +316,6 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
     }
   };
 
-  // ---------- ALTERNATIVE FOLLOW HANDLER USING SEPARATE ENDPOINTS ----------
-  const handleFollowAlternative = async () => {
-    if (!currentUserId) {
-      alert("You must be logged in.");
-      return;
-    }
-
-    if (image.userId?._id === currentUserId) {
-      alert("You cannot follow yourself.");
-      return;
-    }
-
-    try {
-      setLoadingFollow(true);
-      let endpoint = "";
-      let body = {};
-
-      switch (followStatus) {
-        case "following":
-          endpoint = `${API_BASE}/unfollow`;
-          body = {
-            userId: image.userId?._id,
-            followerId: currentUserId,
-          };
-          break;
-
-        case "requested":
-          endpoint = `${API_BASE}/requests/cancel`;
-          body = {
-            userId: image.userId?._id,
-            followerId: currentUserId,
-          };
-          break;
-
-        case "incoming":
-          endpoint = `${API_BASE}/requests/accept`;
-          body = {
-            requestId: image.userId?._id, // The user who sent the request
-            userId: currentUserId, // Current user accepting
-          };
-          break;
-
-        case "none":
-        default:
-          endpoint = `${API_BASE}/follow`;
-          body = {
-            userId: image.userId?._id,
-            followerId: currentUserId,
-          };
-          break;
-      }
-
-      console.log("Using alternative endpoint:", endpoint);
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      const data = await res.json();
-      console.log("Response:", data);
-
-      if (data.success) {
-        // Update follow status based on response
-        if (endpoint.includes("unfollow") || endpoint.includes("cancel")) {
-          setFollowStatus("none");
-        } else if (endpoint.includes("accept")) {
-          setFollowStatus("following");
-        } else if (endpoint.includes("follow") || endpoint.includes("send-request")) {
-          setFollowStatus("requested");
-        }
-        
-        // Refresh requests
-        const requestsRes = await fetch(`${API_BASE}/requests/all`);
-        const requestsData = await requestsRes.json();
-        if (requestsData.success) {
-          setAllRequests(requestsData.allRequests || []);
-        }
-      } else {
-        alert(data.message || "Failed to update follow status.");
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      alert("Network error while updating follow status.");
-    } finally {
-      setLoadingFollow(false);
-    }
-  };
-
   // ---------- SAVE / UNSAVE ----------
   const handleSave = async () => {
     if (!currentUserId) return alert("You must be logged in.");
@@ -536,7 +447,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
   const getFollowButtonClass = () => {
     switch (followStatus) {
       case "following":
-        return "btn-outline-danger";
+        return "btn-outline-secondary";
       case "requested":
         return "btn-outline-secondary";
       case "incoming":
@@ -560,149 +471,429 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
   const mediaUrl = image.media?.[0]?.url?.trim();
 
   return (
-    <div className="image-detail-container d-flex flex-column" style={{ height: "100%" }}>
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h5 className="mb-0">Post Details</h5>
-        <button
-          className="btn btn-sm btn-outline-secondary rounded-circle"
-          onClick={onBack}
-        >
-          ✕
-        </button>
-      </div>
-
-      {/* Media */}
-      <div
-        className="rounded mb-3 overflow-hidden bg-dark d-flex align-items-center justify-content-center"
-        style={{ height: "250px" }}
-      >
-        {mediaType?.includes("video") ? (
-          <video
-            src={mediaUrl}
-            controls
-            className="w-100 h-100"
-            style={{ objectFit: "contain" }}
-          />
-        ) : (
-          <img
-            src={mediaUrl}
-            alt={image.description || "Post"}
-            className="w-100 h-100"
-            style={{ objectFit: "contain" }}
-          />
-        )}
-      </div>
-
-      <p className="fw-medium mb-3">
-        {image.description || "No description available"}
-      </p>
-
-      {/* Like & Save Buttons */}
-      <div className="d-flex gap-3 mb-3">
-        <button
-          className="btn btn-sm d-flex align-items-center gap-1"
-          onClick={handleLike}
-          disabled={loadingLike}
-        >
-          <i
-            className={`bi ${isLiked ? "bi-heart-fill text-danger" : "bi-heart"
-              }`}
-          ></i>
-          {likes.length} Likes
-        </button>
-
-        <button
-          className="btn btn-sm d-flex align-items-center gap-1"
-          onClick={handleSave}
-          disabled={loadingSave}
-        >
-          <i
-            className={`bi ${isSaved ? "bi-bookmark-fill text-primary" : "bi-bookmark"
-              }`}
-          ></i>
-          {isSaved ? "Saved" : "Save"}
-        </button>
-      </div>
-
-      {/* User Info */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div
-          className="d-flex align-items-center"
-          onClick={() => handleProfile(image.userId?._id)}
-          style={{ cursor: "pointer" }}
-        >
-          {renderAvatar(image.userId, 36)}
-          <span className="fw-bold">{image.userId?.fullName || "Anonymous"}</span>
-        </div>
-
-        {/* Follow Button */}
-        {followStatus !== "self" && (
-          <button
-            className={`btn btn-sm ${getFollowButtonClass()}`}
-            onClick={handleFollow} 
-            disabled={loadingFollow}
-          >
-            {getFollowButtonText()}
-          </button>
-        )}
-      </div>
-
-      {/* Debug Info (remove in production) */}
-      <div className="small text-muted mb-2">
-        Follow Status: {followStatus}
-      </div>
-
-      {/* Comments Section */}
-      <div
-        className="flex-grow-1 overflow-auto mb-3"
-        style={{ maxHeight: "300px" }}
-      >
-        <h6 className="mb-2">Comments ({comments.length})</h6>
-        {comments.map((comment) => (
-          <div key={comment._id} className="mb-2 p-2 bg-light rounded">
-            <div className="d-flex align-items-start">
-              {renderAvatar(comment.userId, 28)}
+    <>
+      {/* Mobile Modal Overlay */}
+      <div className="modal-overlay d-block d-lg-none" style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.35)',
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px'
+      }}>
+        {/* Mobile Modal Content */}
+        <div className="mobile-modal-content" style={{
+          backgroundColor: '#fff',
+          borderRadius: '20px',
+          width: '100%',
+          maxWidth: '500px',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+        }}>
+          {/* Header */}
+          <div className="modal-header" style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '18px 20px',
+            borderBottom: '1px solid #f0f0f0',
+            position: 'sticky',
+            top: 0,
+            backgroundColor: '#fff',
+            zIndex: 1
+          }}>
+            <div className="d-flex align-items-center">
+              <div 
+                onClick={() => handleProfile(image.userId?._id)}
+                style={{ cursor: 'pointer' }}
+              >
+                {renderAvatar(image.userId, 40)}
+              </div>
               <div>
-                <div className="fw-bold">
-                  {comment.userId?.fullName || "Anonymous"}
-                </div>
-                <div>{comment.text}</div>
+                <h6 className="mb-0 fw-bold">{image.userId?.fullName || "Anonymous"}</h6>
+                <small className="text-muted">@{image.userId?.profile?.username || "user"}</small>
               </div>
             </div>
+            <button
+              onClick={onBack}
+              className="btn btn-sm rounded-circle"
+              style={{
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '18px',
+                backgroundColor: '#f8f9fa',
+                border: 'none'
+              }}
+            >
+              ✕
+            </button>
           </div>
-        ))}
+
+          {/* Media Container */}
+          <div className="media-container" style={{
+            flex: '0 0 auto',
+            maxHeight: '50vh',
+            overflow: 'hidden',
+            backgroundColor: '#000'
+          }}>
+            {mediaType?.includes("video") ? (
+              <video
+                src={mediaUrl}
+                controls
+                className="w-100"
+                style={{ 
+                  maxHeight: '50vh',
+                  objectFit: 'contain'
+                }}
+              />
+            ) : (
+              <img
+                src={mediaUrl}
+                alt={image.description || "Post"}
+                className="w-100"
+                style={{ 
+                  maxHeight: '50vh',
+                  objectFit: 'contain'
+                }}
+              />
+            )}
+          </div>
+
+          {/* Content Area with Scroll */}
+          <div className="content-area" style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '20px'
+          }}>
+            {/* Actions Row */}
+            <div className="actions-row d-flex justify-content-between align-items-center mb-3">
+              <div className="d-flex gap-3">
+                <button
+                  onClick={handleLike}
+                  disabled={loadingLike}
+                  className="btn p-0"
+                  style={{ fontSize: '24px', color: isLiked ? '#ff4757' : '#6c757d' }}
+                >
+                  <i className={`bi ${isLiked ? "bi-heart-fill" : "bi-heart"}`}></i>
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={loadingSave}
+                  className="btn p-0"
+                  style={{ fontSize: '24px', color: isSaved ? '#1e90ff' : '#6c757d' }}
+                >
+                  <i className={`bi ${isSaved ? "bi-bookmark-fill" : "bi-bookmark"}`}></i>
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="btn p-0"
+                  style={{ fontSize: '24px', color: '#6c757d' }}
+                >
+                  <i className="bi bi-download"></i>
+                </button>
+              </div>
+              
+              {followStatus !== "self" && (
+                <button
+                  className={`btn btn-sm ${getFollowButtonClass()} rounded-pill px-3 py-1`}
+                  onClick={handleFollow}
+                  disabled={loadingFollow}
+                  style={{
+                    minWidth: '100px'
+                  }}
+                >
+                  {getFollowButtonText()}
+                </button>
+              )}
+            </div>
+
+            {/* Likes Count */}
+            <div className="likes-count mb-3">
+              <strong>{likes.length} {likes.length === 1 ? 'like' : 'likes'}</strong>
+            </div>
+
+            {/* Description */}
+            <div className="description mb-4">
+              <p className="mb-0" style={{ lineHeight: '1.5' }}>
+                <strong>{image.userId?.fullName || "Anonymous"}</strong> {image.description || "No description"}
+              </p>
+              <small className="text-muted">{new Date(image.createdAt).toLocaleDateString()}</small>
+            </div>
+
+            {/* Comments Section */}
+            <div className="comments-section mb-4">
+              <h6 className="fw-bold mb-3">Comments ({comments.length})</h6>
+              {comments.length > 0 ? (
+                <div className="comments-list">
+                  {comments.map((comment) => (
+                    <div key={comment._id} className="comment-item mb-3">
+                      <div className="d-flex">
+                        {renderAvatar(comment.userId, 32)}
+                        <div className="flex-grow-1">
+                          <div className="d-flex align-items-center gap-2 mb-1">
+                            <strong className="small">{comment.userId?.fullName || "Anonymous"}</strong>
+                            <small className="text-muted">{new Date(comment.createdAt).toLocaleDateString()}</small>
+                          </div>
+                          <p className="mb-0 small">{comment.text}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-muted py-3">
+                  <i className="bi bi-chat-dots fs-4 mb-2 d-block"></i>
+                  <p className="mb-0">No comments yet</p>
+                  <small>Be the first to comment</small>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Comment Input Fixed at Bottom */}
+          <div className="comment-input-container" style={{
+            padding: '16px 20px',
+            borderTop: '1px solid #f0f0f0',
+            backgroundColor: '#fff'
+          }}>
+            <form onSubmit={handleCommentSubmit} className="d-flex gap-2">
+              <input
+                type="text"
+                className="form-control form-control-sm rounded-pill"
+                placeholder="Add a comment..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                disabled={loadingComment}
+                style={{
+                  flex: 1,
+                  padding: '8px 16px'
+                }}
+              />
+              <button
+                type="submit"
+                className="btn btn-primary btn-sm rounded-pill px-3"
+                disabled={!newComment.trim() || loadingComment}
+              >
+                {loadingComment ? '...' : 'Post'}
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
 
-      {/* Add Comment */}
-      <form onSubmit={handleCommentSubmit} className="mt-auto">
-        <div className="input-group">
-          <input
-            type="text"
-            className="form-control form-control-sm"
-            placeholder="Add a comment..."
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            disabled={loadingComment}
-          />
+      {/* Desktop View (Original) */}
+      <div className="image-detail-container d-none d-lg-flex flex-column" style={{ height: "100%" }}>
+        {/* Keep the original desktop code here */}
+        {/* Header */}
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h5 className="mb-0">Post Details</h5>
           <button
-            className="btn btn-primary btn-sm"
-            type="submit"
-            disabled={!newComment.trim() || loadingComment}
+            className="btn btn-sm btn-outline-secondary rounded-circle"
+            onClick={onBack}
           >
-            {loadingComment ? "Posting..." : "Post"}
+            ✕
           </button>
         </div>
-      </form>
 
-      {/* Download Button */}
-      <button
-        className="btn btn-primary w-100 mt-3 rounded-pill py-2"
-        onClick={handleDownload}
-      >
-        Download {mediaType?.includes("video") ? "Video" : "Image"}
-      </button>
-    </div>
+        {/* Media */}
+        <div
+          className="rounded mb-3 overflow-hidden bg-dark d-flex align-items-center justify-content-center"
+          style={{ height: "250px" }}
+        >
+          {mediaType?.includes("video") ? (
+            <video
+              src={mediaUrl}
+              controls
+              className="w-100 h-100"
+              style={{ objectFit: "contain" }}
+            />
+          ) : (
+            <img
+              src={mediaUrl}
+              alt={image.description || "Post"}
+              className="w-100 h-100"
+              style={{ objectFit: "contain" }}
+            />
+          )}
+        </div>
+
+        <p className="fw-medium mb-3">
+          {image.description || "No description available"}
+        </p>
+
+        {/* Like & Save Buttons */}
+        <div className="d-flex gap-3 mb-3">
+          <button
+            className="btn btn-sm d-flex align-items-center gap-1"
+            onClick={handleLike}
+            disabled={loadingLike}
+          >
+            <i
+              className={`bi ${isLiked ? "bi-heart-fill text-danger" : "bi-heart"
+                }`}
+            ></i>
+            {likes.length} Likes
+          </button>
+
+          <button
+            className="btn btn-sm d-flex align-items-center gap-1"
+            onClick={handleSave}
+            disabled={loadingSave}
+          >
+            <i
+              className={`bi ${isSaved ? "bi-bookmark-fill text-primary" : "bi-bookmark"
+                }`}
+            ></i>
+            {isSaved ? "Saved" : "Save"}
+          </button>
+        </div>
+
+        {/* User Info */}
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <div
+            className="d-flex align-items-center"
+            onClick={() => handleProfile(image.userId?._id)}
+            style={{ cursor: "pointer" }}
+          >
+            {renderAvatar(image.userId, 36)}
+            <span className="fw-bold">{image.userId?.fullName || "Anonymous"}</span>
+          </div>
+
+          {/* Follow Button */}
+          {followStatus !== "self" && (
+            <button
+              className={`btn btn-sm ${getFollowButtonClass()}`}
+              onClick={handleFollow} 
+              disabled={loadingFollow}
+            >
+              {getFollowButtonText()}
+            </button>
+          )}
+        </div>
+
+        {/* Debug Info (remove in production) */}
+        <div className="small text-muted mb-2">
+          Follow Status: {followStatus}
+        </div>
+
+        {/* Comments Section */}
+        <div
+          className="flex-grow-1 overflow-auto mb-3"
+          style={{ maxHeight: "300px" }}
+        >
+          <h6 className="mb-2">Comments ({comments.length})</h6>
+          {comments.map((comment) => (
+            <div key={comment._id} className="mb-2 p-2 bg-light rounded">
+              <div className="d-flex align-items-start">
+                {renderAvatar(comment.userId, 28)}
+                <div>
+                  <div className="fw-bold">
+                    {comment.userId?.fullName || "Anonymous"}
+                  </div>
+                  <div>{comment.text}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Add Comment */}
+        <form onSubmit={handleCommentSubmit} className="mt-auto">
+          <div className="input-group">
+            <input
+              type="text"
+              className="form-control form-control-sm"
+              placeholder="Add a comment..."
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              disabled={loadingComment}
+            />
+            <button
+              className="btn btn-primary btn-sm"
+              type="submit"
+              disabled={!newComment.trim() || loadingComment}
+            >
+              {loadingComment ? "Posting..." : "Post"}
+            </button>
+          </div>
+        </form>
+
+        {/* Download Button */}
+        <button
+          className="btn btn-primary w-100 mt-3 rounded-pill py-2"
+          onClick={handleDownload}
+        >
+          Download {mediaType?.includes("video") ? "Video" : "Image"}
+        </button>
+      </div>
+
+      {/* Mobile Styles */}
+      <style>{`
+        @media (max-width: 991px) {
+          .modal-overlay {
+            animation: fadeIn 0.3s ease;
+          }
+          
+          .mobile-modal-content {
+            animation: slideUp 0.3s ease;
+          }
+          
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          
+          @keyframes slideUp {
+            from { 
+              opacity: 0;
+              transform: translateY(50px);
+            }
+            to { 
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          
+          .content-area::-webkit-scrollbar {
+            width: 4px;
+          }
+          
+          .content-area::-webkit-scrollbar-track {
+            background: #f1f1f1;
+          }
+          
+          .content-area::-webkit-scrollbar-thumb {
+            background: #ddd;
+            border-radius: 2px;
+          }
+          
+          .actions-row button:hover {
+            transform: scale(1.1);
+            transition: transform 0.2s ease;
+          }
+          
+          .comment-item {
+            padding-bottom: 12px;
+            border-bottom: 1px solid #f5f5f5;
+          }
+          
+          .comment-item:last-child {
+            border-bottom: none;
+          }
+        }
+      `}</style>
+    </>
   );
 };
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Send, MoreVertical, ArrowLeft, MessageSquare, X, Paperclip, Trash2, UserX, UserCheck, Download } from 'lucide-react';
 import io from 'socket.io-client';
+import { useNavigate } from 'react-router-dom';
 
 const MessageModel = () => {
   const [activeTab, setActiveTab] = useState('messages');
@@ -28,6 +29,8 @@ const MessageModel = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [typingTimeout, setTypingTimeout] = useState(null);
   const [lastSeenTimestamps, setLastSeenTimestamps] = useState({});
+  const [showChatMenu, setShowChatMenu] = useState(false);
+
 
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -38,6 +41,8 @@ const MessageModel = () => {
   const storedUser = JSON.parse(sessionStorage.getItem('userData') || '{}');
   const userId = storedUser?.userId;
   const userName = storedUser?.fullName || 'You';
+
+  const navigate = useNavigate();
 
   const API_BASE = 'https://apisocial.atozkeysolution.com/api';
   const SOCKET_URL = 'https://apisocial.atozkeysolution.com';
@@ -690,6 +695,10 @@ const MessageModel = () => {
     if (selectedFriend && socket) {
       socket.emit("leaveChat", selectedFriend.chatId);
     }
+    if (isMobileView) {
+    setIsMobileSidebarOpen(false);
+  }
+
 
     setMessages([]);        // reset messages
     setSelectedFriend(friend); // triggers useEffect
@@ -1131,8 +1140,8 @@ const MessageModel = () => {
                           key={friend.id}
                           onClick={() => handleSelectFriend(friend)}
                           className={`flex items-center p-3 rounded-lg cursor-pointer transition-all mb-1 ${selectedFriend?.id === friend.id
-                              ? 'bg-gradient-to-br from-orange-500/10 to-orange-600/10 border border-orange-500/20'
-                              : 'hover:bg-orange-500/5'
+                            ? 'bg-gradient-to-br from-orange-500/10 to-orange-600/10 border border-orange-500/20'
+                            : 'hover:bg-orange-500/5'
                             } ${hasUnread ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}`}
                         >
                           <div className="relative mr-3">
@@ -1221,26 +1230,15 @@ const MessageModel = () => {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {isChatBlocked ? (
-                    <button
-                      onClick={handleUnblockUser}
-                      className="flex items-center text-green-600 hover:text-green-700 transition-colors"
-                      title="Unblock user"
-                    >
-                      <UserCheck size={18} />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleBlockUser}
-                      className="flex items-center text-red-500 hover:text-red-600 transition-colors"
-                      title="Block user"
-                    >
-                      <UserX size={18} />
-                    </button>
-                  )}
-                  <MoreVertical size={18} className="text-gray-500 cursor-pointer hover:text-gray-700" />
+                <div className="relative">
+                  <MoreVertical
+                    size={18}
+                    className="text-gray-500 cursor-pointer hover:text-gray-700"
+                    onClick={() => setShowChatMenu(true)}
+                  />
                 </div>
+
+
               </div>
 
               {isChatBlocked ? (
@@ -1427,7 +1425,7 @@ const MessageModel = () => {
                     {/* Typing Indicator Above Input */}
                     {typingUsers[selectedFriend.chatId] && !isChatBlocked && (
                       <div className="flex items-center mb-2 px-2 text-sm text-orange-500">
-                        typing  
+                        typing
                         <span className="flex ml-2 ms-2 space-x-1">
                           <span className="dot-typing"></span>
                           <span className="dot-typing animation-delay-200"></span>
@@ -1507,6 +1505,78 @@ const MessageModel = () => {
         </div>
       </div>
 
+      {/* Chat Options Modal */}
+      {showChatMenu && (
+        <div
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-end justify-center md:items-center z-[9999] animate-fadeIn"
+          onClick={() => setShowChatMenu(false)}
+        >
+          <div
+            className="relative bg-white rounded-t-2xl md:rounded-2xl w-full md:w-80 p-3 shadow-2xl animate-slideUp"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* X Close Button */}
+            <button
+              onClick={() => setShowChatMenu(false)}
+              className="absolute top-3 right-4 text-gray-500 hover:text-gray-700 transition"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Header */}
+            <h3 className="text-lg font-semibold text-gray-800 text-center mb-4">
+              Chat Options
+            </h3>
+
+            {/* Buttons */}
+            <div className="space-y-3">
+              {/* View Profile */}
+              <button
+                onClick={() => {
+                  navigate(`/userprofile/${selectedFriend.id}`);
+                  setShowChatMenu(false);
+                }}
+                className="w-full text-left px-4 py-3 text-sm rounded-xl bg-gray-100 hover:bg-gray-200 transition-all"
+              >
+                View Profile
+              </button>
+
+              {/* Block / Unblock */}
+              {isChatBlocked ? (
+                <button
+                  onClick={() => {
+                    handleUnblockUser();
+                    setShowChatMenu(false);
+                  }}
+                  className="w-full text-left px-4 py-3 text-sm rounded-xl bg-green-50 text-green-700 hover:bg-green-100 transition-all"
+                >
+                  Unblock User
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    handleBlockUser();
+                    setShowChatMenu(false);
+                  }}
+                  className="w-full text-left px-4 py-3 text-sm rounded-xl bg-red-50 text-red-700 hover:bg-red-100 transition-all"
+                >
+                  Block User
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+
       {/* Add CSS for typing animation */}
       <style jsx>{`
         .dot-typing {
@@ -1552,6 +1622,25 @@ const MessageModel = () => {
             box-shadow: 9984px 0 0 0 #f97316, 9999px 0 0 0 #f97316, 10014px 0 0 0 #f97316;
           }
         }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+          from { transform: translateY(20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+
+        .animate-fadeIn {
+          animation: fadeIn 0.2s ease-out;
+        }
+
+        .animate-slideUp {
+          animation: slideUp 0.25s ease-out;
+        }
+
       `}</style>
     </div>
   );

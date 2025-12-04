@@ -150,7 +150,7 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
                       />
 
                       <button
-                        className="z-[9999]"
+                        className="z-[999] image-hover-overlay"
                         onClick={(e) => toggleMute(e, img._id)}
                         style={{
                           position: "absolute",

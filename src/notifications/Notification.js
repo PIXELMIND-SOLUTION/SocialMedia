@@ -231,35 +231,37 @@ const Notifications = () => {
   };
 
   const deleteNotification = async (id) => {
-    console.log("Deleting notification with ID:", id);
+    const notificationId = typeof id === "object" ? id._id || id.id || String(id) : String(id);
+    console.log("Deleting notification:", notificationId);
+
     try {
-      const response = await fetch(`https://apisocial.atozkeysolution.com/api/notifications/${id}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const res = await fetch(
+        `https://apisocial.atozkeysolution.com/api/notifications/${notificationId}`,
+        { method: "DELETE" }
+      );
 
-      const data = await response.json();
+      const data = await res.json();
+      console.log("Delete response:", data);
 
-      if (data.success) {
-        setNotifications((prev) => prev.filter((notification) => notification._id !== id));
-
-        if (selectedNotification?._id === id) {
-          closeModal();
-        }
-
-        console.log("Notification deleted successfully");
-        fetchNotifications(); // Refresh notifications and counts
-      } else {
-        console.error("Failed to delete notification:", data.message || "Unknown error");
-        alert("Failed to delete notification. Please try again.");
+      if (!res.ok || !data.success) {
+        alert("❌ Delete failed: " + (data.message || "Unknown error"));
+        return;
       }
-    } catch (error) {
-      console.error("Error deleting notification:", error);
-      alert("An error occurred while deleting the notification.");
+
+      // Remove from state
+      setNotifications((prev) => prev.filter((n) => n._id !== notificationId));
+
+      if (selectedNotification?._id === notificationId) closeModal();
+
+      fetchNotifications(); // refresh
+      console.log("✅ Notification deleted");
+
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Error deleting notification");
     }
   };
+
 
   // Handle follow request approval
   const handleApproveRequest = async (notification) => {
@@ -288,10 +290,10 @@ const Notifications = () => {
         }));
 
         setNotifications((prev) => prev.filter((notification) => notification._id !== notification._id));
-        
+
         // Delete the notification after successful approval
         // await deleteNotification(notification._id);
-        
+
         alert('Follow request approved successfully!');
         setShowModal(false);
         fetchNotifications();
@@ -333,10 +335,10 @@ const Notifications = () => {
         }));
 
         setNotifications((prev) => prev.filter((notification) => notification._id !== notification._id));
-        
+
         // Delete the notification after successful rejection
         // await deleteNotification(notification._id);
-        
+
         alert('Follow request rejected successfully!');
         setShowModal(false);
         fetchNotifications();
@@ -552,7 +554,7 @@ const Notifications = () => {
                     const IconComponent = getNotificationIcon(notification.type);
                     const content = generateNotificationContent(notification);
                     const currentStatus = friendStatus[notification.sender?._id];
-                    
+
                     return (
                       <div
                         key={notification._id}
@@ -587,22 +589,21 @@ const Notifications = () => {
                                 <p className="text-xs sm:text-sm text-gray-600 mt-1 leading-relaxed break-words line-clamp-2">
                                   {content.message}
                                 </p>
-                                
+
                                 {/* Show current status for follow requests */}
                                 {notification.type === 'follow_request' && currentStatus && (
                                   <div className="mt-1">
-                                    <span className={`text-xs px-2 py-1 rounded-full ${
-                                      currentStatus === 'friends' 
+                                    <span className={`text-xs px-2 py-1 rounded-full ${currentStatus === 'friends'
                                         ? 'bg-green-100 text-green-800'
                                         : currentStatus === 'rejected'
-                                        ? 'bg-red-100 text-red-800'
-                                        : 'bg-blue-100 text-blue-800'
-                                    }`}>
+                                          ? 'bg-red-100 text-red-800'
+                                          : 'bg-blue-100 text-blue-800'
+                                      }`}>
                                       Status: {currentStatus}
                                     </span>
                                   </div>
                                 )}
-                                
+
                                 <p className="text-xs text-gray-500 mt-1.5 sm:mt-2">{formatTime(notification.createdAt)}</p>
                               </div>
 
@@ -612,7 +613,7 @@ const Notifications = () => {
                                     e.stopPropagation();
                                     deleteNotification(notification._id);
                                   }}
-                                  className="p-1 sm:p-1.5 hover:bg-gray-200 rounded-full transition-colors"
+                                  className={`p-1 sm:p-1.5 hover:bg-gray-200 rounded-full transition-colors ${notification.type === 'follow_request' ? 'd-none' : ''}`}
                                   title="Delete notification"
                                 >
                                   <X size={12} className="text-gray-500 sm:w-3.5 sm:h-3.5" />
@@ -659,7 +660,7 @@ const Notifications = () => {
                     onClick={() => handleProfile(selectedNotification.sender._id)}
                   />
                 ) : (
-                  <div 
+                  <div
                     className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border-4 border-white shadow-lg cursor-pointer"
                     onClick={() => handleProfile(selectedNotification.sender._id)}
                   >
@@ -674,8 +675,8 @@ const Notifications = () => {
                   <h3 className="text-xl font-bold text-white mb-1">
                     {generateNotificationContent(selectedNotification).title}
                   </h3>
-                  <div 
-                    className="flex items-center space-x-2 text-white/90 text-sm cursor-pointer hover:text-white transition-colors" 
+                  <div
+                    className="flex items-center space-x-2 text-white/90 text-sm cursor-pointer hover:text-white transition-colors"
                     onClick={() => handleProfile(selectedNotification.sender._id)}
                   >
                     <User size={14} />
@@ -747,17 +748,16 @@ const Notifications = () => {
                         </span>
                       </button>
                     </div>
-                    
+
                     {/* Current Status */}
                     {friendStatus[selectedNotification.sender?._id] && (
                       <div className="mt-3 text-center">
-                        <span className={`text-xs px-3 py-1 rounded-full ${
-                          friendStatus[selectedNotification.sender._id] === 'friends' 
+                        <span className={`text-xs px-3 py-1 rounded-full ${friendStatus[selectedNotification.sender._id] === 'friends'
                             ? 'bg-green-100 text-green-800'
                             : friendStatus[selectedNotification.sender._id] === 'rejected'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
                           Current Status: {friendStatus[selectedNotification.sender._id]}
                         </span>
                       </div>
@@ -771,7 +771,7 @@ const Notifications = () => {
             <div className="p-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
               <button
                 onClick={() => deleteNotification(selectedNotification._id)}
-                className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors flex items-center space-x-2"
+                className={`px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors flex items-center space-x-2 ${selectedNotification.type === 'follow_request' ? 'd-none' : ''}`}
               >
                 <X size={16} />
                 <span>Delete</span>

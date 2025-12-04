@@ -28,3 +28,8 @@
 .hide-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Opera */
 }
+
+*:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}

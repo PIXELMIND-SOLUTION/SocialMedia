@@ -18,7 +18,7 @@ const CreatePost = () => {
   const [commentsOff, setCommentsOff] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState("Normal");
   const [cropRatio, setCropRatio] = useState("original");
-  const [activeTab, setActiveTab] = useState("adjustments");
+  const [activeTab, setActiveTab] = useState("filters");
   const [location, setLocation] = useState("");
 
   // Image adjustments
@@ -178,7 +178,6 @@ const CreatePost = () => {
       );
 
       if (res.data.success) {
-        alert("Post created successfully ✅");
         // Cleanup URLs
         selectedImages.forEach((item) => {
           if (item.url && item.url.startsWith('blob:')) {
