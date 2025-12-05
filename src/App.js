@@ -38,7 +38,7 @@ function App() {
         </div>
       )}
       <div className="flex-grow-1 w-100">
-        {!!watch && <Header />}
+        {!isLoginPage && !watch && <Header />}
         <Routes>
           <Route path="/" element={<Login />} />
 
