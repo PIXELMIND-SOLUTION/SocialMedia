@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom';
 // Icons remain the same as before
 const IconVideo = (props) => (
   <svg {...props} fill="currentColor" viewBox="0 0 24 24">
-    <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12z"/>
-    <path d="M8 12l6 4 6-4-6-4z"/>
+    <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12z" />
+    <path d="M8 12l6 4 6-4-6-4z" />
   </svg>
 );
 
@@ -22,10 +22,13 @@ const WatchTogether = () => {
     }
 
     setIsLoading(true);
-    
+
     // Generate room ID if not provided
-    const finalRoomId = roomId.trim() || `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+    const finalRoomId =
+      roomId.trim() ||
+      `atoz_${Math.floor(100000 + Math.random() * 900000)}`;
+
+
     // Navigate to room with user data
     navigate(`/watch/${finalRoomId}`, {
       state: {
@@ -87,11 +90,10 @@ const WatchTogether = () => {
           <button
             onClick={handleJoinRoom}
             disabled={isLoading || !userName.trim()}
-            className={`w-full p-3 sm:p-3.5 rounded-lg font-medium transition-all duration-300 flex items-center justify-center gap-3 text-sm sm:text-base ${
-              isLoading || !userName.trim()
+            className={`w-full p-3 sm:p-3.5 rounded-lg font-medium transition-all duration-300 flex items-center justify-center gap-3 text-sm sm:text-base ${isLoading || !userName.trim()
                 ? 'bg-gray-200 cursor-not-allowed text-gray-500'
                 : 'bg-gradient-to-r from-[#FF6B35] to-[#FF8E53] text-white hover:shadow-lg active:scale-95'
-            }`}
+              }`}
           >
             {isLoading ? (
               <>

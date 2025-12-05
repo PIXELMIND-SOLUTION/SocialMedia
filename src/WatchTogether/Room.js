@@ -93,8 +93,8 @@ const Room = () => {
   const [isMobile, setIsMobile] = useState(false);
 
   // ZegoCloud credentials
-  const APP_ID = 1150075754;
-  const SERVER_SECRET = "42ab9a10016d337ea1e43007ceffcfdc";
+  const APP_ID = 938850321;
+  const SERVER_SECRET = "b27c8f8fcc265d4d3c3d6010e5d3af2c";
 
   const videoContainerRef = useRef(null);
 
