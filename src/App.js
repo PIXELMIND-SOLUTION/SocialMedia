@@ -20,22 +20,25 @@ import WalletModal from "./Wallet/MyWallet";
 import PackageSelectionModal from "./Wallet/WalletPackages";
 import Notifications from "./notifications/Notification";
 import PrivateRoute from "./components/PrivateRoute";
+import Room from "./WatchTogether/Room";
 
 function App() {
   const location = useLocation();
 
   // Only hide Sidebar and Header on login page
   const isLoginPage = location.pathname === "/";
+  const watch = location.pathname.startsWith("/watch/");
+
 
   return (
     <div className="d-flex">
       {!isLoginPage && (
         <div className="vh-100 position-sticky top-0" style={{ zIndex: 1000 }}>
-          <Sidebar />
+          {!isLoginPage && !watch && <Sidebar />}
         </div>
       )}
       <div className="flex-grow-1 w-100">
-        {!isLoginPage && <Header />}
+        {!watch && <Header />}
         <Routes>
           <Route path="/" element={<Login />} />
 
@@ -93,6 +96,14 @@ function App() {
             element={
               <PrivateRoute>
                 <WatchTogether />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/watch/:roomId"
+            element={
+              <PrivateRoute>
+                <Room />
               </PrivateRoute>
             }
           />
