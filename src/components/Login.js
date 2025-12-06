@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
+import OtpTimer from "./OtpTimer";
 
 const Login = () => {
   const [step, setStep] = useState("login"); // 'signup', 'loginOtp', 'signupOtp'
@@ -543,7 +544,7 @@ const Login = () => {
                     ))}
                   </div>
                   <small className="text-muted d-block text-center mb-4">
-                    Your code will be valid for 30 seconds.{" "}
+                    Your code will be valid for <OtpTimer />.{" "}
                     {/* <span className="text-primary fw-medium" role="button">
                       Resend
                     </span> */}
@@ -587,7 +588,7 @@ const Login = () => {
                     ))}
                   </div>
                   <small className="text-black d-block text-center mb-4">
-                    Your code will be valid for <span className="text-success fw-bold">30 seconds.</span>{" "}
+                    Your code will be valid for <span className="text-success fw-bold"><OtpTimer />.</span>{" "}
                     {/* <span className="text-primary fw-medium" role="button">
                       Resend
                     </span> */}
