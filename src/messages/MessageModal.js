@@ -1009,6 +1009,14 @@ const MessageModel = () => {
     return 'Offline';
   };
 
+  const formatMessageText = (text) => {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  return text.replace(urlRegex, (url) => {
+    return `<a href="${url}" rel="noopener noreferrer" class="text-orange-600 underline">${url}</a>`;
+  });
+};
+
+
   // Loading / Error UI
   if (loading) {
     return (
@@ -1332,7 +1340,11 @@ const MessageModel = () => {
                                 </div>
 
                               ) : (
-                                <div className="mb-1">{msg.text}</div>
+                                <div
+  className="mb-1 whitespace-pre-line"
+  dangerouslySetInnerHTML={{ __html: formatMessageText(msg.text) }}
+/>
+
                               )}
 
                               <div className="flex items-center justify-between mt-1">

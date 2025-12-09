@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 // All icons remain the same
 const IconVideo = (props) => (
@@ -91,14 +92,27 @@ const Room = () => {
   const [activeTab, setActiveTab] = useState('chat');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [participants, setParticipants] = useState([]);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+
+  // Friends and Chat states
+  const [friends, setFriends] = useState([]);
+  const [isLoadingFriends, setIsLoadingFriends] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [currentChatId, setCurrentChatId] = useState(null);
+  const [userId, setUserId] = useState('');
 
   // ZegoCloud credentials
   const APP_ID = 938850321;
   const SERVER_SECRET = "b27c8f8fcc265d4d3c3d6010e5d3af2c";
 
   const videoContainerRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const zegoInstanceRef = useRef(null);
+  const isJoiningRef = useRef(false);
 
-  // Initialize user data from location state or localStorage
+  // Initialize user data from sessionStorage and location state
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -110,38 +124,173 @@ const Room = () => {
     checkMobile();
     window.addEventListener('resize', checkMobile);
 
-    // Get user data from location state or localStorage
-    if (location.state?.userName) {
-      setUserName(location.state.userName);
-      if (location.state.roomId) {
-        setRoomId(location.state.roomId);
-      }
-    } else {
-      // Try to get from localStorage if user refreshes the page
-      const savedUserName = localStorage.getItem('watchTogether_userName');
-      if (savedUserName) {
-        setUserName(savedUserName);
-      }
+    // Get user from session
+    const storedUser = JSON.parse(sessionStorage.getItem("userData"));
+
+    // Resolve username priority:
+    const resolvedName =
+      location.state?.userName ||
+      storedUser?.fullName ||
+      localStorage.getItem('watchTogether_userName') ||
+      "Guest";
+
+    // Set the values
+    setUserId(storedUser?.userId || "");
+    setUserName(resolvedName);
+
+    // Set roomId
+    if (location.state?.roomId) {
+      setRoomId(location.state.roomId);
     }
 
-    // Save userName to localStorage
-    if (userName) {
-      localStorage.setItem('watchTogether_userName', userName);
-    }
+    // Save to localStorage
+    localStorage.setItem('watchTogether_userName', resolvedName);
 
     return () => {
       window.removeEventListener('resize', checkMobile);
+      // Clean up on unmount
+      if (zegoInstanceRef.current) {
+        try {
+          zegoInstanceRef.current.destroy();
+        } catch (e) {
+          console.log('Error destroying Zego instance on unmount:', e);
+        }
+      }
     };
-  }, [location.state, userName]);
+  }, [location.state]);
 
-  useLayoutEffect(() => {
-    if (!roomId || !userName) return;
+  useEffect(() => {
+    if (!roomId || !userName || isJoiningRef.current) return;
 
-    if (videoContainerRef.current) {
-      initZegoCloud();
-    }
+    const initVideo = async () => {
+      if (videoContainerRef.current && !zegoInstanceRef.current) {
+        await initZegoCloud();
+      }
+    };
+
+    initVideo();
   }, [roomId, userName]);
 
+  // Fetch friends list when userId is available
+  useEffect(() => {
+    if (userId) {
+      fetchFriends();
+    }
+  }, [userId]);
+
+  // Auto scroll chat to bottom
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
+  const fetchFriends = async () => {
+    if (!userId) return;
+
+    setIsLoadingFriends(true);
+    try {
+      const response = await axios.get(`https://apisocial.atozkeysolution.com/api/chat/all/${userId}`);
+      if (response.data.success) {
+        // Filter out duplicate participants and get unique friends
+        const friendsList = response.data.data.flatMap(chat =>
+          chat.participants.filter(participant => participant._id !== userId)
+        );
+
+        // Remove duplicates by id
+        const uniqueFriends = friendsList.filter((friend, index, self) =>
+          index === self.findIndex(f => f._id === friend._id)
+        );
+
+        setFriends(uniqueFriends);
+      }
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+    } finally {
+      setIsLoadingFriends(false);
+    }
+  };
+
+  const sendInviteMessage = async (friendId, friendName) => {
+    if (!userId || !friendId) return;
+
+    try {
+      // First, we need to find or create a chat with this friend
+      const chatResponse = await axios.get(`https://apisocial.atozkeysolution.com/api/chat/all/${userId}`);
+      if (chatResponse.data.success) {
+        const existingChat = chatResponse.data.data.find(chat =>
+          chat.participants.some(participant => participant._id === friendId)
+        );
+
+        let chatId = existingChat?._id;
+
+        // If no existing chat, we might need to create one (API may handle this automatically)
+        if (!chatId) {
+          alert(`No existing chat found with ${friendName}. Please start a conversation first.`);
+          return;
+        }
+
+        // Send the invite message
+        const messageData = {
+          chatId: chatId,
+          senderId: userId,
+          receiverId: friendId,
+          type: "text",
+          text: `${userName} is inviting you to join the video room! Room ID: ${roomId}\n\nJoin here: ${window.location.origin}/watch/${roomId}`
+        };
+
+        const messageResponse = await axios.post(
+          'https://apisocial.atozkeysolution.com/api/messages/send',
+          messageData,
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        if (messageResponse.data.success) {
+          alert(`Invitation sent to ${friendName}!`);
+
+          // Add this message to the local chat if it's the current chat
+          if (currentChatId === chatId) {
+            setChatMessages(prev => [...prev, {
+              ...messageResponse.data.data,
+              sender: { _id: userId, fullName: userName },
+              receiver: { _id: friendId, fullName: friendName }
+            }]);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error sending invite:', error);
+      alert('Failed to send invitation. Please try again.');
+    }
+  };
+
+  const sendChatMessage = async () => {
+    if (!newMessage.trim() || !userId) return;
+
+    // For demo purposes, we'll simulate sending a message
+    const newMsg = {
+      _id: `temp_${Date.now()}`,
+      text: newMessage,
+      type: "text",
+      sender: { _id: userId, fullName: userName },
+      createdAt: new Date().toISOString(),
+      isRead: false
+    };
+
+    setChatMessages(prev => [...prev, newMsg]);
+    setNewMessage('');
+
+    // Scroll to bottom
+    setTimeout(() => {
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      }
+    }, 100);
+  };
 
   const generateToken = (userID, userName, roomID) => {
     const effectiveTime = 3600;
@@ -160,16 +309,31 @@ const Room = () => {
   };
 
   const initZegoCloud = async () => {
-    if (!userName) {
-      alert('Please enter your name first');
-      navigate('/');
+    if (!userName || isJoiningRef.current) {
       return;
     }
 
     try {
       console.log('Initializing ZegoCloud...');
       setIsInitializing(true);
+      isJoiningRef.current = true;
       setError('');
+
+      // Clean up previous instance if exists
+      if (zegoInstanceRef.current) {
+        try {
+          zegoInstanceRef.current.destroy();
+        } catch (e) {
+          console.log('Error destroying previous Zego instance:', e);
+        }
+        zegoInstanceRef.current = null;
+        setZegoInstance(null);
+      }
+
+      // Clear video container
+      if (videoContainerRef.current) {
+        videoContainerRef.current.innerHTML = '';
+      }
 
       let ZegoUIKitPrebuilt;
 
@@ -189,7 +353,7 @@ const Room = () => {
         throw new Error('ZegoUIKitPrebuilt is not available');
       }
 
-      const userID = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const userID = userId || `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const currentRoomId = roomId;
 
       let token;
@@ -259,26 +423,65 @@ const Room = () => {
         showUserList: false,
         turnOnMicrophoneWhenJoining: true,
         turnOnCameraWhenJoining: true,
+        maxUsers: 50, // Allow more users
+        layout: "Grid", // Use Grid layout for better handling of multiple users
+        videoResolutionList: [
+          { resolution: 360, label: "SD" },
+          { resolution: 720, label: "HD" }
+        ],
         onJoinRoom: () => {
           console.log('✅ Joined room successfully');
           setIsInitializing(false);
+          setIsReconnecting(false);
+          isJoiningRef.current = false;
           setZegoInstance(zp);
+          zegoInstanceRef.current = zp;
         },
         onLeaveRoom: () => {
           console.log('Left room');
-          navigate('/watch');
+          if (zegoInstanceRef.current) {
+            zegoInstanceRef.current.destroy();
+            zegoInstanceRef.current = null;
+          }
+          setZegoInstance(null);
+          setParticipants([]);
         },
         onUserJoin: (users) => {
-          console.log('User joined:', users);
+          console.log("User joined:", users);
+
+          setParticipants((prev) => {
+            // Add new users, avoid duplicates
+            const updated = [...prev];
+            users.forEach(u => {
+              if (!updated.find(x => x.userID === u.userID)) {
+                updated.push(u);
+              }
+            });
+            return updated;
+          });
         },
+
         onUserLeave: (users) => {
-          console.log('User left:', users);
+          console.log("User left:", users);
+
+          setParticipants((prev) =>
+            prev.filter(
+              (p) => !users.some((u) => u.userID === p.userID)
+            )
+          );
+        },
+        onRoomStateUpdate: (state) => {
+          console.log('Room state update:', state);
+          if (state === 'DISCONNECTED' || state === 'ERROR') {
+            setIsReconnecting(true);
+            setTimeout(() => {
+              if (zegoInstanceRef.current) {
+                initZegoCloud();
+              }
+            }, 3000);
+          }
         }
       };
-      if (!videoContainerRef.current) {
-        throw new Error("Video container not available yet");
-      }
-
 
       if (typeof zp.joinRoom === 'function') {
         await zp.joinRoom(roomConfig);
@@ -292,33 +495,40 @@ const Room = () => {
       console.error('❌ ZegoCloud initialization error:', error);
       setError(error.message);
       setIsInitializing(false);
+      setIsReconnecting(false);
+      isJoiningRef.current = false;
       setZegoInstance(null);
+      zegoInstanceRef.current = null;
+
+      // Retry after 5 seconds if it's a connection error
+      if (error.message.includes('network') || error.message.includes('connection')) {
+        setTimeout(() => {
+          if (!zegoInstanceRef.current) {
+            initZegoCloud();
+          }
+        }, 5000);
+      }
     }
   };
 
   const leaveRoom = () => {
-    if (zegoInstance) {
+    if (zegoInstanceRef.current) {
       try {
-        zegoInstance.destroy();
+        zegoInstanceRef.current.destroy();
       } catch (e) {
         console.log('Error destroying Zego instance:', e);
       }
+      zegoInstanceRef.current = null;
       setZegoInstance(null);
     }
     navigate('/watch');
   };
 
-  useEffect(() => {
-    return () => {
-      if (zegoInstance) {
-        try {
-          zegoInstance.destroy();
-        } catch (e) {
-          console.log('Error cleaning up on unmount:', e);
-        }
-      }
-    };
-  }, [zegoInstance]);
+  const reconnectVideo = () => {
+    if (!isJoiningRef.current) {
+      initZegoCloud();
+    }
+  };
 
   // Sub-components
   const SidebarTab = ({ id, label, icon: Icon }) => {
@@ -339,7 +549,7 @@ const Room = () => {
   };
 
   const RoomInfoContent = () => (
-    <div className="space-y-4">
+    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
       <div>
         <p className="text-sm text-orange-600 mb-1 font-medium">Your Name</p>
         <p className="text-base font-semibold text-gray-900 truncate bg-orange-50 p-3 rounded-lg border border-orange-100">
@@ -351,10 +561,50 @@ const Room = () => {
         <div className="flex items-center gap-2 bg-orange-50 p-3 rounded-lg border border-orange-100">
           <div className={`w-3 h-3 rounded-full ${zegoInstance ? 'bg-green-500 animate-pulse ring-2 ring-green-200' : 'bg-amber-500 ring-2 ring-amber-200'}`}></div>
           <span className="text-sm font-medium text-gray-900 truncate">
-            {zegoInstance ? 'Video call active' : 'Chat/Share mode'}
+            {zegoInstance ? `Video call active (${participants.length + 1} users)` : 'Connecting...'}
           </span>
         </div>
       </div>
+
+      {/* Participants list */}
+      <div>
+        <p className="text-sm text-orange-600 mb-2 font-medium">Participants</p>
+
+        {participants.length === 0 ? (
+          <p className="text-xs text-gray-500 bg-orange-50 p-2 rounded-lg">
+            No other users yet
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {participants.map((u) => (
+              <div key={u.userID} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-orange-100">
+                <div className="w-8 h-8 rounded-full bg-orange-200 text-orange-800 flex items-center justify-center font-bold">
+                  {u.userName?.charAt(0).toUpperCase() || "U"}
+                </div>
+                <span className="text-sm font-medium text-gray-800 truncate">
+                  {u.userName || u.userID}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+
+      {isReconnecting && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-amber-500 rounded-full animate-pulse"></div>
+            <p className="text-sm text-amber-700 font-medium">Reconnecting video...</p>
+          </div>
+          <button
+            onClick={reconnectVideo}
+            className="mt-2 text-sm bg-gradient-to-r from-orange-500 to-amber-500 text-white px-3 py-1.5 rounded-lg hover:opacity-90 transition-all w-full"
+          >
+            Reconnect Now
+          </button>
+        </div>
+      )}
       <div className="pt-4 border-t border-orange-200">
         <p className="text-sm text-orange-600 mb-2 font-medium">Invite Friends</p>
         <div className="space-y-2">
@@ -380,21 +630,82 @@ const Room = () => {
   );
 
   const FriendsContent = () => (
-    <div className="flex-1 flex flex-col items-center justify-center p-4">
-      <div className="w-20 h-20 bg-gradient-to-br from-orange-400/20 to-amber-400/20 rounded-full flex items-center justify-center mb-4">
-        <IconFriends className="w-10 h-10 text-orange-500" />
+    <div className="flex-1 flex flex-col h-full">
+      <div className="p-4 border-b border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50">
+        <h3 className="font-bold text-xl text-gray-900 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl flex items-center justify-center">
+              <IconFriends className="w-5 h-5 text-white" />
+            </div>
+            <span className="hidden sm:inline">Friends ({friends.length})</span>
+            <span className="sm:hidden">Friends ({friends.length})</span>
+          </div>
+          <button
+            onClick={fetchFriends}
+            className="text-sm bg-gradient-to-r from-orange-500 to-amber-500 text-white px-3 py-1.5 rounded-lg hover:opacity-90 transition-all"
+            disabled={isLoadingFriends}
+          >
+            {isLoadingFriends ? 'Loading...' : 'Refresh'}
+          </button>
+        </h3>
       </div>
-      <p className="text-gray-600 text-center mb-2 font-medium">Participants will appear here</p>
-      <p className="text-xs text-orange-600 text-center bg-orange-50 p-3 rounded-lg">
-        Users in the video call will be displayed in the main video area
-      </p>
+
+      <div className="flex-1 p-2 sm:p-4 overflow-y-auto bg-gradient-to-b from-orange-50/50 to-transparent">
+        {isLoadingFriends ? (
+          <div className="text-center py-8">
+            <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading friends...</p>
+          </div>
+        ) : friends.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-4">
+            <div className="w-20 h-20 bg-gradient-to-br from-orange-400/20 to-amber-400/20 rounded-full flex items-center justify-center mb-4">
+              <IconFriends className="w-10 h-10 text-orange-500" />
+            </div>
+            <p className="text-gray-600 text-center mb-2 font-medium">No friends found</p>
+            <p className="text-xs text-orange-600 text-center bg-orange-50 p-3 rounded-lg">
+              Start chatting with people to add them here
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {friends.map((friend) => (
+              <div
+                key={friend._id}
+                className="flex items-center gap-3 p-3 bg-white rounded-xl border border-orange-100 hover:border-orange-300 transition-all shadow-sm hover:shadow-md"
+              >
+                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-orange-400 to-amber-400 flex items-center justify-center text-white font-bold text-lg">
+                  {friend.fullName?.charAt(0) || friend.profile?.username?.charAt(0) || 'F'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 truncate">
+                    {friend.fullName || friend.profile?.username || 'Unknown'}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    @{friend.profile?.username || 'No username'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => sendInviteMessage(friend._id, friend.fullName || friend.profile?.username)}
+                  className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all active:scale-95"
+                  title="Invite to room"
+                >
+                  Invite
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 
   const ChatContent = () => (
     <div className="flex-1 flex flex-col h-full">
-      <div className="flex-1 p-2 sm:p-4 overflow-y-auto bg-gradient-to-b from-orange-50/50 to-transparent">
-        <div className="space-y-3">
+      <div
+        ref={chatContainerRef}
+        className="flex-1 p-2 sm:p-4 overflow-y-auto bg-gradient-to-b from-orange-50/50 to-transparent"
+      >
+        {chatMessages.length === 0 ? (
           <div className="text-center py-8">
             <div className="w-16 h-16 bg-gradient-to-br from-orange-400/20 to-amber-400/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <IconChat className="w-8 h-8 text-orange-500" />
@@ -404,16 +715,48 @@ const Room = () => {
               Say hello to start chatting!
             </p>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-3">
+            {chatMessages.map((msg) => (
+              <div
+                key={msg._id}
+                className={`flex ${msg.sender?._id === userId ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] rounded-2xl p-3 ${msg.sender?._id === userId
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-br-none'
+                    : 'bg-orange-100 text-gray-900 rounded-bl-none border border-orange-200'}`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-xs font-medium ${msg.sender?._id === userId ? 'text-white/80' : 'text-gray-600'}`}>
+                      {msg.sender?._id === userId ? 'You' : msg.sender?.fullName || 'Unknown'}
+                    </span>
+                    <span className={`text-xs ${msg.sender?._id === userId ? 'text-white/60' : 'text-gray-500'}`}>
+                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <p className="text-sm break-words">{msg.text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       <div className="p-2 sm:p-4 border-t border-orange-200 bg-white">
         <div className="flex gap-2">
           <input
             type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && sendChatMessage()}
             placeholder="Type a message..."
             className="flex-1 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200 transition-all"
           />
-          <button className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-5 py-3 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg active:scale-95">
+          <button
+            onClick={sendChatMessage}
+            disabled={!newMessage.trim()}
+            className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-3 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
+          >
             <IconSend className="w-5 h-5" />
           </button>
         </div>
@@ -437,7 +780,7 @@ const Room = () => {
           </div>
           <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3">
             <h2 className="text-sm sm:text-base md:text-lg font-bold truncate max-w-[120px] sm:max-w-none">
-              Orange Video Room
+              Watch Together
             </h2>
             <div className="flex items-center gap-1 sm:gap-2 bg-white/20 backdrop-blur-sm px-2 sm:px-3 py-1 rounded-lg">
               <span className="text-xs font-medium">ID:</span>
@@ -453,6 +796,13 @@ const Room = () => {
             <div className="flex items-center gap-2 text-white/90 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-lg">
               <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               <span className="text-xs font-medium hidden sm:inline">Initializing...</span>
+            </div>
+          )}
+
+          {isReconnecting && (
+            <div className="flex items-center gap-2 text-amber-200 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-lg">
+              <div className="w-3 h-3 bg-amber-400 rounded-full animate-pulse"></div>
+              <span className="text-xs font-medium hidden sm:inline">Reconnecting...</span>
             </div>
           )}
 
@@ -503,7 +853,7 @@ const Room = () => {
             />
 
             {/* Loading/Error Overlay */}
-            {(isInitializing || (!isInitializing && !zegoInstance)) && (
+            {(isInitializing || (!zegoInstance && !isReconnecting)) && (
               <div className={`absolute inset-0 flex items-center justify-center ${isInitializing ? 'bg-gradient-to-br from-gray-900 to-black' : 'bg-gradient-to-br from-gray-900/95 to-black/95'}`}>
                 <div className="text-center p-4 sm:p-6 md:p-8 max-w-sm sm:max-w-md bg-gradient-to-b from-orange-50/10 to-transparent backdrop-blur-sm rounded-2xl border border-orange-500/20">
                   {isInitializing ? (
@@ -522,19 +872,21 @@ const Room = () => {
                         <IconVideo className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
                       </div>
                       <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
-                        Video Inactive
+                        {isReconnecting ? 'Reconnecting...' : 'Video Inactive'}
                       </h3>
                       <p className="text-gray-300 text-sm sm:text-base mb-6">
                         {error
                           ? `Setup failed: ${error.substring(0, 50)}...`
-                          : 'Video call failed to initialize. Chat and room sharing is still active.'
+                          : isReconnecting
+                            ? 'Attempting to reconnect video...'
+                            : 'Video call failed to initialize. Chat and room sharing is still active.'
                         }
                       </p>
                       <button
-                        onClick={() => initZegoCloud()}
+                        onClick={reconnectVideo}
                         className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 sm:px-8 py-3 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
                       >
-                        Retry Video Setup
+                        {isReconnecting ? 'Reconnect Now' : 'Retry Video Setup'}
                       </button>
                     </>
                   )}
@@ -542,6 +894,18 @@ const Room = () => {
               </div>
             )}
           </div>
+
+          {/* Participants counter */}
+          {zegoInstance && (
+            <div className="mt-2 flex items-center justify-center">
+              <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  <span>Active Participants: {participants.length + 1}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* --- Sidebar --- */}
@@ -598,16 +962,7 @@ const Room = () => {
               </div>
 
               <div className={`h-full ${activeTab !== 'friends' ? 'hidden' : ''}`}>
-                <div className="p-4">
-                  <h3 className="font-bold text-xl text-gray-900 mb-4 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl flex items-center justify-center">
-                      <IconFriends className="w-5 h-5 text-white" />
-                    </div>
-                    <span className="hidden sm:inline">Participants</span>
-                    <span className="sm:hidden">Participants</span>
-                  </h3>
-                  <FriendsContent />
-                </div>
+                <FriendsContent />
               </div>
 
               <div className={`h-full flex flex-col ${activeTab !== 'chat' ? 'hidden' : ''}`}>
@@ -628,7 +983,7 @@ const Room = () => {
       </main>
 
       {/* Mobile bottom navigation for quick access */}
-      {isMobile && (
+      {/* {isMobile && (
         <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white z-10 p-3 shadow-2xl sm:hidden">
           <div className="flex justify-around">
             <button
@@ -653,6 +1008,16 @@ const Room = () => {
             </button>
             <button
               onClick={() => {
+                setIsSidebarOpen(true);
+                setActiveTab('friends');
+              }}
+              className={`flex flex-col items-center p-2 ${activeTab === 'friends' ? 'bg-white/20 rounded-xl' : ''}`}
+            >
+              <IconFriends className="w-6 h-6" />
+              <span className="text-xs mt-1 font-medium">Friends</span>
+            </button>
+            <button
+              onClick={() => {
                 navigator.clipboard.writeText(roomId);
                 alert('Room ID copied!');
               }}
@@ -665,7 +1030,7 @@ const Room = () => {
             </button>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 };

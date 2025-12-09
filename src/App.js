@@ -21,6 +21,7 @@ import PackageSelectionModal from "./Wallet/WalletPackages";
 import Notifications from "./notifications/Notification";
 import PrivateRoute from "./components/PrivateRoute";
 import Room from "./WatchTogether/Room";
+import Spin from "./Spin/Spin";
 
 function App() {
   const location = useLocation();
@@ -56,6 +57,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Settings />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/spin"
+            element={
+              <PrivateRoute>
+                <Spin />
               </PrivateRoute>
             }
           />

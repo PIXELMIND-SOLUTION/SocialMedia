@@ -11,6 +11,7 @@ import {
   FaCog,
   FaTimes,
   FaBars,
+  FaDice,
 } from 'react-icons/fa';
 import axios from 'axios';
 
@@ -79,6 +80,7 @@ const Sidebar = () => {
     { to: '/watch', icon: <FaUserFriends />, title: 'Watch' },
     { to: '/campaign', icon: <FaBullhorn />, title: 'Campaign' },
     { to: '/mywallet', icon: <FaWallet />, title: 'Wallet' },
+    { to: '/spin', icon: <FaDice />, title: 'spin' },
     { to: '/settings', icon: <FaCog />, title: 'Settings' }
   ];
 
