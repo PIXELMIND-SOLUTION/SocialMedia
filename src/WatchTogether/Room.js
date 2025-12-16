@@ -79,10 +79,46 @@ const IconPlay = (props) => (
   </svg>
 );
 
+// Custom hook for responsive design
+const useResponsive = () => {
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isTablet, setIsTablet] = useState(window.innerWidth >= 768 && window.innerWidth < 1024);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      setWindowWidth(width);
+      setIsMobile(width < 768);
+      setIsTablet(width >= 768 && width < 1024);
+      setIsDesktop(width >= 1024);
+    };
+
+    // Add debouncing to prevent excessive re-renders[citation:2]
+    let timeoutId;
+    const debouncedResize = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(handleResize, 250);
+    };
+
+    window.addEventListener('resize', debouncedResize);
+    handleResize(); // Initial call
+
+    return () => {
+      window.removeEventListener('resize', debouncedResize);
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
+  return { windowWidth, isMobile, isTablet, isDesktop };
+};
+
 const Room = () => {
   const { roomId: paramRoomId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { isMobile, isTablet, isDesktop } = useResponsive();
 
   const [userName, setUserName] = useState('');
   const [roomId, setRoomId] = useState(paramRoomId || '');
@@ -91,7 +127,6 @@ const Room = () => {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('chat');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [participants, setParticipants] = useState([]);
   const [isReconnecting, setIsReconnecting] = useState(false);
 
@@ -114,16 +149,6 @@ const Room = () => {
 
   // Initialize user data from sessionStorage and location state
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-      if (window.innerWidth >= 768) {
-        setIsSidebarOpen(true);
-      }
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-
     // Get user from session
     const storedUser = JSON.parse(sessionStorage.getItem("userData"));
 
@@ -147,7 +172,6 @@ const Room = () => {
     localStorage.setItem('watchTogether_userName', resolvedName);
 
     return () => {
-      window.removeEventListener('resize', checkMobile);
       // Clean up on unmount
       if (zegoInstanceRef.current) {
         try {
@@ -419,12 +443,12 @@ const Room = () => {
         showMyCameraToggleButton: true,
         showMyMicrophoneToggleButton: true,
         showScreenSharingButton: true,
-        showTextChat: false,
+        showTextChat: true, // ✅ ENABLE ZEGOCLOUD GROUP CHAT
         showUserList: false,
         turnOnMicrophoneWhenJoining: true,
         turnOnCameraWhenJoining: true,
-        maxUsers: 50, // Allow more users
-        layout: "Grid", // Use Grid layout for better handling of multiple users
+        maxUsers: 50,
+        layout: "Grid",
         videoResolutionList: [
           { resolution: 360, label: "SD" },
           { resolution: 720, label: "HD" }
@@ -530,19 +554,33 @@ const Room = () => {
     }
   };
 
+  // Handle input change properly - FIX for single character issue[citation:4]
+  const handleInputChange = (e) => {
+    setNewMessage(e.target.value);
+  };
+
+  // Handle key press for Enter key[citation:4]
+  const handleKeyPress = (e) => {
+    // Use key instead of keyCode for better compatibility[citation:4]
+    if (e.key === 'Enter') {
+      e.preventDefault(); // Prevent form submission behavior
+      sendChatMessage();
+    }
+  };
+
   // Sub-components
   const SidebarTab = ({ id, label, icon: Icon }) => {
     const isActive = activeTab === id;
     return (
       <button
         onClick={() => setActiveTab(id)}
-        className={`flex items-center justify-center p-3 rounded-xl transition-all duration-200 ${isActive
+        className={`flex items-center justify-center p-2 sm:p-3 rounded-xl transition-all duration-200 ${isActive
           ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25'
           : 'bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-100'
           }`}
         title={label}
       >
-        <Icon className="w-5 h-5" />
+        <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
         <span className="ml-2 hidden sm:inline font-medium">{label}</span>
       </button>
     );
@@ -632,17 +670,17 @@ const Room = () => {
   const FriendsContent = () => (
     <div className="flex-1 flex flex-col h-full">
       <div className="p-4 border-b border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50">
-        <h3 className="font-bold text-xl text-gray-900 flex items-center justify-between">
+        <h3 className="font-bold text-lg sm:text-xl text-gray-900 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl flex items-center justify-center">
-              <IconFriends className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl flex items-center justify-center">
+              <IconFriends className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
             <span className="hidden sm:inline">Friends ({friends.length})</span>
             <span className="sm:hidden">Friends ({friends.length})</span>
           </div>
           <button
             onClick={fetchFriends}
-            className="text-sm bg-gradient-to-r from-orange-500 to-amber-500 text-white px-3 py-1.5 rounded-lg hover:opacity-90 transition-all"
+            className="text-xs sm:text-sm bg-gradient-to-r from-orange-500 to-amber-500 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg hover:opacity-90 transition-all"
             disabled={isLoadingFriends}
           >
             {isLoadingFriends ? 'Loading...' : 'Refresh'}
@@ -653,31 +691,31 @@ const Room = () => {
       <div className="flex-1 p-2 sm:p-4 overflow-y-auto bg-gradient-to-b from-orange-50/50 to-transparent">
         {isLoadingFriends ? (
           <div className="text-center py-8">
-            <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading friends...</p>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600 text-sm">Loading friends...</p>
           </div>
         ) : friends.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center p-4">
-            <div className="w-20 h-20 bg-gradient-to-br from-orange-400/20 to-amber-400/20 rounded-full flex items-center justify-center mb-4">
-              <IconFriends className="w-10 h-10 text-orange-500" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-orange-400/20 to-amber-400/20 rounded-full flex items-center justify-center mb-4">
+              <IconFriends className="w-8 h-8 sm:w-10 sm:h-10 text-orange-500" />
             </div>
-            <p className="text-gray-600 text-center mb-2 font-medium">No friends found</p>
+            <p className="text-gray-600 text-center mb-2 font-medium text-sm sm:text-base">No friends found</p>
             <p className="text-xs text-orange-600 text-center bg-orange-50 p-3 rounded-lg">
               Start chatting with people to add them here
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {friends.map((friend) => (
               <div
                 key={friend._id}
-                className="flex items-center gap-3 p-3 bg-white rounded-xl border border-orange-100 hover:border-orange-300 transition-all shadow-sm hover:shadow-md"
+                className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-white rounded-xl border border-orange-100 hover:border-orange-300 transition-all shadow-sm hover:shadow-md"
               >
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-orange-400 to-amber-400 flex items-center justify-center text-white font-bold text-lg">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-r from-orange-400 to-amber-400 flex items-center justify-center text-white font-bold text-base sm:text-lg">
                   {friend.fullName?.charAt(0) || friend.profile?.username?.charAt(0) || 'F'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 truncate">
+                  <p className="font-semibold text-gray-900 truncate text-sm sm:text-base">
                     {friend.fullName || friend.profile?.username || 'Unknown'}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
@@ -686,7 +724,7 @@ const Room = () => {
                 </div>
                 <button
                   onClick={() => sendInviteMessage(friend._id, friend.fullName || friend.profile?.username)}
-                  className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all active:scale-95"
+                  className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all active:scale-95 whitespace-nowrap"
                   title="Invite to room"
                 >
                   Invite
@@ -707,27 +745,27 @@ const Room = () => {
       >
         {chatMessages.length === 0 ? (
           <div className="text-center py-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-orange-400/20 to-amber-400/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <IconChat className="w-8 h-8 text-orange-500" />
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-orange-400/20 to-amber-400/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <IconChat className="w-6 h-6 sm:w-8 sm:h-8 text-orange-500" />
             </div>
-            <p className="text-gray-600 font-medium">No messages yet</p>
-            <p className="text-sm text-orange-600 mt-2 bg-orange-50 p-2 rounded-lg inline-block">
+            <p className="text-gray-600 font-medium text-sm sm:text-base">No messages yet</p>
+            <p className="text-xs sm:text-sm text-orange-600 mt-2 bg-orange-50 p-2 rounded-lg inline-block">
               Say hello to start chatting!
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {chatMessages.map((msg) => (
               <div
                 key={msg._id}
                 className={`flex ${msg.sender?._id === userId ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-2xl p-3 ${msg.sender?._id === userId
+                  className={`max-w-[85%] sm:max-w-[80%] rounded-2xl p-2 sm:p-3 ${msg.sender?._id === userId
                     ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-br-none'
                     : 'bg-orange-100 text-gray-900 rounded-bl-none border border-orange-200'}`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-1 sm:gap-2 mb-1">
                     <span className={`text-xs font-medium ${msg.sender?._id === userId ? 'text-white/80' : 'text-gray-600'}`}>
                       {msg.sender?._id === userId ? 'You' : msg.sender?.fullName || 'Unknown'}
                     </span>
@@ -735,7 +773,7 @@ const Room = () => {
                       {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
-                  <p className="text-sm break-words">{msg.text}</p>
+                  <p className="text-xs sm:text-sm break-words">{msg.text}</p>
                 </div>
               </div>
             ))}
@@ -747,17 +785,17 @@ const Room = () => {
           <input
             type="text"
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && sendChatMessage()}
+            onChange={handleInputChange} // ✅ FIXED: Using proper onChange handler
+            onKeyDown={handleKeyPress} // ✅ FIXED: Using onKeyDown instead of onKeyPress[citation:4]
             placeholder="Type a message..."
-            className="flex-1 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200 transition-all"
+            className="flex-1 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-sm text-gray-900 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200 transition-all"
           />
           <button
             onClick={sendChatMessage}
             disabled={!newMessage.trim()}
-            className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-3 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
+            className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 sm:px-5 py-2 sm:py-3 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
           >
-            <IconSend className="w-5 h-5" />
+            <IconSend className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
       </div>
@@ -770,38 +808,45 @@ const Room = () => {
     return null;
   }
 
+  // Determine sidebar width based on device
+  const getSidebarWidth = () => {
+    if (isMobile) return 'w-full max-w-xs';
+    if (isTablet) return 'w-80';
+    return 'w-96';
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 overflow-hidden">
       {/* Header - Responsive */}
-      <header className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-3 sm:px-4 md:px-6 py-3 sm:py-4 flex justify-between items-center shadow-lg relative">
+      <header className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-3 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 flex justify-between items-center shadow-lg relative">
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0 ring-2 ring-white/30">
-            <IconVideo className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+          <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0 ring-2 ring-white/30">
+            <IconVideo className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
           </div>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3">
-            <h2 className="text-sm sm:text-base md:text-lg font-bold truncate max-w-[120px] sm:max-w-none">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 md:gap-3">
+            <h2 className="text-xs sm:text-sm md:text-lg font-bold truncate max-w-[100px] sm:max-w-[150px] md:max-w-none">
               Watch Together
             </h2>
-            <div className="flex items-center gap-1 sm:gap-2 bg-white/20 backdrop-blur-sm px-2 sm:px-3 py-1 rounded-lg">
+            <div className="flex items-center gap-1 sm:gap-2 bg-white/20 backdrop-blur-sm px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-1 rounded-lg">
               <span className="text-xs font-medium">ID:</span>
-              <code className="font-mono text-xs sm:text-sm font-bold truncate max-w-[100px] sm:max-w-[150px]">
+              <code className="font-mono text-xs font-bold truncate max-w-[80px] sm:max-w-[120px] md:max-w-[180px]">
                 {roomId}
               </code>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1 sm:gap-2 md:gap-3">
           {isInitializing && (
-            <div className="flex items-center gap-2 text-white/90 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-lg">
-              <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <div className="flex items-center gap-1 sm:gap-2 text-white/90 bg-white/10 backdrop-blur-sm px-2 sm:px-3 py-1 rounded-lg">
+              <div className="w-2 h-2 sm:w-3 sm:h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
               <span className="text-xs font-medium hidden sm:inline">Initializing...</span>
             </div>
           )}
 
           {isReconnecting && (
-            <div className="flex items-center gap-2 text-amber-200 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-lg">
-              <div className="w-3 h-3 bg-amber-400 rounded-full animate-pulse"></div>
+            <div className="flex items-center gap-1 sm:gap-2 text-amber-200 bg-white/10 backdrop-blur-sm px-2 sm:px-3 py-1 rounded-lg">
+              <div className="w-2 h-2 sm:w-3 sm:h-3 bg-amber-400 rounded-full animate-pulse"></div>
               <span className="text-xs font-medium hidden sm:inline">Reconnecting...</span>
             </div>
           )}
@@ -813,29 +858,29 @@ const Room = () => {
                 navigator.clipboard.writeText(roomId);
                 alert('Room ID copied!');
               }}
-              className="p-2 rounded-xl bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm transition-all"
+              className="p-1.5 sm:p-2 rounded-xl bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm transition-all"
               title="Copy Room ID"
             >
-              <IconCopy className="w-4 h-4" />
+              <IconCopy className="w-3 h-3 sm:w-4 sm:h-4" />
             </button>
           )}
 
           {/* Mobile sidebar toggle */}
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-2 rounded-xl bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm sm:hidden transition-all"
+            className="p-1.5 sm:p-2 rounded-xl bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm sm:hidden transition-all"
             title={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
           >
             {isSidebarOpen ? (
-              <IconClose className="w-4 h-4" />
+              <IconClose className="w-3 h-3 sm:w-4 sm:h-4" />
             ) : (
-              <IconMenu className="w-4 h-4" />
+              <IconMenu className="w-3 h-3 sm:w-4 sm:h-4" />
             )}
           </button>
 
           <button
             onClick={leaveRoom}
-            className="bg-white text-orange-600 hover:bg-orange-50 px-3 sm:px-4 py-2 rounded-xl font-bold transition-all duration-200 text-xs sm:text-sm shadow-md hover:shadow-lg active:scale-95"
+            className="bg-white text-orange-600 hover:bg-orange-50 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-xl font-bold transition-all duration-200 text-xs sm:text-sm shadow-md hover:shadow-lg active:scale-95"
           >
             {isMobile ? 'Leave' : 'Leave Room'}
           </button>
@@ -843,10 +888,10 @@ const Room = () => {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex flex-1 overflow-hidden relative p-2 sm:p-4">
+      <main className="flex flex-1 overflow-hidden relative p-2 sm:p-3 md:p-4">
         {/* Video Container */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="flex-1 bg-gradient-to-br from-gray-900 to-black rounded-2xl overflow-hidden relative shadow-2xl border-4 border-white">
+        <div className="flex-1 flex flex-col min-w-0 mr-0 sm:mr-4">
+          <div className="flex-1 bg-gradient-to-br from-gray-900 to-black rounded-xl sm:rounded-2xl overflow-hidden relative shadow-xl sm:shadow-2xl border-2 sm:border-4 border-white">
             <div
               ref={videoContainerRef}
               className="w-full h-full"
@@ -855,26 +900,26 @@ const Room = () => {
             {/* Loading/Error Overlay */}
             {(isInitializing || (!zegoInstance && !isReconnecting)) && (
               <div className={`absolute inset-0 flex items-center justify-center ${isInitializing ? 'bg-gradient-to-br from-gray-900 to-black' : 'bg-gradient-to-br from-gray-900/95 to-black/95'}`}>
-                <div className="text-center p-4 sm:p-6 md:p-8 max-w-sm sm:max-w-md bg-gradient-to-b from-orange-50/10 to-transparent backdrop-blur-sm rounded-2xl border border-orange-500/20">
+                <div className="text-center p-3 sm:p-4 md:p-6 lg:p-8 max-w-xs sm:max-w-sm md:max-w-md bg-gradient-to-b from-orange-50/10 to-transparent backdrop-blur-sm rounded-xl sm:rounded-2xl border border-orange-500/20">
                   {isInitializing ? (
                     <>
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-6 shadow-lg shadow-orange-500/25"></div>
-                      <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 border-3 sm:border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-4 sm:mb-6 shadow-lg shadow-orange-500/25"></div>
+                      <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-2 sm:mb-3 bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
                         Setting Up Video Call
                       </h3>
-                      <p className="text-gray-300 text-sm sm:text-base">
+                      <p className="text-gray-300 text-xs sm:text-sm md:text-base">
                         Please wait for initialization...
                       </p>
                     </>
                   ) : (
                     <>
-                      <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-orange-500/50">
-                        <IconVideo className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-lg shadow-orange-500/50">
+                        <IconVideo className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 text-white" />
                       </div>
-                      <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
+                      <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-2 sm:mb-3 bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
                         {isReconnecting ? 'Reconnecting...' : 'Video Inactive'}
                       </h3>
-                      <p className="text-gray-300 text-sm sm:text-base mb-6">
+                      <p className="text-gray-300 text-xs sm:text-sm md:text-base mb-4 sm:mb-6">
                         {error
                           ? `Setup failed: ${error.substring(0, 50)}...`
                           : isReconnecting
@@ -884,7 +929,7 @@ const Room = () => {
                       </p>
                       <button
                         onClick={reconnectVideo}
-                        className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 sm:px-8 py-3 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
+                        className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-4 sm:px-6 md:px-8 py-2 sm:py-3 rounded-xl font-bold text-xs sm:text-sm md:text-base transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
                       >
                         {isReconnecting ? 'Reconnect Now' : 'Retry Video Setup'}
                       </button>
@@ -898,10 +943,10 @@ const Room = () => {
           {/* Participants counter */}
           {zegoInstance && (
             <div className="mt-2 flex items-center justify-center">
-              <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  <span>Active Participants: {participants.length + 1}</span>
+              <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium shadow-lg">
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  <span>Active: {participants.length + 1}</span>
                 </div>
               </div>
             </div>
@@ -918,29 +963,29 @@ const Room = () => {
         )}
 
         <div className={`
-          fixed inset-y-0 right-0 z-30 w-full max-w-xs sm:max-w-sm md:max-w-md lg:w-80
+          fixed inset-y-0 right-0 z-30 ${getSidebarWidth()}
           bg-gradient-to-b from-white to-orange-50 text-gray-800
           transform transition-transform duration-300 ease-in-out
           sm:relative sm:flex sm:flex-col sm:translate-x-0 shadow-2xl
           ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}
           border-l border-orange-200
         `}>
-          <div className="flex flex-col h-full bg-white rounded-l-2xl sm:rounded-2xl overflow-hidden border border-orange-200">
+          <div className="flex flex-col h-full bg-white rounded-l-xl sm:rounded-xl overflow-hidden border border-orange-200">
             {/* Mobile Header */}
-            <div className="flex justify-between items-center p-4 border-b border-orange-200 bg-gradient-to-r from-orange-500 to-amber-500 text-white sm:hidden">
-              <h3 className="font-bold text-lg">
+            <div className="flex justify-between items-center p-3 sm:p-4 border-b border-orange-200 bg-gradient-to-r from-orange-500 to-amber-500 text-white sm:hidden">
+              <h3 className="font-bold text-base sm:text-lg">
                 {activeTab === 'chat' ? 'Live Chat' : activeTab === 'info' ? 'Room Info' : 'Participants'}
               </h3>
               <button
                 onClick={() => setIsSidebarOpen(false)}
-                className="p-2 rounded-xl hover:bg-white/20 transition-all"
+                className="p-1.5 sm:p-2 rounded-xl hover:bg-white/20 transition-all"
               >
-                <IconClose className="w-5 h-5" />
+                <IconClose className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
 
             {/* Tab Navigation */}
-            <div className="p-3 border-b border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 flex gap-2">
+            <div className="p-2 sm:p-3 border-b border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 flex gap-1 sm:gap-2">
               <SidebarTab id="chat" label="Chat" icon={IconChat} />
               <SidebarTab id="info" label="Info" icon={IconInfo} />
               <SidebarTab id="friends" label="Friends" icon={IconFriends} />
@@ -949,10 +994,10 @@ const Room = () => {
             {/* Tab Content */}
             <div className="flex-1 overflow-hidden">
               <div className={`h-full ${activeTab !== 'info' ? 'hidden' : ''}`}>
-                <div className="p-4">
-                  <h3 className="font-bold text-xl text-gray-900 mb-4 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl flex items-center justify-center">
-                      <IconInfo className="w-5 h-5 text-white" />
+                <div className="p-3 sm:p-4">
+                  <h3 className="font-bold text-lg sm:text-xl text-gray-900 mb-3 sm:mb-4 flex items-center gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl flex items-center justify-center">
+                      <IconInfo className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
                     <span className="hidden sm:inline">Room Information</span>
                     <span className="sm:hidden">Info</span>
@@ -966,10 +1011,10 @@ const Room = () => {
               </div>
 
               <div className={`h-full flex flex-col ${activeTab !== 'chat' ? 'hidden' : ''}`}>
-                <div className="p-4 border-b border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50">
-                  <h3 className="font-bold text-xl text-gray-900 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl flex items-center justify-center">
-                      <IconChat className="w-5 h-5 text-white" />
+                <div className="p-3 sm:p-4 border-b border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50">
+                  <h3 className="font-bold text-lg sm:text-xl text-gray-900 flex items-center gap-2 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl flex items-center justify-center">
+                      <IconChat className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
                     <span className="hidden sm:inline">Live Chat</span>
                     <span className="sm:hidden">Chat</span>
@@ -980,57 +1025,7 @@ const Room = () => {
             </div>
           </div>
         </div>
-      </main>
-
-      {/* Mobile bottom navigation for quick access */}
-      {/* {isMobile && (
-        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white z-10 p-3 shadow-2xl sm:hidden">
-          <div className="flex justify-around">
-            <button
-              onClick={() => {
-                setIsSidebarOpen(true);
-                setActiveTab('chat');
-              }}
-              className={`flex flex-col items-center p-2 ${activeTab === 'chat' ? 'bg-white/20 rounded-xl' : ''}`}
-            >
-              <IconChat className="w-6 h-6" />
-              <span className="text-xs mt-1 font-medium">Chat</span>
-            </button>
-            <button
-              onClick={() => {
-                setIsSidebarOpen(true);
-                setActiveTab('info');
-              }}
-              className={`flex flex-col items-center p-2 ${activeTab === 'info' ? 'bg-white/20 rounded-xl' : ''}`}
-            >
-              <IconInfo className="w-6 h-6" />
-              <span className="text-xs mt-1 font-medium">Info</span>
-            </button>
-            <button
-              onClick={() => {
-                setIsSidebarOpen(true);
-                setActiveTab('friends');
-              }}
-              className={`flex flex-col items-center p-2 ${activeTab === 'friends' ? 'bg-white/20 rounded-xl' : ''}`}
-            >
-              <IconFriends className="w-6 h-6" />
-              <span className="text-xs mt-1 font-medium">Friends</span>
-            </button>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(roomId);
-                alert('Room ID copied!');
-              }}
-              className="flex flex-col items-center p-2"
-            >
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                <IconCopy className="w-5 h-5" />
-              </div>
-              <span className="text-xs mt-1 font-medium">Copy ID</span>
-            </button>
-          </div>
-        </div>
-      )} */}
+      </main>      
     </div>
   );
 };
