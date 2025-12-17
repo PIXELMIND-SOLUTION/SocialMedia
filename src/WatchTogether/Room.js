@@ -125,7 +125,7 @@ const Room = () => {
   const [zegoInstance, setZegoInstance] = useState(null);
   const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('chat');
+  const [activeTab, setActiveTab] = useState('info');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [participants, setParticipants] = useState([]);
   const [isReconnecting, setIsReconnecting] = useState(false);
@@ -438,12 +438,23 @@ const Room = () => {
         scenario: {
           mode: 1,
         },
+        // ENABLE SCREEN SHARING FOR MOBILE
+        showScreenSharingButton: true, // Ensure this is true
+        screenSharingConfig: {
+          // Optional: Customize screen sharing for mobile
+          enableMobile: true, // Explicitly enable for mobile
+          enableAudioWhenSharing: true,
+        },
+        // CRITICAL FOR MOBILE: Show a simpler toolbar
+        showPreJoinView: false,
+        showRoomTimer: true,
         showPreJoinView: false,
         showRoomTimer: true,
         showMyCameraToggleButton: true,
         showMyMicrophoneToggleButton: true,
         showScreenSharingButton: true,
         showTextChat: true, // ✅ ENABLE ZEGOCLOUD GROUP CHAT
+        showDetailStats: true,
         showUserList: false,
         turnOnMicrophoneWhenJoining: true,
         turnOnCameraWhenJoining: true,
@@ -986,7 +997,7 @@ const Room = () => {
 
             {/* Tab Navigation */}
             <div className="p-2 sm:p-3 border-b border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 flex gap-1 sm:gap-2">
-              <SidebarTab id="chat" label="Chat" icon={IconChat} />
+              {/* <SidebarTab id="chat" label="Chat" icon={IconChat} /> */}
               <SidebarTab id="info" label="Info" icon={IconInfo} />
               <SidebarTab id="friends" label="Friends" icon={IconFriends} />
             </div>
@@ -1025,7 +1036,7 @@ const Room = () => {
             </div>
           </div>
         </div>
-      </main>      
+      </main>
     </div>
   );
 };
