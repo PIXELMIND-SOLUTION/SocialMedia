@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -146,9 +146,13 @@ const Room = () => {
   const chatContainerRef = useRef(null);
   const zegoInstanceRef = useRef(null);
   const isJoiningRef = useRef(false);
+  const isLeavingRef = useRef(false);
+  const isMountedRef = useRef(true);
 
   // Initialize user data from sessionStorage and location state
   useEffect(() => {
+    isMountedRef.current = true;
+
     // Get user from session
     const storedUser = JSON.parse(sessionStorage.getItem("userData"));
 
@@ -172,10 +176,18 @@ const Room = () => {
     localStorage.setItem('watchTogether_userName', resolvedName);
 
     return () => {
+      isMountedRef.current = false;
+
       // Clean up on unmount
-      if (zegoInstanceRef.current) {
+      if (zegoInstanceRef.current && !isLeavingRef.current) {
         try {
-          zegoInstanceRef.current.destroy();
+          // Use a timeout to ensure component is fully unmounting
+          setTimeout(() => {
+            if (zegoInstanceRef.current) {
+              zegoInstanceRef.current.destroy().catch(() => { });
+              zegoInstanceRef.current = null;
+            }
+          }, 100);
         } catch (e) {
           console.log('Error destroying Zego instance on unmount:', e);
         }
@@ -184,7 +196,7 @@ const Room = () => {
   }, [location.state]);
 
   useEffect(() => {
-    if (!roomId || !userName || isJoiningRef.current) return;
+    if (!roomId || !userName || isJoiningRef.current || isLeavingRef.current) return;
 
     const initVideo = async () => {
       if (videoContainerRef.current && !zegoInstanceRef.current) {
@@ -333,7 +345,7 @@ const Room = () => {
   };
 
   const initZegoCloud = async () => {
-    if (!userName || isJoiningRef.current) {
+    if (!userName || isJoiningRef.current || isLeavingRef.current || !isMountedRef.current) {
       return;
     }
 
@@ -346,7 +358,14 @@ const Room = () => {
       // Clean up previous instance if exists
       if (zegoInstanceRef.current) {
         try {
-          zegoInstanceRef.current.destroy();
+          // First leave the room properly
+          if (zegoInstanceRef.current.leaveRoom) {
+            await zegoInstanceRef.current.leaveRoom().catch(() => { });
+          }
+          // Then destroy
+          if (zegoInstanceRef.current.destroy) {
+            await zegoInstanceRef.current.destroy().catch(() => { });
+          }
         } catch (e) {
           console.log('Error destroying previous Zego instance:', e);
         }
@@ -355,9 +374,9 @@ const Room = () => {
       }
 
       // Clear video container
-      if (videoContainerRef.current) {
-        videoContainerRef.current.innerHTML = '';
-      }
+      // if (videoContainerRef.current && isMountedRef.current) {
+      //   videoContainerRef.current.innerHTML = '';
+      // }
 
       let ZegoUIKitPrebuilt;
 
@@ -424,13 +443,13 @@ const Room = () => {
 
       let attempts = 0;
       const maxAttempts = 50;
-      while (!videoContainerRef.current && attempts < maxAttempts) {
+      while (!videoContainerRef.current && attempts < maxAttempts && isMountedRef.current) {
         await new Promise(resolve => setTimeout(resolve, 100));
         attempts++;
       }
 
-      if (!videoContainerRef.current) {
-        throw new Error('Video container not found after waiting');
+      if (!videoContainerRef.current || !isMountedRef.current) {
+        throw new Error('Video container not found after waiting or component unmounted');
       }
 
       const roomConfig = {
@@ -438,22 +457,12 @@ const Room = () => {
         scenario: {
           mode: 1,
         },
-        // ENABLE SCREEN SHARING FOR MOBILE
-        showScreenSharingButton: true, // Ensure this is true
-        screenSharingConfig: {
-          // Optional: Customize screen sharing for mobile
-          enableMobile: true, // Explicitly enable for mobile
-          enableAudioWhenSharing: true,
-        },
-        // CRITICAL FOR MOBILE: Show a simpler toolbar
-        showPreJoinView: false,
-        showRoomTimer: true,
         showPreJoinView: false,
         showRoomTimer: true,
         showMyCameraToggleButton: true,
         showMyMicrophoneToggleButton: true,
         showScreenSharingButton: true,
-        showTextChat: true, // ✅ ENABLE ZEGOCLOUD GROUP CHAT
+        showTextChat: true,
         showDetailStats: true,
         showUserList: false,
         turnOnMicrophoneWhenJoining: true,
@@ -465,6 +474,8 @@ const Room = () => {
           { resolution: 720, label: "HD" }
         ],
         onJoinRoom: () => {
+          if (!isMountedRef.current) return;
+
           console.log('✅ Joined room successfully');
           setIsInitializing(false);
           setIsReconnecting(false);
@@ -472,16 +483,10 @@ const Room = () => {
           setZegoInstance(zp);
           zegoInstanceRef.current = zp;
         },
-        onLeaveRoom: () => {
-          console.log('Left room');
-          if (zegoInstanceRef.current) {
-            zegoInstanceRef.current.destroy();
-            zegoInstanceRef.current = null;
-          }
-          setZegoInstance(null);
-          setParticipants([]);
-        },
+        // REMOVED onLeaveRoom callback - this was destroying the room for everyone
         onUserJoin: (users) => {
+          if (!isMountedRef.current) return;
+
           console.log("User joined:", users);
 
           setParticipants((prev) => {
@@ -495,8 +500,9 @@ const Room = () => {
             return updated;
           });
         },
-
         onUserLeave: (users) => {
+          if (!isMountedRef.current) return;
+
           console.log("User left:", users);
 
           setParticipants((prev) =>
@@ -506,11 +512,13 @@ const Room = () => {
           );
         },
         onRoomStateUpdate: (state) => {
+          if (!isMountedRef.current) return;
+
           console.log('Room state update:', state);
           if (state === 'DISCONNECTED' || state === 'ERROR') {
             setIsReconnecting(true);
             setTimeout(() => {
-              if (zegoInstanceRef.current) {
+              if (zegoInstanceRef.current && isMountedRef.current && !isLeavingRef.current) {
                 initZegoCloud();
               }
             }, 3000);
@@ -527,6 +535,8 @@ const Room = () => {
       }
 
     } catch (error) {
+      if (!isMountedRef.current) return;
+
       console.error('❌ ZegoCloud initialization error:', error);
       setError(error.message);
       setIsInitializing(false);
@@ -538,7 +548,7 @@ const Room = () => {
       // Retry after 5 seconds if it's a connection error
       if (error.message.includes('network') || error.message.includes('connection')) {
         setTimeout(() => {
-          if (!zegoInstanceRef.current) {
+          if (!zegoInstanceRef.current && isMountedRef.current && !isLeavingRef.current) {
             initZegoCloud();
           }
         }, 5000);
@@ -546,21 +556,46 @@ const Room = () => {
     }
   };
 
+  // FIXED: Safe leaveRoom function that prevents Zego SDK errors
   const leaveRoom = () => {
-    if (zegoInstanceRef.current) {
-      try {
-        zegoInstanceRef.current.destroy();
-      } catch (e) {
-        console.log('Error destroying Zego instance:', e);
-      }
-      zegoInstanceRef.current = null;
-      setZegoInstance(null);
-    }
+    // Set leaving flag to prevent any new connections
+    isLeavingRef.current = true;
+    isJoiningRef.current = true;
+
+    // Navigate immediately - don't wait for cleanup
     navigate('/watch');
+
+    // Schedule cleanup for after navigation
+    setTimeout(() => {
+      if (zegoInstanceRef.current) {
+        try {
+          // Try to leave room first
+          if (zegoInstanceRef.current.leaveRoom) {
+            zegoInstanceRef.current.leaveRoom().catch(() => { });
+          }
+          // Then destroy
+          if (zegoInstanceRef.current.destroy) {
+            zegoInstanceRef.current.destroy().catch(() => { });
+          }
+        } catch (e) {
+          console.log('Error during Zego cleanup:', e);
+        }
+        zegoInstanceRef.current = null;
+        setZegoInstance(null);
+      }
+
+      // Clear the video container
+      if (videoContainerRef.current) {
+        videoContainerRef.current.innerHTML = '';
+      }
+
+      // Clear local state
+      setParticipants([]);
+    }, 100);
   };
 
   const reconnectVideo = () => {
-    if (!isJoiningRef.current) {
+    if (!isJoiningRef.current && !isLeavingRef.current && isMountedRef.current) {
       initZegoCloud();
     }
   };
@@ -843,6 +878,16 @@ const Room = () => {
               <code className="font-mono text-xs font-bold truncate max-w-[80px] sm:max-w-[120px] md:max-w-[180px]">
                 {roomId}
               </code>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(roomId);
+                  alert('Room ID copied!');
+                }}
+                className="bg-white/20 backdrop-blur-sm hover:from-orange-600 hover:to-amber-600 p-2 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg flex-shrink-0 active:scale-95"
+                title="Copy"
+              >
+                <IconCopy className="w-4 h-4 text-black" />
+              </button>
             </div>
           </div>
         </div>

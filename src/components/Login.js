@@ -174,7 +174,7 @@ const Login = () => {
         },
         body: JSON.stringify({
           otp: otpString,
-          token
+          token,
         })
       });
 
