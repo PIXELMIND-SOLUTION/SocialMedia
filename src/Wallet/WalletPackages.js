@@ -1,112 +1,248 @@
-import { useState } from "react";
-import { X } from "lucide-react";
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { Star, Wallet } from "lucide-react";
 
-const PackageSelectionModal = () => {
-  const [isModalOpen, setIsModalOpen] = useState(true);
+const WalletPackages = () => {
+  /* ===============================
+     USER
+  =============================== */
+  const storedUser = JSON.parse(sessionStorage.getItem("userData") || "{}");
+  const USER_ID = storedUser?.userId;
+
+  /* ===============================
+     STATE
+  =============================== */
+  const [packages, setPackages] = useState([]);
+  const [walletCoins, setWalletCoins] = useState(0);
   const [selectedPackage, setSelectedPackage] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState("");
 
-  const packages = [
-    { id: 1, coins: 100, price: 120 },
-    { id: 2, coins: 200, price: 210 },
-    { id: 3, coins: 100, price: 100 },
-    { id: 4, coins: 100, price: 120 },
-    { id: 5, coins: 200, price: 210 },
-    { id: 6, coins: 100, price: 100 }
-  ];
+  /* ===============================
+     LOAD RAZORPAY
+  =============================== */
+  const loadRazorpay = () =>
+    new Promise((resolve) => {
+      if (window.Razorpay) return resolve(true);
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
 
-  const selectPackage = (packageId) => {
-    setSelectedPackage(packageId);
-  };
+  /* ===============================
+     FETCH WALLET + PACKAGES
+  =============================== */
+  useEffect(() => {
+    if (!USER_ID) {
+      setError("User not logged in");
+      setLoading(false);
+      return;
+    }
 
-  const proceedWithPayment = () => {
-    if (selectedPackage) {
-      const selected = packages.find(pkg => pkg.id === selectedPackage);
-      console.log("Proceeding with package:", selected);
-      alert(`Processing payment for ${selected.coins} coins at ₹${selected.price}`);
-    } else {
-      alert("Please select a package first");
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        const [packageRes, walletRes] = await Promise.all([
+          axios.get("https://apisocial.atozkeysolution.com/api/admin/packages"),
+          axios.get(
+            `https://apisocial.atozkeysolution.com/api/wallet/${USER_ID}`
+          ),
+        ]);
+
+        if (packageRes.data?.success) {
+          setPackages(
+            packageRes.data.data.filter((pkg) => pkg.isActive)
+          );
+        }
+
+        if (walletRes.data?.success) {
+          setWalletCoins(walletRes.data.data.coins || 0);
+        }
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load packages or wallet");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [USER_ID]);
+
+  /* ===============================
+     PAYMENT FLOW
+  =============================== */
+  const proceedWithPayment = async () => {
+    if (!selectedPackage || processing) return;
+
+    try {
+      setProcessing(true);
+
+      const razorpayLoaded = await loadRazorpay();
+      if (!razorpayLoaded) {
+        alert("Razorpay SDK failed to load");
+        return;
+      }
+
+      // 🔹 CREATE ORDER
+      const orderRes = await axios.post(
+        "https://apisocial.atozkeysolution.com/api/create-order",
+        {
+          userId: USER_ID,
+          packageId: selectedPackage,
+        }
+      );
+
+      if (!orderRes.data?.success) {
+        throw new Error("Order creation failed");
+      }
+
+      const {
+        razorpayOrderId,
+        amount,
+        coins,
+        razorpayKey,
+      } = orderRes.data.data;
+
+      // 🔹 OPEN RAZORPAY
+      const options = {
+        key: razorpayKey,
+        amount: amount * 100,
+        currency: "INR",
+        name: "Wallet Recharge",
+        description: `${coins} Coins`,
+        order_id: razorpayOrderId,
+
+        handler: async (response) => {
+          try {
+            // 🔹 VERIFY PAYMENT
+            const verifyRes = await axios.post(
+              "https://apisocial.atozkeysolution.com/api/verify-payment",
+              {
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              }
+            );
+
+            if (verifyRes.data?.success) {
+              setWalletCoins(verifyRes.data.data.totalCoins);
+              setSelectedPackage(null);
+              alert("Coins added to wallet 🎉");
+            } else {
+              alert(verifyRes.data.message || "Verification failed");
+            }
+          } catch (err) {
+            console.error(
+              "VERIFY ERROR:",
+              err.response?.data || err
+            );
+            alert(
+              err.response?.data?.message ||
+                "Payment verification error"
+            );
+          }
+        },
+
+        theme: {
+          color: "#f97316",
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Payment failed");
+    } finally {
+      setProcessing(false);
     }
   };
 
-  if (!isModalOpen) {
+  /* ===============================
+     UI STATES
+  =============================== */
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-        >
-          Show Package Selection
-        </button>
+      <div className="flex justify-center py-20 text-gray-500">
+        Loading packages...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center py-20 text-red-500">
+        {error}
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      {/* Modal Backdrop */}
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-        {/* Modal */}
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
-          {/* Modal Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Select Package</h2>
-            <button
-              onClick={closeModal}
-              className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <X size={20} className="text-gray-500" />
-            </button>
-          </div>
+    <div className="relative mx-auto max-w-5xl px-4 py-8">
+      {/* ================= HEADER ================= */}
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-gray-800">
+          Select Packages
+        </h2>
 
-          {/* Modal Content */}
-          <div className="p-6">
-            {/* Package Grid */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              {packages.map((pkg) => (
-                <button
-                  key={pkg.id}
-                  onClick={() => selectPackage(pkg.id)}
-                  className={`p-4 rounded-lg border-2 transition-all duration-200 ${
-                    selectedPackage === pkg.id
-                      ? "border-orange-500 bg-orange-50 shadow-md"
-                      : "border-orange-200 bg-white hover:border-orange-300 hover:shadow-sm"
-                  }`}
-                >
-                  <div className="flex flex-col items-center space-y-2">
-                    {/* Coin Icon */}
-                    <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
-                      <div className="w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center">
-                        <span className="text-orange-600 text-xs font-bold">⭐</span>
-                      </div>
-                    </div>
-                    
-                    {/* Package Details */}
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-orange-600">{pkg.coins}</div>
-                      <div className="text-sm text-gray-600">₹ {pkg.price}</div>
-                    </div>
-                  </div>
-                </button>
-              ))}
+        <div className="flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-white shadow-lg">
+          <Wallet size={18} />
+          <span className="font-semibold">{walletCoins}</span>
+          <Star size={16} />
+        </div>
+      </div>
+
+      {/* ================= PACKAGES ================= */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+        {packages.map((pkg) => (
+          <button
+            key={pkg._id}
+            onClick={() => setSelectedPackage(pkg._id)}
+            className={`rounded-xl border-2 p-4 text-center transition-all ${
+              selectedPackage === pkg._id
+                ? "border-orange-500 bg-orange-50 shadow-md"
+                : "border-gray-200 hover:border-orange-400"
+            }`}
+          >
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-orange-500">
+              <Star className="text-white" size={26} />
             </div>
 
-            {/* Proceed Button */}
-            <button
-              onClick={proceedWithPayment}
-              className="w-full py-3 px-4 bg-orange-500 text-white font-medium rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!selectedPackage}
-            >
-              Proceed
-            </button>
-          </div>
-        </div>
+            <p className="text-lg font-bold text-orange-600">
+              {pkg.coins} Coins
+            </p>
+
+            <p className="text-sm font-semibold text-gray-800">
+              ₹{pkg.price}
+            </p>
+
+            {pkg.originalPrice && (
+              <p className="text-xs text-gray-400 line-through">
+                ₹{pkg.originalPrice}
+              </p>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* ================= ACTION ================= */}
+      <div className="mt-8">
+        <button
+          onClick={proceedWithPayment}
+          disabled={!selectedPackage || processing}
+          className="w-full rounded-xl bg-orange-500 py-3 text-lg font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {processing ? "Processing..." : "Proceed to Pay"}
+        </button>
       </div>
     </div>
   );
 };
 
-export default PackageSelectionModal;
+export default WalletPackages;

@@ -17,7 +17,7 @@ import PricingPlans from "./CampaignManagement/PricingPlan";
 import FormDashboard from "./CampaignManagement/ResponseForm";
 import CampaignAdModal from "./CampaignManagement/CurrentCampaignAd";
 import WalletModal from "./Wallet/MyWallet";
-import PackageSelectionModal from "./Wallet/WalletPackages";
+import WalletPackages from "./Wallet/WalletPackages";
 import Notifications from "./notifications/Notification";
 import PrivateRoute from "./components/PrivateRoute";
 import Room from "./WatchTogether/Room";
@@ -168,7 +168,7 @@ function App() {
             path="/packages"
             element={
               <PrivateRoute>
-                <PackageSelectionModal />
+                <WalletPackages />
               </PrivateRoute>
             }
           />

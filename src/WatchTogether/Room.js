@@ -95,7 +95,7 @@ const useResponsive = () => {
       setIsDesktop(width >= 1024);
     };
 
-    // Add debouncing to prevent excessive re-renders[citation:2]
+    // Add debouncing to prevent excessive re-renders
     let timeoutId;
     const debouncedResize = () => {
       clearTimeout(timeoutId);
@@ -148,10 +148,12 @@ const Room = () => {
   const isJoiningRef = useRef(false);
   const isLeavingRef = useRef(false);
   const isMountedRef = useRef(true);
+  const cleanupDoneRef = useRef(false);
 
   // Initialize user data from sessionStorage and location state
   useEffect(() => {
     isMountedRef.current = true;
+    cleanupDoneRef.current = false;
 
     // Get user from session
     const storedUser = JSON.parse(sessionStorage.getItem("userData"));
@@ -177,21 +179,14 @@ const Room = () => {
 
     return () => {
       isMountedRef.current = false;
-
-      // Clean up on unmount
-      if (zegoInstanceRef.current && !isLeavingRef.current) {
-        try {
-          // Use a timeout to ensure component is fully unmounting
-          setTimeout(() => {
-            if (zegoInstanceRef.current) {
-              zegoInstanceRef.current.destroy().catch(() => { });
-              zegoInstanceRef.current = null;
-            }
-          }, 100);
-        } catch (e) {
-          console.log('Error destroying Zego instance on unmount:', e);
-        }
+      
+      // Safe cleanup - only clear refs, don't call SDK methods
+      if (!cleanupDoneRef.current && zegoInstanceRef.current) {
+        cleanupDoneRef.current = true;
+        zegoInstanceRef.current = null;
       }
+      
+      setParticipants([]);
     };
   }, [location.state]);
 
@@ -344,6 +339,23 @@ const Room = () => {
     return btoa(payload);
   };
 
+  const safeZegoCleanup = () => {
+    if (cleanupDoneRef.current) return;
+    cleanupDoneRef.current = true;
+
+    // Just nullify the references, don't call SDK methods
+    zegoInstanceRef.current = null;
+    setZegoInstance(null);
+    
+    // Clear video container
+    if (videoContainerRef.current) {
+      videoContainerRef.current.innerHTML = '';
+    }
+    
+    // Clear participants
+    setParticipants([]);
+  };
+
   const initZegoCloud = async () => {
     if (!userName || isJoiningRef.current || isLeavingRef.current || !isMountedRef.current) {
       return;
@@ -357,26 +369,8 @@ const Room = () => {
 
       // Clean up previous instance if exists
       if (zegoInstanceRef.current) {
-        try {
-          // First leave the room properly
-          if (zegoInstanceRef.current.leaveRoom) {
-            await zegoInstanceRef.current.leaveRoom().catch(() => { });
-          }
-          // Then destroy
-          if (zegoInstanceRef.current.destroy) {
-            await zegoInstanceRef.current.destroy().catch(() => { });
-          }
-        } catch (e) {
-          console.log('Error destroying previous Zego instance:', e);
-        }
-        zegoInstanceRef.current = null;
-        setZegoInstance(null);
+        safeZegoCleanup();
       }
-
-      // Clear video container
-      // if (videoContainerRef.current && isMountedRef.current) {
-      //   videoContainerRef.current.innerHTML = '';
-      // }
 
       let ZegoUIKitPrebuilt;
 
@@ -483,7 +477,6 @@ const Room = () => {
           setZegoInstance(zp);
           zegoInstanceRef.current = zp;
         },
-        // REMOVED onLeaveRoom callback - this was destroying the room for everyone
         onUserJoin: (users) => {
           if (!isMountedRef.current) return;
 
@@ -542,8 +535,9 @@ const Room = () => {
       setIsInitializing(false);
       setIsReconnecting(false);
       isJoiningRef.current = false;
-      setZegoInstance(null);
-      zegoInstanceRef.current = null;
+      
+      // Use safe cleanup
+      safeZegoCleanup();
 
       // Retry after 5 seconds if it's a connection error
       if (error.message.includes('network') || error.message.includes('connection')) {
@@ -556,42 +550,17 @@ const Room = () => {
     }
   };
 
-  // FIXED: Safe leaveRoom function that prevents Zego SDK errors
   const leaveRoom = () => {
-    // Set leaving flag to prevent any new connections
+    if (isLeavingRef.current) return;
+    
     isLeavingRef.current = true;
     isJoiningRef.current = true;
 
-    // Navigate immediately - don't wait for cleanup
+    // Use safe cleanup
+    safeZegoCleanup();
+    
+    // Navigate immediately
     navigate('/watch');
-
-    // Schedule cleanup for after navigation
-    setTimeout(() => {
-      if (zegoInstanceRef.current) {
-        try {
-          // Try to leave room first
-          if (zegoInstanceRef.current.leaveRoom) {
-            zegoInstanceRef.current.leaveRoom().catch(() => { });
-          }
-          // Then destroy
-          if (zegoInstanceRef.current.destroy) {
-            zegoInstanceRef.current.destroy().catch(() => { });
-          }
-        } catch (e) {
-          console.log('Error during Zego cleanup:', e);
-        }
-        zegoInstanceRef.current = null;
-        setZegoInstance(null);
-      }
-
-      // Clear the video container
-      if (videoContainerRef.current) {
-        videoContainerRef.current.innerHTML = '';
-      }
-
-      // Clear local state
-      setParticipants([]);
-    }, 100);
   };
 
   const reconnectVideo = () => {
@@ -600,16 +569,15 @@ const Room = () => {
     }
   };
 
-  // Handle input change properly - FIX for single character issue[citation:4]
+  // Handle input change properly
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
   };
 
-  // Handle key press for Enter key[citation:4]
+  // Handle key press for Enter key
   const handleKeyPress = (e) => {
-    // Use key instead of keyCode for better compatibility[citation:4]
     if (e.key === 'Enter') {
-      e.preventDefault(); // Prevent form submission behavior
+      e.preventDefault();
       sendChatMessage();
     }
   };
@@ -673,7 +641,6 @@ const Room = () => {
           </div>
         )}
       </div>
-
 
       {isReconnecting && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
@@ -831,8 +798,8 @@ const Room = () => {
           <input
             type="text"
             value={newMessage}
-            onChange={handleInputChange} // ✅ FIXED: Using proper onChange handler
-            onKeyDown={handleKeyPress} // ✅ FIXED: Using onKeyDown instead of onKeyPress[citation:4]
+            onChange={handleInputChange}
+            onKeyDown={handleKeyPress}
             placeholder="Type a message..."
             className="flex-1 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-sm text-gray-900 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200 transition-all"
           />

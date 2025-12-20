@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Star, Search, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 const WalletModal = () => {
@@ -18,6 +18,14 @@ const WalletModal = () => {
   const [sending, setSending] = useState(false);
 
   const navigate = useNavigate();
+
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.pathname === "/watch") {
+      window.location.reload();
+    }
+  }, [location.pathname]);
 
   const storedUser = JSON.parse(sessionStorage.getItem("userData") || "{}");
   const userId = storedUser?.userId;
@@ -153,9 +161,8 @@ const WalletModal = () => {
                   </div>
 
                   <span
-                    className={`font-bold ${
-                      tx.coins > 0 ? "text-green-600" : "text-red-500"
-                    }`}
+                    className={`font-bold ${tx.coins > 0 ? "text-green-600" : "text-red-500"
+                      }`}
                   >
                     {tx.coins > 0 ? "+" : ""}
                     {tx.coins}
@@ -243,9 +250,8 @@ const WalletModal = () => {
             <button
               onClick={sendCoins}
               disabled={!coinsToSend || sending}
-              className={`w-full py-3 rounded-lg text-white ${
-                sending ? "bg-gray-400" : "bg-orange-500"
-              }`}
+              className={`w-full py-3 rounded-lg text-white ${sending ? "bg-gray-400" : "bg-orange-500"
+                }`}
             >
               {sending ? "Sending..." : "Send Coins"}
             </button>
