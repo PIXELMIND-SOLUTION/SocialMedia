@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Star, Wallet } from "lucide-react";
+import { Star, Wallet, CheckCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const WalletPackages = () => {
   /* ===============================
@@ -8,6 +9,8 @@ const WalletPackages = () => {
   =============================== */
   const storedUser = JSON.parse(sessionStorage.getItem("userData") || "{}");
   const USER_ID = storedUser?.userId;
+
+  const navigate = useNavigate();
 
   /* ===============================
      STATE
@@ -18,6 +21,7 @@ const WalletPackages = () => {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   /* ===============================
      LOAD RAZORPAY
@@ -25,7 +29,6 @@ const WalletPackages = () => {
   const loadRazorpay = () =>
     new Promise((resolve) => {
       if (window.Razorpay) return resolve(true);
-
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
       script.onload = () => resolve(true);
@@ -45,8 +48,6 @@ const WalletPackages = () => {
 
     const fetchData = async () => {
       try {
-        setLoading(true);
-
         const [packageRes, walletRes] = await Promise.all([
           axios.get("https://apisocial.atozkeysolution.com/api/admin/packages"),
           axios.get(
@@ -64,7 +65,6 @@ const WalletPackages = () => {
           setWalletCoins(walletRes.data.data.coins || 0);
         }
       } catch (err) {
-        console.error(err);
         setError("Failed to load packages or wallet");
       } finally {
         setLoading(false);
@@ -89,7 +89,6 @@ const WalletPackages = () => {
         return;
       }
 
-      // 🔹 CREATE ORDER
       const orderRes = await axios.post(
         "https://apisocial.atozkeysolution.com/api/create-order",
         {
@@ -109,7 +108,6 @@ const WalletPackages = () => {
         razorpayKey,
       } = orderRes.data.data;
 
-      // 🔹 OPEN RAZORPAY
       const options = {
         key: razorpayKey,
         amount: amount * 100,
@@ -120,7 +118,6 @@ const WalletPackages = () => {
 
         handler: async (response) => {
           try {
-            // 🔹 VERIFY PAYMENT
             const verifyRes = await axios.post(
               "https://apisocial.atozkeysolution.com/api/verify-payment",
               {
@@ -133,31 +130,28 @@ const WalletPackages = () => {
             if (verifyRes.data?.success) {
               setWalletCoins(verifyRes.data.data.totalCoins);
               setSelectedPackage(null);
-              alert("Coins added to wallet 🎉");
+
+              // 🎉 SHOW SUCCESS MODAL
+              setShowSuccessModal(true);
+
+              // ⏳ AUTO REDIRECT AFTER 3 SEC
+              setTimeout(() => {
+                setShowSuccessModal(false);
+                navigate("/mywallet");
+              }, 3000);
             } else {
-              alert(verifyRes.data.message || "Verification failed");
+              alert("Payment verification failed");
             }
           } catch (err) {
-            console.error(
-              "VERIFY ERROR:",
-              err.response?.data || err
-            );
-            alert(
-              err.response?.data?.message ||
-                "Payment verification error"
-            );
+            alert("Payment verification error");
           }
         },
 
-        theme: {
-          color: "#f97316",
-        },
+        theme: { color: "#f97316" },
       };
 
-      const rzp = new window.Razorpay(options);
-      rzp.open();
+      new window.Razorpay(options).open();
     } catch (err) {
-      console.error(err);
       alert(err.message || "Payment failed");
     } finally {
       setProcessing(false);
@@ -184,64 +178,82 @@ const WalletPackages = () => {
   }
 
   return (
-    <div className="relative mx-auto max-w-5xl px-4 py-8">
-      {/* ================= HEADER ================= */}
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-800">
-          Select Packages
-        </h2>
+    <>
+      {/* ================= SUCCESS MODAL ================= */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="rounded-2xl bg-white p-8 text-center shadow-xl">
+            <CheckCircle size={64} className="mx-auto text-green-500" />
+            <h3 className="mt-4 text-xl font-bold text-gray-800">
+              Payment Successful 🎉
+            </h3>
+            <p className="mt-2 text-gray-600">
+              Coins added to your wallet
+            </p>
+            <p className="mt-1 text-sm text-gray-400">
+              Redirecting to wallet...
+            </p>
+          </div>
+        </div>
+      )}
 
-        <div className="flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-white shadow-lg">
-          <Wallet size={18} />
-          <span className="font-semibold">{walletCoins}</span>
-          <Star size={16} />
+      {/* ================= MAIN UI ================= */}
+      <div className="relative mx-auto max-w-5xl px-4 py-8">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-gray-800">
+            Select Packages
+          </h2>
+
+          <div className="flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-white shadow-lg">
+            <Wallet size={18} />
+            <span className="font-semibold">{walletCoins}</span>
+            <Star size={16} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+          {packages.map((pkg) => (
+            <button
+              key={pkg._id}
+              onClick={() => setSelectedPackage(pkg._id)}
+              className={`rounded-xl border-2 p-4 text-center transition-all ${
+                selectedPackage === pkg._id
+                  ? "border-orange-500 bg-orange-50 shadow-md"
+                  : "border-gray-200 hover:border-orange-400"
+              }`}
+            >
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-orange-500">
+                <Star className="text-white" size={26} />
+              </div>
+
+              <p className="text-lg font-bold text-orange-600">
+                {pkg.coins} Coins
+              </p>
+
+              <p className="text-sm font-semibold text-gray-800">
+                ₹{pkg.price}
+              </p>
+
+              {pkg.originalPrice && (
+                <p className="text-xs text-gray-400 line-through">
+                  ₹{pkg.originalPrice}
+                </p>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-8">
+          <button
+            onClick={proceedWithPayment}
+            disabled={!selectedPackage || processing}
+            className="w-full rounded-xl bg-orange-500 py-3 text-lg font-semibold text-white transition hover:bg-orange-600 disabled:opacity-50"
+          >
+            {processing ? "Processing..." : "Proceed to Pay"}
+          </button>
         </div>
       </div>
-
-      {/* ================= PACKAGES ================= */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-        {packages.map((pkg) => (
-          <button
-            key={pkg._id}
-            onClick={() => setSelectedPackage(pkg._id)}
-            className={`rounded-xl border-2 p-4 text-center transition-all ${
-              selectedPackage === pkg._id
-                ? "border-orange-500 bg-orange-50 shadow-md"
-                : "border-gray-200 hover:border-orange-400"
-            }`}
-          >
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-orange-500">
-              <Star className="text-white" size={26} />
-            </div>
-
-            <p className="text-lg font-bold text-orange-600">
-              {pkg.coins} Coins
-            </p>
-
-            <p className="text-sm font-semibold text-gray-800">
-              ₹{pkg.price}
-            </p>
-
-            {pkg.originalPrice && (
-              <p className="text-xs text-gray-400 line-through">
-                ₹{pkg.originalPrice}
-              </p>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* ================= ACTION ================= */}
-      <div className="mt-8">
-        <button
-          onClick={proceedWithPayment}
-          disabled={!selectedPackage || processing}
-          className="w-full rounded-xl bg-orange-500 py-3 text-lg font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {processing ? "Processing..." : "Proceed to Pay"}
-        </button>
-      </div>
-    </div>
+    </>
   );
 };
 

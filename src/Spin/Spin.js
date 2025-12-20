@@ -100,16 +100,7 @@ const Spin = () => {
       } catch (error) {
         console.error('Error fetching wheel data:', error);
         // Fallback to default segments
-        setSegments([
-          { _id: "1", position: 1, label: "1 Coin", value: "1 Coin", gradient: ["#11A85F", "#11A85F"], coins: 1, spinAgain: false },
-          { _id: "2", position: 2, label: "2 Coins", value: "2 Coins", gradient: ["#0D83C6", "#0D83C6"], coins: 2, spinAgain: false },
-          { _id: "3", position: 3, label: "3 Coins", value: "3 Coins", gradient: ["#D24495", "#D24495"], coins: 3, spinAgain: false },
-          { _id: "4", position: 4, label: "Spin Again", value: "Spin Again", gradient: ["#FFFFFF", "#FFFFFF"], coins: 0, spinAgain: true },
-          { _id: "5", position: 5, label: "4 Coins", value: "4 Coins", gradient: ["#F9A23B", "#F9A23B"], coins: 4, spinAgain: false },
-          { _id: "6", position: 6, label: "5 Coins", value: "5 Coins", gradient: ["#4DAE6E", "#4DAE6E"], coins: 5, spinAgain: false },
-          { _id: "7", position: 7, label: "Better Luck Next Time", value: "Better Luck Next Time", gradient: ["#FFFFFF", "#FFFFFF"], coins: 0, spinAgain: false },
-          { _id: "8", position: 8, label: "2 Coins", value: "2 Coins", gradient: ["#F9A23B", "#F9A23B"], coins: 2, spinAgain: false },
-        ]);
+        setSegments([]);
       }
     };
 
