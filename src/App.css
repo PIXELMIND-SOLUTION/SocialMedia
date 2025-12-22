@@ -21,15 +21,40 @@
 
 /* Works on most browsers */
 .hide-scrollbar {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* Internet Explorer and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* Internet Explorer and Edge */
 }
 
 .hide-scrollbar::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
+  display: none;
+  /* Chrome, Safari, Opera */
 }
 
 *:focus {
   outline: none !important;
   box-shadow: none !important;
+}
+
+
+@keyframes liveBlink {
+  0% {
+    color: #dc3545;
+    transform: scale(1);
+  }
+
+  50% {
+    color: #ff0000;
+    transform: scale(1.15);
+  }
+
+  100% {
+    color: #dc3545;
+    transform: scale(1);
+  }
+}
+
+.live-blink {
+  animation: liveBlink 1.2s infinite ease-in-out;
 }

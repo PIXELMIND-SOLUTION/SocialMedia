@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Send, MoreVertical, ArrowLeft, MessageSquare, X, Paperclip, Trash2, UserX, UserCheck, Download } from 'lucide-react';
-import io from 'socket.io-client';
+import { io } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
 
 const MessageModel = () => {

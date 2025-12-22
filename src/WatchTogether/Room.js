@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-// All icons remain the same
+// All icons remain the same (keep all your existing icon components)
 const IconVideo = (props) => (
   <svg {...props} fill="currentColor" viewBox="0 0 24 24">
     <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12z" />
@@ -95,7 +95,6 @@ const useResponsive = () => {
       setIsDesktop(width >= 1024);
     };
 
-    // Add debouncing to prevent excessive re-renders
     let timeoutId;
     const debouncedResize = () => {
       clearTimeout(timeoutId);
@@ -103,7 +102,7 @@ const useResponsive = () => {
     };
 
     window.addEventListener('resize', debouncedResize);
-    handleResize(); // Initial call
+    handleResize();
 
     return () => {
       window.removeEventListener('resize', debouncedResize);
@@ -138,6 +137,11 @@ const Room = () => {
   const [currentChatId, setCurrentChatId] = useState(null);
   const [userId, setUserId] = useState('');
 
+  // NEW: Room API states
+  const [roomMembers, setRoomMembers] = useState([]);
+  const [isLoadingRoomDetails, setIsLoadingRoomDetails] = useState(false);
+  const [roomDetailsError, setRoomDetailsError] = useState('');
+
   // ZegoCloud credentials
   const APP_ID = 938850321;
   const SERVER_SECRET = "b27c8f8fcc265d4d3c3d6010e5d3af2c";
@@ -155,32 +159,26 @@ const Room = () => {
     isMountedRef.current = true;
     cleanupDoneRef.current = false;
 
-    // Get user from session
     const storedUser = JSON.parse(sessionStorage.getItem("userData"));
 
-    // Resolve username priority:
     const resolvedName =
       location.state?.userName ||
       storedUser?.fullName ||
       localStorage.getItem('watchTogether_userName') ||
       "Guest";
 
-    // Set the values
     setUserId(storedUser?.userId || "");
     setUserName(resolvedName);
 
-    // Set roomId
     if (location.state?.roomId) {
       setRoomId(location.state.roomId);
     }
 
-    // Save to localStorage
     localStorage.setItem('watchTogether_userName', resolvedName);
 
     return () => {
       isMountedRef.current = false;
       
-      // Safe cleanup - only clear refs, don't call SDK methods
       if (!cleanupDoneRef.current && zegoInstanceRef.current) {
         cleanupDoneRef.current = true;
         zegoInstanceRef.current = null;
@@ -190,6 +188,21 @@ const Room = () => {
     };
   }, [location.state]);
 
+  // Fetch room details when roomId changes
+  useEffect(() => {
+    if (roomId) {
+      fetchRoomDetails();
+    }
+  }, [roomId]);
+
+  // Fetch friends list when userId is available
+  useEffect(() => {
+    if (userId) {
+      fetchFriends();
+    }
+  }, [userId]);
+
+  // Initialize video when roomId and userName are available
   useEffect(() => {
     if (!roomId || !userName || isJoiningRef.current || isLeavingRef.current) return;
 
@@ -202,13 +215,6 @@ const Room = () => {
     initVideo();
   }, [roomId, userName]);
 
-  // Fetch friends list when userId is available
-  useEffect(() => {
-    if (userId) {
-      fetchFriends();
-    }
-  }, [userId]);
-
   // Auto scroll chat to bottom
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -216,6 +222,97 @@ const Room = () => {
     }
   }, [chatMessages]);
 
+  // NEW: API 1 - Join Room
+  const joinRoomAPI = async () => {
+    if (!userId || !roomId) return;
+
+    try {
+      const response = await axios.post(
+        'https://apisocial.atozkeysolution.com/api/room-join',
+        {
+          userId: userId,
+          RoomId: roomId
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        console.log('✅ Successfully joined room via API');
+        return response.data;
+      } else {
+        console.warn('Room join API returned non-success:', response.data);
+      }
+    } catch (error) {
+      console.error('Error joining room via API:', error);
+      // Don't throw error - let user continue even if API fails
+    }
+  };
+
+  // NEW: API 2 - Fetch Room Details
+  const fetchRoomDetails = async () => {
+    if (!roomId) return;
+
+    setIsLoadingRoomDetails(true);
+    setRoomDetailsError('');
+
+    try {
+      const response = await axios.get(
+        `https://apisocial.atozkeysolution.com/api/room/${roomId}`
+      );
+
+      if (response.data.success) {
+        console.log('✅ Room details fetched:', response.data.data);
+        setRoomMembers(response.data.data.members || []);
+      } else {
+        setRoomDetailsError('Failed to fetch room details');
+      }
+    } catch (error) {
+      console.error('Error fetching room details:', error);
+      setRoomDetailsError('Could not load room information');
+    } finally {
+      setIsLoadingRoomDetails(false);
+    }
+  };
+
+  // NEW: API 3 - Send Invite (replaces old chat-based invite)
+  const sendInviteAPI = async (friendId, friendName) => {
+    if (!userId || !friendId || !roomId) return;
+
+    try {
+      const response = await axios.post(
+        'https://apisocial.atozkeysolution.com/api/invite',
+        {
+          userId: userId,
+          friendId: friendId,
+          roomId: roomId,
+          text: `${userName} is inviting you to join the Watch Together!`,
+          link: `${window.location.origin}/watch/${roomId}`
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        alert(`Invitation sent to ${friendName}!`);
+        console.log('✅ Invite sent:', response.data.data);
+        return response.data.data;
+      } else {
+        alert('Failed to send invitation. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error sending invite:', error);
+      alert('Failed to send invitation. Please try again.');
+    }
+  };
+
+  // Updated fetchFriends function (keep existing logic but with error handling)
   const fetchFriends = async () => {
     if (!userId) return;
 
@@ -223,12 +320,10 @@ const Room = () => {
     try {
       const response = await axios.get(`https://apisocial.atozkeysolution.com/api/chat/all/${userId}`);
       if (response.data.success) {
-        // Filter out duplicate participants and get unique friends
         const friendsList = response.data.data.flatMap(chat =>
           chat.participants.filter(participant => participant._id !== userId)
         );
 
-        // Remove duplicates by id
         const uniqueFriends = friendsList.filter((friend, index, self) =>
           index === self.findIndex(f => f._id === friend._id)
         );
@@ -237,72 +332,20 @@ const Room = () => {
       }
     } catch (error) {
       console.error('Error fetching friends:', error);
+      // Silently fail - don't show alert for friends loading
     } finally {
       setIsLoadingFriends(false);
     }
   };
 
+  // Updated sendInviteMessage function to use new API
   const sendInviteMessage = async (friendId, friendName) => {
-    if (!userId || !friendId) return;
-
-    try {
-      // First, we need to find or create a chat with this friend
-      const chatResponse = await axios.get(`https://apisocial.atozkeysolution.com/api/chat/all/${userId}`);
-      if (chatResponse.data.success) {
-        const existingChat = chatResponse.data.data.find(chat =>
-          chat.participants.some(participant => participant._id === friendId)
-        );
-
-        let chatId = existingChat?._id;
-
-        // If no existing chat, we might need to create one (API may handle this automatically)
-        if (!chatId) {
-          alert(`No existing chat found with ${friendName}. Please start a conversation first.`);
-          return;
-        }
-
-        // Send the invite message
-        const messageData = {
-          chatId: chatId,
-          senderId: userId,
-          receiverId: friendId,
-          type: "text",
-          text: `${userName} is inviting you to join the video room! Room ID: ${roomId}\n\nJoin here: ${window.location.origin}/watch/${roomId}`
-        };
-
-        const messageResponse = await axios.post(
-          'https://apisocial.atozkeysolution.com/api/messages/send',
-          messageData,
-          {
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-
-        if (messageResponse.data.success) {
-          alert(`Invitation sent to ${friendName}!`);
-
-          // Add this message to the local chat if it's the current chat
-          if (currentChatId === chatId) {
-            setChatMessages(prev => [...prev, {
-              ...messageResponse.data.data,
-              sender: { _id: userId, fullName: userName },
-              receiver: { _id: friendId, fullName: friendName }
-            }]);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error sending invite:', error);
-      alert('Failed to send invitation. Please try again.');
-    }
+    return await sendInviteAPI(friendId, friendName);
   };
 
   const sendChatMessage = async () => {
     if (!newMessage.trim() || !userId) return;
 
-    // For demo purposes, we'll simulate sending a message
     const newMsg = {
       _id: `temp_${Date.now()}`,
       text: newMessage,
@@ -315,7 +358,6 @@ const Room = () => {
     setChatMessages(prev => [...prev, newMsg]);
     setNewMessage('');
 
-    // Scroll to bottom
     setTimeout(() => {
       if (chatContainerRef.current) {
         chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -343,16 +385,13 @@ const Room = () => {
     if (cleanupDoneRef.current) return;
     cleanupDoneRef.current = true;
 
-    // Just nullify the references, don't call SDK methods
     zegoInstanceRef.current = null;
     setZegoInstance(null);
     
-    // Clear video container
     if (videoContainerRef.current) {
       videoContainerRef.current.innerHTML = '';
     }
     
-    // Clear participants
     setParticipants([]);
   };
 
@@ -371,6 +410,9 @@ const Room = () => {
       if (zegoInstanceRef.current) {
         safeZegoCleanup();
       }
+
+      // NEW: Call join room API before initializing video
+      await joinRoomAPI();
 
       let ZegoUIKitPrebuilt;
 
@@ -483,7 +525,6 @@ const Room = () => {
           console.log("User joined:", users);
 
           setParticipants((prev) => {
-            // Add new users, avoid duplicates
             const updated = [...prev];
             users.forEach(u => {
               if (!updated.find(x => x.userID === u.userID)) {
@@ -536,10 +577,8 @@ const Room = () => {
       setIsReconnecting(false);
       isJoiningRef.current = false;
       
-      // Use safe cleanup
       safeZegoCleanup();
 
-      // Retry after 5 seconds if it's a connection error
       if (error.message.includes('network') || error.message.includes('connection')) {
         setTimeout(() => {
           if (!zegoInstanceRef.current && isMountedRef.current && !isLeavingRef.current) {
@@ -556,10 +595,8 @@ const Room = () => {
     isLeavingRef.current = true;
     isJoiningRef.current = true;
 
-    // Use safe cleanup
     safeZegoCleanup();
     
-    // Navigate immediately
     navigate('/watch');
   };
 
@@ -569,12 +606,10 @@ const Room = () => {
     }
   };
 
-  // Handle input change properly
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
   };
 
-  // Handle key press for Enter key
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -600,6 +635,7 @@ const Room = () => {
     );
   };
 
+  // UPDATED: RoomInfoContent with API data
   const RoomInfoContent = () => (
     <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
       <div>
@@ -608,6 +644,7 @@ const Room = () => {
           {userName}
         </p>
       </div>
+      
       <div>
         <p className="text-sm text-orange-600 mb-1 font-medium">Room Status</p>
         <div className="flex items-center gap-2 bg-orange-50 p-3 rounded-lg border border-orange-100">
@@ -618,13 +655,66 @@ const Room = () => {
         </div>
       </div>
 
-      {/* Participants list */}
+      {/* Room Members from API */}
       <div>
-        <p className="text-sm text-orange-600 mb-2 font-medium">Participants</p>
+        <p className="text-sm text-orange-600 mb-2 font-medium">Room Members ({roomMembers.length})</p>
+        {isLoadingRoomDetails ? (
+          <div className="flex items-center justify-center p-3">
+            <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mr-2"></div>
+            <span className="text-xs text-gray-500">Loading room members...</span>
+          </div>
+        ) : roomDetailsError ? (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-2">
+            <p className="text-xs text-red-600">{roomDetailsError}</p>
+            <button 
+              onClick={fetchRoomDetails}
+              className="mt-1 text-xs text-red-700 underline"
+            >
+              Retry
+            </button>
+          </div>
+        ) : roomMembers.length === 0 ? (
+          <p className="text-xs text-gray-500 bg-orange-50 p-2 rounded-lg">
+            No members in this room yet
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {roomMembers.map((member) => (
+              <div key={member.userId} className="flex items-center gap-2 bg-white p-2 rounded-lg border border-orange-100">
+                <div className="w-8 h-8 rounded-full bg-orange-200 text-orange-800 flex items-center justify-center font-bold overflow-hidden">
+                  {member.profileImage ? (
+                    <img 
+                      src={member.profileImage} 
+                      alt={member.fullName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    member.fullName?.charAt(0).toUpperCase() || "U"
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium text-gray-800 truncate block">
+                    {member.fullName || member.username || 'Unknown'}
+                  </span>
+                  <span className="text-xs text-gray-500 truncate block">
+                    @{member.username || 'no-username'}
+                  </span>
+                </div>
+                {member.userId === userId && (
+                  <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">You</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
+      {/* Zego Participants list */}
+      <div>
+        <p className="text-sm text-orange-600 mb-2 font-medium">Active Video Participants ({participants.length})</p>
         {participants.length === 0 ? (
           <p className="text-xs text-gray-500 bg-orange-50 p-2 rounded-lg">
-            No other users yet
+            No active video participants yet
           </p>
         ) : (
           <div className="space-y-1">
@@ -636,6 +726,7 @@ const Room = () => {
                 <span className="text-sm font-medium text-gray-800 truncate">
                   {u.userName || u.userID}
                 </span>
+                <div className="ml-auto w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               </div>
             ))}
           </div>
@@ -656,6 +747,7 @@ const Room = () => {
           </button>
         </div>
       )}
+      
       <div className="pt-4 border-t border-orange-200">
         <p className="text-sm text-orange-600 mb-2 font-medium">Invite Friends</p>
         <div className="space-y-2">
@@ -691,13 +783,23 @@ const Room = () => {
             <span className="hidden sm:inline">Friends ({friends.length})</span>
             <span className="sm:hidden">Friends ({friends.length})</span>
           </div>
-          <button
-            onClick={fetchFriends}
-            className="text-xs sm:text-sm bg-gradient-to-r from-orange-500 to-amber-500 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg hover:opacity-90 transition-all"
-            disabled={isLoadingFriends}
-          >
-            {isLoadingFriends ? 'Loading...' : 'Refresh'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={fetchRoomDetails}
+              className="text-xs sm:text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg hover:opacity-90 transition-all"
+              disabled={isLoadingRoomDetails}
+              title="Refresh room members"
+            >
+              {isLoadingRoomDetails ? '...' : 'Refresh Room'}
+            </button>
+            <button
+              onClick={fetchFriends}
+              className="text-xs sm:text-sm bg-gradient-to-r from-orange-500 to-amber-500 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg hover:opacity-90 transition-all"
+              disabled={isLoadingFriends}
+            >
+              {isLoadingFriends ? '...' : 'Refresh'}
+            </button>
+          </div>
         </h3>
       </div>
 
@@ -746,71 +848,6 @@ const Room = () => {
             ))}
           </div>
         )}
-      </div>
-    </div>
-  );
-
-  const ChatContent = () => (
-    <div className="flex-1 flex flex-col h-full">
-      <div
-        ref={chatContainerRef}
-        className="flex-1 p-2 sm:p-4 overflow-y-auto bg-gradient-to-b from-orange-50/50 to-transparent"
-      >
-        {chatMessages.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-orange-400/20 to-amber-400/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <IconChat className="w-6 h-6 sm:w-8 sm:h-8 text-orange-500" />
-            </div>
-            <p className="text-gray-600 font-medium text-sm sm:text-base">No messages yet</p>
-            <p className="text-xs sm:text-sm text-orange-600 mt-2 bg-orange-50 p-2 rounded-lg inline-block">
-              Say hello to start chatting!
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2 sm:space-y-3">
-            {chatMessages.map((msg) => (
-              <div
-                key={msg._id}
-                className={`flex ${msg.sender?._id === userId ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[85%] sm:max-w-[80%] rounded-2xl p-2 sm:p-3 ${msg.sender?._id === userId
-                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-br-none'
-                    : 'bg-orange-100 text-gray-900 rounded-bl-none border border-orange-200'}`}
-                >
-                  <div className="flex items-center gap-1 sm:gap-2 mb-1">
-                    <span className={`text-xs font-medium ${msg.sender?._id === userId ? 'text-white/80' : 'text-gray-600'}`}>
-                      {msg.sender?._id === userId ? 'You' : msg.sender?.fullName || 'Unknown'}
-                    </span>
-                    <span className={`text-xs ${msg.sender?._id === userId ? 'text-white/60' : 'text-gray-500'}`}>
-                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <p className="text-xs sm:text-sm break-words">{msg.text}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="p-2 sm:p-4 border-t border-orange-200 bg-white">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyPress}
-            placeholder="Type a message..."
-            className="flex-1 bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-sm text-gray-900 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-200 transition-all"
-          />
-          <button
-            onClick={sendChatMessage}
-            disabled={!newMessage.trim()}
-            className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 sm:px-5 py-2 sm:py-3 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
-          >
-            <IconSend className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -874,6 +911,14 @@ const Room = () => {
             </div>
           )}
 
+          {/* Room members count badge */}
+          {roomMembers.length > 0 && (
+            <div className="hidden sm:flex items-center gap-1 text-white/90 bg-white/10 backdrop-blur-sm px-2 sm:px-3 py-1 rounded-lg">
+              <IconFriends className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="text-xs font-medium">{roomMembers.length} members</span>
+            </div>
+          )}
+
           {/* Mobile room ID copy button */}
           {isMobile && (
             <button
@@ -931,7 +976,7 @@ const Room = () => {
                         Setting Up Video Call
                       </h3>
                       <p className="text-gray-300 text-xs sm:text-sm md:text-base">
-                        Please wait for initialization...
+                        Joining room and initializing video...
                       </p>
                     </>
                   ) : (
@@ -964,14 +1009,24 @@ const Room = () => {
           </div>
 
           {/* Participants counter */}
-          {zegoInstance && (
-            <div className="mt-2 flex items-center justify-center">
-              <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium shadow-lg">
-                <div className="flex items-center gap-1 sm:gap-2">
-                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  <span>Active: {participants.length + 1}</span>
+          {(zegoInstance || roomMembers.length > 0) && (
+            <div className="mt-2 flex items-center justify-center gap-4">
+              {zegoInstance && (
+                <div className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium shadow-lg">
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span>Video: {participants.length + 1}</span>
+                  </div>
                 </div>
-              </div>
+              )}
+              {roomMembers.length > 0 && (
+                <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium shadow-lg">
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <IconFriends className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span>Room: {roomMembers.length}</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1009,7 +1064,6 @@ const Room = () => {
 
             {/* Tab Navigation */}
             <div className="p-2 sm:p-3 border-b border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 flex gap-1 sm:gap-2">
-              {/* <SidebarTab id="chat" label="Chat" icon={IconChat} /> */}
               <SidebarTab id="info" label="Info" icon={IconInfo} />
               <SidebarTab id="friends" label="Friends" icon={IconFriends} />
             </div>
@@ -1031,19 +1085,6 @@ const Room = () => {
 
               <div className={`h-full ${activeTab !== 'friends' ? 'hidden' : ''}`}>
                 <FriendsContent />
-              </div>
-
-              <div className={`h-full flex flex-col ${activeTab !== 'chat' ? 'hidden' : ''}`}>
-                <div className="p-3 sm:p-4 border-b border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50">
-                  <h3 className="font-bold text-lg sm:text-xl text-gray-900 flex items-center gap-2 sm:gap-3">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl flex items-center justify-center">
-                      <IconChat className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                    </div>
-                    <span className="hidden sm:inline">Live Chat</span>
-                    <span className="sm:hidden">Chat</span>
-                  </h3>
-                </div>
-                <ChatContent />
               </div>
             </div>
           </div>
