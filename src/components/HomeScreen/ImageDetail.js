@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const API_BASE = "https://apisocial.atozkeysolution.com/api";
 const SAVE_API = "https://apisocial.atozkeysolution.com/api/posts/save";
@@ -294,7 +295,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
 
       if (data.success) {
         setFollowStatus(expectedNewStatus);
-        
+
         // Refresh all requests after follow action
         try {
           const requestsRes = await fetch(`${API_BASE}/requests/all`);
@@ -377,18 +378,49 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
     }
   };
 
-  // ---------- DOWNLOAD ----------
-  const handleDownload = () => {
-    const url = image.media?.[0]?.url?.trim();
-    if (!url) return alert("No media available.");
-    const a = document.createElement("a");
-    a.href = url;
-    a.target = "_blank";
-    const extension = image.media?.[0]?.type?.includes("video") ? "mp4" : "jpg";
-    a.download = `post-${image._id}.${extension}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  // ---------- DOWNLOAD HANDLER ----------
+  const handleDownload = async () => {
+    try {
+      const url = image?.media?.[0]?.url?.trim();
+      if (!url) {
+        alert("No media available.");
+        return;
+      }
+
+      // 1️⃣ Call backend API (coins + history + validation)
+      const res = await axios.post(
+        "https://apisocial.atozkeysolution.com/api/post-download",
+        {
+          postId: image._id,
+          userId: currentUserId,
+        }
+      );
+
+      if (!res.data.success) {
+        alert(res.data.message || "Download failed");
+        return;
+      }
+
+      // 2️⃣ Trigger browser download only after success
+      const a = document.createElement("a");
+      a.href = url;
+      a.target = "_blank";
+
+      const isVideo = image.media?.[0]?.type?.includes("video");
+      const extension = isVideo ? "mp4" : "jpg";
+
+      a.download = `post-${image._id}.${extension}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+    } catch (err) {
+      console.error("Download error:", err);
+      alert(
+        err?.response?.data?.message ||
+        "Unable to download. Please try again."
+      );
+    }
   };
 
   // ---------- HELPERS ----------
@@ -428,7 +460,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
   // Get follow button text based on status
   const getFollowButtonText = () => {
     if (loadingFollow) return "...";
-    
+
     switch (followStatus) {
       case "following":
         return "Following";
@@ -511,7 +543,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
             zIndex: 1
           }}>
             <div className="d-flex align-items-center">
-              <div 
+              <div
                 onClick={() => handleProfile(image.userId?._id)}
                 style={{ cursor: 'pointer' }}
               >
@@ -552,7 +584,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
                 src={mediaUrl}
                 controls
                 className="w-100"
-                style={{ 
+                style={{
                   maxHeight: '50vh',
                   objectFit: 'contain'
                 }}
@@ -562,7 +594,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
                 src={mediaUrl}
                 alt={image.description || "Post"}
                 className="w-100"
-                style={{ 
+                style={{
                   maxHeight: '50vh',
                   objectFit: 'contain'
                 }}
@@ -598,12 +630,16 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
                 <button
                   onClick={handleDownload}
                   className="btn p-0"
-                  style={{ fontSize: '24px', color: '#6c757d' }}
+                  title="Download"
                 >
-                  <i className="bi bi-download"></i>
+                  <i
+                    className="bi bi-download"
+                    style={{ fontSize: "22px", color: "#6c757d" }}
+                  ></i>
                 </button>
+
               </div>
-              
+
               {followStatus !== "self" && (
                 <button
                   className={`btn btn-sm ${getFollowButtonClass()} rounded-pill px-3 py-1`}
@@ -774,7 +810,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
           {followStatus !== "self" && (
             <button
               className={`btn btn-sm ${getFollowButtonClass()}`}
-              onClick={handleFollow} 
+              onClick={handleFollow}
               disabled={loadingFollow}
             >
               {getFollowButtonText()}
@@ -834,8 +870,10 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
           className="btn btn-primary w-100 mt-3 rounded-pill py-2"
           onClick={handleDownload}
         >
-          Download {mediaType?.includes("video") ? "Video" : "Image"}
+          <i className="bi bi-download me-2"></i>
+          Download {image?.media?.[0]?.type?.includes("video") ? "Video" : "Image"}
         </button>
+
       </div>
 
       {/* Mobile Styles */}
