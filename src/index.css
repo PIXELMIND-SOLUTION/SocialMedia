@@ -6,6 +6,10 @@
 .bg-main {
     background-color: #FDD9CC;
 }
+.btn-orange {
+    background-color: #f97316;
+    color: white;
+}
 
 .dot-typing {
   width: 6px;

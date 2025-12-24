@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import DownloadModal from "./Download";
 
 const API_BASE = "https://apisocial.atozkeysolution.com/api";
 const SAVE_API = "https://apisocial.atozkeysolution.com/api/posts/save";
@@ -18,9 +18,21 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
   const [loadingSave, setLoadingSave] = useState(false);
   const [loadingFollow, setLoadingFollow] = useState(false);
   const [allRequests, setAllRequests] = useState([]);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
+  const [cost, setCost] = useState(0);
+  const [showMobileModal, setShowMobileModal] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
 
   const storedUser = JSON.parse(sessionStorage.getItem("userData"));
   const userId = storedUser?.userId;
+
+  // Initialize preview image
+  useEffect(() => {
+    if (image?.media?.[0]) {
+      setPreviewImage(image.media[0]);
+    }
+  }, [image]);
 
   // ---------- Fetch All Follow Requests ----------
   useEffect(() => {
@@ -59,7 +71,6 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
   // ---------- Update Likes & Comments on Image Change ----------
   useEffect(() => {
     setLikes(image.likes || []);
-    console.log("Updated Likes:", image.likes || []);
     setComments(image.comments || []);
   }, [image]);
 
@@ -77,7 +88,6 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
       }
 
       try {
-        // Fetch following and followers data
         const [followingRes, followersRes] = await Promise.all([
           fetch(`${API_BASE}/following/${userId}`),
           fetch(`${API_BASE}/followers/${userId}`),
@@ -85,24 +95,17 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
 
         const followingData = await followingRes.json();
         const followersData = await followersRes.json();
-        console.log("Following Data:", followingData);
 
         const followingList = followingData?.following || [];
         const followersList = followersData?.followers || [];
         const targetId = image.userId._id;
 
-        console.log("Following List:", followingList);
-        console.log("Followers List:", followersList);
-        console.log("Target User ID:", targetId);
-
-        // Check if already following
         const isFollowing = followingList.some(f => f._id === targetId);
         if (isFollowing) {
           setFollowStatus("following");
           return;
         }
 
-        // Check if there's an outgoing request (user has sent request to target)
         const outgoingRequest = allRequests.find(req => req.userId === targetId);
         if (outgoingRequest) {
           const hasOutgoingRequest = outgoingRequest.requests.some(
@@ -114,7 +117,6 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
           }
         }
 
-        // Check if there's an incoming request (target has sent request to user)
         const incomingRequest = allRequests.find(req => req.userId === userId);
         if (incomingRequest) {
           const hasIncomingRequest = incomingRequest.requests.some(
@@ -126,7 +128,6 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
           }
         }
 
-        // Check in followers list for pending status
         const pendingFollower = followersList.find(
           f => f._id === targetId && f.status === "pending"
         );
@@ -145,7 +146,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
     fetchFollowStatus();
   }, [userId, image.userId, allRequests]);
 
-  // ---------- LIKE / UNLIKE (TOGGLE) ----------
+  // ---------- LIKE / UNLIKE ----------
   const handleLike = async () => {
     if (!currentUserId) {
       alert("You must be logged in.");
@@ -154,19 +155,12 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
 
     try {
       setLoadingLike(true);
-
-      // Check if already liked
       const isLiked = likes.some(like =>
         like._id === currentUserId ||
         like.userId === currentUserId ||
         like === currentUserId
       );
 
-      console.log("Current likes:", likes);
-      console.log("User ID:", currentUserId);
-      console.log("Is liked:", isLiked);
-
-      // Use the same endpoint for both like and unlike
       const res = await fetch(`${API_BASE}/posts/like`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -179,34 +173,17 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
       });
 
       const data = await res.json();
-      console.log("Like/Unlike Response:", data);
-
       if (data.success) {
-        console.log(data.message || "Like updated successfully.");
-
-        // Update likes based on backend response
         if (data.likes !== undefined) {
           setLikes(data.likes);
-        } else if (data.likesCount !== undefined) {
-          if (isLiked) {
-            setLikes(prev => prev.filter(like =>
-              like._id !== currentUserId &&
-              like.userId !== currentUserId &&
-              like !== currentUserId
-            ));
-          } else {
-            setLikes(prev => [...prev, { _id: currentUserId, userId: currentUserId }]);
-          }
+        } else if (isLiked) {
+          setLikes(prev => prev.filter(like =>
+            like._id !== currentUserId &&
+            like.userId !== currentUserId &&
+            like !== currentUserId
+          ));
         } else {
-          if (isLiked) {
-            setLikes(prev => prev.filter(like =>
-              like._id !== currentUserId &&
-              like.userId !== currentUserId &&
-              like !== currentUserId
-            ));
-          } else {
-            setLikes(prev => [...prev, { _id: currentUserId, userId: currentUserId }]);
-          }
+          setLikes(prev => [...prev, { _id: currentUserId, userId: currentUserId }]);
         }
       } else {
         alert(data.message || "Failed to update like.");
@@ -240,7 +217,6 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
 
       switch (followStatus) {
         case "following":
-          // Unfollow
           endpoint = `${API_BASE}/unfollow`;
           body = {
             userId: image.userId?._id,
@@ -250,7 +226,6 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
           break;
 
         case "requested":
-          // Cancel follow request
           endpoint = `${API_BASE}/cancel-request`;
           body = {
             userId: image.userId?._id,
@@ -260,18 +235,16 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
           break;
 
         case "incoming":
-          // Accept follow request
           endpoint = `${API_BASE}/accept-request`;
           body = {
-            requestId: currentUserId, // Current user accepting the request
-            targetId: image.userId?._id, // The user who sent the request
+            requestId: currentUserId,
+            targetId: image.userId?._id,
           };
           expectedNewStatus = "following";
           break;
 
         case "none":
         default:
-          // Send follow request
           endpoint = `${API_BASE}/send-request`;
           body = {
             userId: image.userId?._id,
@@ -281,9 +254,6 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
           break;
       }
 
-      console.log("Sending follow request to:", endpoint);
-      console.log("Request body:", body);
-
       const res = await fetch(endpoint, {
         method: method,
         headers: { "Content-Type": "application/json" },
@@ -291,12 +261,8 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
       });
 
       const data = await res.json();
-      console.log("Follow response:", data);
-
       if (data.success) {
         setFollowStatus(expectedNewStatus);
-
-        // Refresh all requests after follow action
         try {
           const requestsRes = await fetch(`${API_BASE}/requests/all`);
           const requestsData = await requestsRes.json();
@@ -378,48 +344,49 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
     }
   };
 
-  // ---------- DOWNLOAD HANDLER ----------
-  const handleDownload = async () => {
+  useEffect(() => {
+    if (selectedMediaIndex === null) {
+      setCost(0);
+      return;
+    }
+
+    const mediaType = image?.media?.[selectedMediaIndex]?.type;
+    if (mediaType === "image") {
+      setCost(2);
+    } else if (mediaType === "video") {
+      setCost(5);
+    } else {
+      setCost(0);
+    }
+  }, [image, selectedMediaIndex]);
+
+  const handleFileDownload = async () => {
     try {
-      const url = image?.media?.[0]?.url?.trim();
-      if (!url) {
-        alert("No media available.");
+      if (selectedMediaIndex === null) {
+        alert("Please select a media to download");
         return;
       }
 
-      // 1️⃣ Call backend API (coins + history + validation)
-      const res = await axios.post(
-        "https://apisocial.atozkeysolution.com/api/post-download",
-        {
-          postId: image._id,
-          userId: currentUserId,
-        }
-      );
+      const media = image.media[selectedMediaIndex];
+      const url = media.url?.trim();
+      if (!url) return alert("No media available");
 
-      if (!res.data.success) {
-        alert(res.data.message || "Download failed");
-        return;
-      }
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
 
-      // 2️⃣ Trigger browser download only after success
+      const extension = media.type === "video" ? "mp4" : "jpg";
       const a = document.createElement("a");
-      a.href = url;
-      a.target = "_blank";
-
-      const isVideo = image.media?.[0]?.type?.includes("video");
-      const extension = isVideo ? "mp4" : "jpg";
-
-      a.download = `post-${image._id}.${extension}`;
+      a.href = blobUrl;
+      a.download = `post-${image._id}-${selectedMediaIndex}.${extension}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
 
+      window.URL.revokeObjectURL(blobUrl);
     } catch (err) {
-      console.error("Download error:", err);
-      alert(
-        err?.response?.data?.message ||
-        "Unable to download. Please try again."
-      );
+      console.error("File download error:", err);
+      alert("Failed to download file");
     }
   };
 
@@ -457,10 +424,8 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
     );
   };
 
-  // Get follow button text based on status
   const getFollowButtonText = () => {
     if (loadingFollow) return "...";
-
     switch (followStatus) {
       case "following":
         return "Following";
@@ -475,7 +440,6 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
     }
   };
 
-  // Get follow button class based on status
   const getFollowButtonClass = () => {
     switch (followStatus) {
       case "following":
@@ -491,6 +455,17 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
     }
   };
 
+  // Handle image selection
+  const handleImageSelect = (media, index) => {
+    setPreviewImage(media);
+    setSelectedMediaIndex(index);
+  };
+
+  // Open mobile modal
+  const handleOpenMobileModal = () => {
+    setShowMobileModal(true);
+  };
+
   if (!image) return null;
 
   const isLiked = likes.some(like =>
@@ -499,59 +474,40 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
     like === currentUserId
   );
   const isSaved = saves.includes(image._id);
-  const mediaType = image.media?.[0]?.type;
-  const mediaUrl = image.media?.[0]?.url?.trim();
 
   return (
     <>
-      {/* Mobile Modal Overlay */}
-      <div className="modal-overlay d-block d-lg-none" style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.35)',
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px'
-      }}>
-        {/* Mobile Modal Content */}
-        <div className="mobile-modal-content" style={{
+      {/* MODERN PREVIEW SECTION - Shown on mobile instead of immediate modal */}
+      <div className="d-block d-lg-none">
+        <div className="modern-preview-container" style={{
           backgroundColor: '#fff',
           borderRadius: '20px',
-          width: '100%',
-          maxWidth: '500px',
-          maxHeight: '90vh',
-          display: 'flex',
-          flexDirection: 'column',
+          boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
           overflow: 'hidden',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+          margin: '16px'
         }}>
           {/* Header */}
-          <div className="modal-header" style={{
+          <div className="preview-header" style={{
+            padding: '20px',
+            borderBottom: '1px solid #f0f0f0',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '18px 20px',
-            borderBottom: '1px solid #f0f0f0',
-            position: 'sticky',
-            top: 0,
-            backgroundColor: '#fff',
-            zIndex: 1
+            justifyContent: 'space-between'
           }}>
-            <div className="d-flex align-items-center">
+            <div className="d-flex align-items-center gap-3">
               <div
                 onClick={() => handleProfile(image.userId?._id)}
                 style={{ cursor: 'pointer' }}
               >
-                {renderAvatar(image.userId, 40)}
+                {renderAvatar(image.userId, 44)}
               </div>
               <div>
-                <h6 className="mb-0 fw-bold">{image.userId?.fullName || "Anonymous"}</h6>
-                <small className="text-muted">@{image.userId?.profile?.username || "user"}</small>
+                <h6 className="mb-0 fw-bold" style={{ fontSize: '16px' }}>
+                  {image.userId?.fullName || "Anonymous"}
+                </h6>
+                <small className="text-muted" style={{ fontSize: '13px' }}>
+                  @{image.userId?.profile?.username || "user"}
+                </small>
               </div>
             </div>
             <button
@@ -563,174 +519,619 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '18px',
                 backgroundColor: '#f8f9fa',
-                border: 'none'
+                border: 'none',
+                color: '#666'
               }}
             >
               ✕
             </button>
           </div>
 
-          {/* Media Container */}
-          <div className="media-container" style={{
-            flex: '0 0 auto',
-            maxHeight: '50vh',
-            overflow: 'hidden',
-            backgroundColor: '#000'
+          {/* Preview Media Display */}
+          <div className="preview-media" style={{
+            padding: '20px',
+            backgroundColor: '#f8f9fa',
+            borderBottom: '1px solid #f0f0f0'
           }}>
-            {mediaType?.includes("video") ? (
-              <video
-                src={mediaUrl}
-                controls
-                className="w-100"
-                style={{
-                  maxHeight: '50vh',
-                  objectFit: 'contain'
-                }}
-              />
+            {previewImage?.type?.includes("video") ? (
+              <div className="video-preview-container" style={{
+                borderRadius: '12px',
+                overflow: 'hidden',
+                backgroundColor: '#000',
+                position: 'relative'
+              }}>
+                <video
+                  src={previewImage.url}
+                  controls
+                  className="w-100"
+                  style={{
+                    maxHeight: '300px',
+                    objectFit: 'contain',
+                    display: 'block'
+                  }}
+                />
+                <div style={{
+                  position: 'absolute',
+                  top: '10px',
+                  right: '10px',
+                  backgroundColor: 'rgba(0,0,0,0.7)',
+                  color: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontSize: '12px'
+                }}>
+                  VIDEO
+                </div>
+              </div>
             ) : (
-              <img
-                src={mediaUrl}
-                alt={image.description || "Post"}
-                className="w-100"
-                style={{
-                  maxHeight: '50vh',
-                  objectFit: 'contain'
-                }}
-              />
+              <div className="image-preview-container" style={{
+                borderRadius: '12px',
+                overflow: 'hidden',
+                backgroundColor: '#000'
+              }}>
+                <img
+                  src={previewImage?.url}
+                  alt="Preview"
+                  className="w-100"
+                  style={{
+                    maxHeight: '300px',
+                    objectFit: 'contain',
+                    display: 'block'
+                  }}
+                />
+              </div>
             )}
           </div>
 
-          {/* Content Area with Scroll */}
-          <div className="content-area" style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '20px'
+          {/* Media Selection Thumbnails */}
+          <div className="media-selection" style={{
+            padding: '20px',
+            borderBottom: '1px solid #f0f0f0'
           }}>
-            {/* Actions Row */}
-            <div className="actions-row d-flex justify-content-between align-items-center mb-3">
-              <div className="d-flex gap-3">
-                <button
-                  onClick={handleLike}
-                  disabled={loadingLike}
-                  className="btn p-0"
-                  style={{ fontSize: '24px', color: isLiked ? '#ff4757' : '#6c757d' }}
-                >
-                  <i className={`bi ${isLiked ? "bi-heart-fill" : "bi-heart"}`}></i>
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={loadingSave}
-                  className="btn p-0"
-                  style={{ fontSize: '24px', color: isSaved ? '#1e90ff' : '#6c757d' }}
-                >
-                  <i className={`bi ${isSaved ? "bi-bookmark-fill" : "bi-bookmark"}`}></i>
-                </button>
-                <button
-                  onClick={handleDownload}
-                  className="btn p-0"
-                  title="Download"
-                >
-                  <i
-                    className="bi bi-download"
-                    style={{ fontSize: "22px", color: "#6c757d" }}
-                  ></i>
-                </button>
-
-              </div>
-
-              {followStatus !== "self" && (
-                <button
-                  className={`btn btn-sm ${getFollowButtonClass()} rounded-pill px-3 py-1`}
-                  onClick={handleFollow}
-                  disabled={loadingFollow}
+            <h6 className="fw-bold mb-3" style={{ fontSize: '15px' }}>
+              Select Media ({image?.media?.length || 0} items)
+            </h6>
+            <div className="d-flex gap-3 flex-wrap">
+              {image?.media?.map((media, index) => (
+                <div
+                  key={index}
+                  onClick={() => handleImageSelect(media, index)}
+                  className={`media-thumbnail ${selectedMediaIndex === index ? 'selected' : ''}`}
                   style={{
-                    minWidth: '100px'
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '10px',
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    border: selectedMediaIndex === index ? '3px solid #007bff' : '2px solid #e0e0e0',
+                    transition: 'all 0.2s ease'
                   }}
                 >
-                  {getFollowButtonText()}
-                </button>
-              )}
-            </div>
-
-            {/* Likes Count */}
-            <div className="likes-count mb-3">
-              <strong>{likes.length} {likes.length === 1 ? 'like' : 'likes'}</strong>
-            </div>
-
-            {/* Description */}
-            <div className="description mb-4">
-              <p className="mb-0" style={{ lineHeight: '1.5' }}>
-                <strong>{image.userId?.fullName || "Anonymous"}</strong> {image.description || "No description"}
-              </p>
-              <small className="text-muted">{new Date(image.createdAt).toLocaleDateString()}</small>
-            </div>
-
-            {/* Comments Section */}
-            <div className="comments-section mb-4">
-              <h6 className="fw-bold mb-3">Comments ({comments.length})</h6>
-              {comments.length > 0 ? (
-                <div className="comments-list">
-                  {comments.map((comment) => (
-                    <div key={comment._id} className="comment-item mb-3">
-                      <div className="d-flex">
-                        {renderAvatar(comment.userId, 32)}
-                        <div className="flex-grow-1">
-                          <div className="d-flex align-items-center gap-2 mb-1">
-                            <strong className="small">{comment.userId?.fullName || "Anonymous"}</strong>
-                            <small className="text-muted">{new Date(comment.createdAt).toLocaleDateString()}</small>
-                          </div>
-                          <p className="mb-0 small">{comment.text}</p>
-                        </div>
+                  {media.type === "video" ? (
+                    <>
+                      <video
+                        src={media.url}
+                        muted
+                        className="w-100 h-100"
+                        style={{ objectFit: "cover" }}
+                      />
+                      <div style={{
+                        position: 'absolute',
+                        bottom: '4px',
+                        right: '4px',
+                        backgroundColor: 'rgba(0,0,0,0.7)',
+                        color: 'white',
+                        padding: '2px 4px',
+                        borderRadius: '3px',
+                        fontSize: '10px'
+                      }}>
+                        ▶
                       </div>
-                    </div>
-                  ))}
+                    </>
+                  ) : (
+                    <img
+                      src={media.url}
+                      alt={`Image ${index + 1}`}
+                      className="w-100 h-100"
+                      style={{ objectFit: "cover" }}
+                    />
+                  )}
+                  <div className="media-number" style={{
+                    position: 'absolute',
+                    top: '4px',
+                    left: '4px',
+                    backgroundColor: 'rgba(0,0,0,0.7)',
+                    color: 'white',
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                    fontWeight: 'bold'
+                  }}>
+                    {index + 1}
+                  </div>
                 </div>
-              ) : (
-                <div className="text-center text-muted py-3">
-                  <i className="bi bi-chat-dots fs-4 mb-2 d-block"></i>
-                  <p className="mb-0">No comments yet</p>
-                  <small>Be the first to comment</small>
-                </div>
-              )}
+              ))}
             </div>
           </div>
 
-          {/* Comment Input Fixed at Bottom */}
-          <div className="comment-input-container" style={{
-            padding: '16px 20px',
-            borderTop: '1px solid #f0f0f0',
-            backgroundColor: '#fff'
+          {/* Preview Info */}
+          <div className="preview-info" style={{
+            padding: '20px'
           }}>
-            <form onSubmit={handleCommentSubmit} className="d-flex gap-2">
-              <input
-                type="text"
-                className="form-control form-control-sm rounded-pill"
-                placeholder="Add a comment..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                disabled={loadingComment}
-                style={{
-                  flex: 1,
-                  padding: '8px 16px'
-                }}
-              />
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <h6 className="fw-bold mb-1" style={{ fontSize: '15px' }}>
+                  {image.userId?.fullName || "Anonymous"}
+                </h6>
+                <p className="mb-0 text-muted" style={{ fontSize: '14px' }}>
+                  {image.description || "No description"}
+                </p>
+              </div>
+              <div className="text-end">
+                <div className="fw-bold" style={{ fontSize: '15px' }}>
+                  {likes.length} Likes
+                </div>
+                <div className="text-muted" style={{ fontSize: '13px' }}>
+                  {comments.length} Comments
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="d-flex gap-3 mb-3">
               <button
-                type="submit"
-                className="btn btn-primary btn-sm rounded-pill px-3"
-                disabled={!newComment.trim() || loadingComment}
+                onClick={handleLike}
+                disabled={loadingLike}
+                className="btn btn-outline-primary d-flex align-items-center gap-2 flex-grow-1 justify-content-center py-2"
+                style={{ borderRadius: '8px' }}
               >
-                {loadingComment ? '...' : 'Post'}
+                <i className={`bi ${isLiked ? "bi-heart-fill text-danger" : "bi-heart"}`}></i>
+                {isLiked ? 'Liked' : 'Like'}
               </button>
-            </form>
+              <button
+                onClick={handleSave}
+                disabled={loadingSave}
+                className="btn btn-outline-primary d-flex align-items-center gap-2 flex-grow-1 justify-content-center py-2"
+                style={{ borderRadius: '8px' }}
+              >
+                <i className={`bi ${isSaved ? "bi-bookmark-fill text-primary" : "bi-bookmark"}`}></i>
+                {isSaved ? 'Saved' : 'Save'}
+              </button>
+            </div>
+
+            {/* Open Full View Button */}
+            <button
+              onClick={handleOpenMobileModal}
+              className="btn btn-primary w-100 py-3"
+              style={{
+                borderRadius: '12px',
+                fontWeight: '600',
+                fontSize: '16px',
+                background: 'linear-gradient(135deg, #f47c31 0%, #f47c31 100%)',
+                border: 'none',
+                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
+              }}
+            >
+              <i className="bi bi-arrows-angle-expand me-2"></i>
+              Open Full View
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Desktop View (Original) */}
+      {/* Mobile Modal - Opens when user clicks "Open Full View" */}
+      {showMobileModal && (
+        <div className="d-block d-lg-none">
+          <div className="modal-overlay" style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0',
+            overflow: 'hidden'
+          }}>
+            <div className="mobile-modal-content" style={{
+              backgroundColor: '#fff',
+              borderRadius: '20px 20px 0 0',
+              width: '100%',
+              height: '90%',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              boxShadow: '0 -4px 30px rgba(0, 0, 0, 0.25)'
+            }}>
+              {/* Swipe Indicator */}
+              <div className="swipe-indicator" style={{
+                position: 'absolute',
+                top: '10px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '50px',
+                height: '5px',
+                backgroundColor: '#ddd',
+                borderRadius: '3px',
+                zIndex: 10
+              }} />
+
+              {/* Header - Fixed */}
+              <div className="modal-header" style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '20px 16px 16px',
+                borderBottom: '1px solid #f0f0f0',
+                backgroundColor: '#fff',
+                zIndex: 5,
+                flexShrink: 0
+              }}>
+                <div className="d-flex align-items-center gap-3">
+                  <div
+                    onClick={() => handleProfile(image.userId?._id)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {renderAvatar(image.userId, 44)}
+                  </div>
+                  <div className="flex-grow-1">
+                    <h6 className="mb-0 fw-bold" style={{ fontSize: '16px' }}>
+                      {image.userId?.fullName || "Anonymous"}
+                    </h6>
+                    <small className="text-muted" style={{ fontSize: '13px' }}>
+                      @{image.userId?.profile?.username || "user"}
+                    </small>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowMobileModal(false)}
+                  className="btn btn-close"
+                  style={{
+                    border: 'none',
+                    background: 'none',
+                    fontSize: '22px',
+                    width: '44px',
+                    height: '44px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#666',
+                    borderRadius: '50%',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Scrollable Content Area */}
+              <div className="modal-scrollable-content" style={{
+                flex: 1,
+                overflowY: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                paddingBottom: '90px'
+              }}>
+                {/* Main Media */}
+                <div className="main-media-container" style={{
+                  width: '100%',
+                  maxHeight: '45vh',
+                  overflow: 'hidden',
+                  backgroundColor: '#000',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  {previewImage?.type?.includes("video") ? (
+                    <video
+                      src={previewImage.url}
+                      controls
+                      className="w-100"
+                      style={{
+                        maxHeight: '45vh',
+                        objectFit: 'contain',
+                        display: 'block'
+                      }}
+                    />
+                  ) : (
+                    <img
+                      src={previewImage?.url}
+                      alt={image.description || "Post"}
+                      className="w-100"
+                      style={{
+                        maxHeight: '45vh',
+                        objectFit: 'contain',
+                        display: 'block'
+                      }}
+                    />
+                  )}
+                </div>
+
+                {/* Media Thumbnails in Modal */}
+                {image?.media?.length > 1 && (
+                  <div className="media-thumbnails-modal" style={{
+                    padding: '16px',
+                    borderBottom: '1px solid #f0f0f0'
+                  }}>
+                    <h6 className="fw-bold mb-3" style={{ fontSize: '15px' }}>
+                      Select Media
+                    </h6>
+                    <div className="d-flex gap-2 flex-nowrap overflow-auto pb-2">
+                      {image.media.map((media, index) => (
+                        <div
+                          key={index}
+                          onClick={() => {
+                            setPreviewImage(media);
+                            setSelectedMediaIndex(index);
+                          }}
+                          className={`border rounded p-1 flex-shrink-0 ${selectedMediaIndex === index
+                              ? "border-primary border-2"
+                              : "border-secondary"
+                            }`}
+                          style={{
+                            width: "70px",
+                            height: "70px",
+                            cursor: "pointer",
+                            transition: 'all 0.2s ease',
+                            position: 'relative'
+                          }}
+                        >
+                          {media.type === "video" ? (
+                            <>
+                              <video
+                                src={media.url}
+                                muted
+                                className="w-100 h-100 rounded"
+                                style={{ objectFit: "cover" }}
+                              />
+                              <div style={{
+                                position: 'absolute',
+                                bottom: '4px',
+                                right: '4px',
+                                backgroundColor: 'rgba(0,0,0,0.7)',
+                                color: 'white',
+                                padding: '2px 4px',
+                                borderRadius: '3px',
+                                fontSize: '10px'
+                              }}>
+                                ▶
+                              </div>
+                            </>
+                          ) : (
+                            <img
+                              src={media.url}
+                              alt="media"
+                              className="w-100 h-100 rounded"
+                              style={{ objectFit: "cover" }}
+                            />
+                          )}
+                          <div className="media-number" style={{
+                            position: 'absolute',
+                            top: '4px',
+                            left: '4px',
+                            backgroundColor: 'rgba(0,0,0,0.7)',
+                            color: 'white',
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '10px',
+                            fontWeight: 'bold'
+                          }}>
+                            {index + 1}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Post Actions */}
+                <div className="post-actions" style={{
+                  padding: '16px',
+                  borderBottom: '1px solid #f0f0f0'
+                }}>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <div className="d-flex gap-4">
+                      <button
+                        onClick={handleLike}
+                        disabled={loadingLike}
+                        className="btn p-0"
+                        style={{ 
+                          fontSize: '28px', 
+                          color: isLiked ? '#ff4757' : '#6c757d',
+                          transition: 'transform 0.2s'
+                        }}
+                      >
+                        <i className={`bi ${isLiked ? "bi-heart-fill" : "bi-heart"}`}></i>
+                      </button>
+                      <button
+                        onClick={handleSave}
+                        disabled={loadingSave}
+                        className="btn p-0"
+                        style={{ 
+                          fontSize: '28px', 
+                          color: isSaved ? '#1e90ff' : '#6c757d',
+                          transition: 'transform 0.2s'
+                        }}
+                      >
+                        <i className={`bi ${isSaved ? "bi-bookmark-fill" : "bi-bookmark"}`}></i>
+                      </button>
+                      <button
+                        className="btn p-0"
+                        onClick={() => setShowDownloadModal(true)}
+                        style={{ 
+                          fontSize: '28px', 
+                          color: '#6c757d',
+                          transition: 'transform 0.2s'
+                        }}
+                      >
+                        <i className="bi bi-download" />
+                      </button>
+                    </div>
+
+                    {followStatus !== "self" && (
+                      <button
+                        className={`btn btn-sm ${getFollowButtonClass()} rounded-pill px-4 py-2`}
+                        onClick={handleFollow}
+                        disabled={loadingFollow}
+                        style={{
+                          minWidth: '100px',
+                          fontWeight: '600',
+                          fontSize: '14px'
+                        }}
+                      >
+                        {getFollowButtonText()}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Likes Count */}
+                  <div className="mt-3">
+                    <strong style={{ fontSize: '15px' }}>
+                      {likes.length} {likes.length === 1 ? 'like' : 'likes'}
+                    </strong>
+                  </div>
+                </div>
+
+                {/* Post Description */}
+                <div className="post-description" style={{
+                  padding: '16px',
+                  borderBottom: '1px solid #f0f0f0'
+                }}>
+                  <p className="mb-2" style={{ 
+                    lineHeight: '1.6',
+                    fontSize: '15px'
+                  }}>
+                    <strong>{image.userId?.fullName || "Anonymous"}</strong> {image.description || "No description"}
+                  </p>
+                  <small className="text-muted" style={{ fontSize: '13px' }}>
+                    {new Date(image.createdAt).toLocaleDateString('en-US', { 
+                      month: 'long', 
+                      day: 'numeric', 
+                      year: 'numeric' 
+                    })}
+                  </small>
+                </div>
+
+                {/* Comments Section */}
+                <div className="comments-section" style={{
+                  padding: '16px'
+                }}>
+                  <h6 className="fw-bold mb-3" style={{ fontSize: '16px' }}>
+                    Comments ({comments.length})
+                  </h6>
+                  
+                  {comments.length > 0 ? (
+                    <div className="comments-list">
+                      {comments.map((comment) => (
+                        <div key={comment._id} className="comment-item mb-3 pb-3" style={{
+                          borderBottom: '1px solid #f5f5f5'
+                        }}>
+                          <div className="d-flex gap-3">
+                            <div 
+                              onClick={() => handleProfile(comment.userId?._id)}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              {renderAvatar(comment.userId, 36)}
+                            </div>
+                            <div className="flex-grow-1">
+                              <div className="d-flex align-items-center justify-content-between mb-1">
+                                <div>
+                                  <strong className="small" style={{ fontSize: '14px' }}>
+                                    {comment.userId?.fullName || "Anonymous"}
+                                  </strong>
+                                  <small className="text-muted ms-2" style={{ fontSize: '12px' }}>
+                                    {new Date(comment.createdAt).toLocaleDateString()}
+                                  </small>
+                                </div>
+                              </div>
+                              <p className="mb-0" style={{ 
+                                fontSize: '14px',
+                                lineHeight: '1.5'
+                              }}>
+                                {comment.text}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-muted py-4">
+                      <i className="bi bi-chat-dots fs-4 mb-2 d-block"></i>
+                      <p className="mb-1" style={{ fontSize: '15px' }}>No comments yet</p>
+                      <small style={{ fontSize: '13px' }}>Be the first to comment</small>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Fixed Comment Input */}
+              <div className="fixed-comment-input" style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                padding: '16px',
+                backgroundColor: '#fff',
+                borderTop: '1px solid #f0f0f0',
+                zIndex: 10,
+                boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.05)'
+              }}>
+                <form onSubmit={handleCommentSubmit} className="d-flex gap-2 align-items-center">
+                  <input
+                    type="text"
+                    className="form-control rounded-pill"
+                    placeholder="Add a comment..."
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    disabled={loadingComment}
+                    style={{
+                      flex: 1,
+                      padding: '10px 20px',
+                      fontSize: '15px',
+                      border: '1px solid #e0e0e0',
+                      backgroundColor: '#f8f9fa'
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    className="btn btn-primary rounded-pill px-4"
+                    disabled={!newComment.trim() || loadingComment}
+                    style={{
+                      fontWeight: '600',
+                      fontSize: '15px',
+                      padding: '10px 20px',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {loadingComment ? '...' : 'Post'}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop View (ORIGINAL - UNCHANGED) */}
       <div className="image-detail-container d-none d-lg-flex flex-column" style={{ height: "100%" }}>
-        {/* Keep the original desktop code here */}
         {/* Header */}
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h5 className="mb-0">Post Details</h5>
@@ -747,22 +1148,95 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
           className="rounded mb-3 overflow-hidden bg-dark d-flex align-items-center justify-content-center"
           style={{ height: "250px" }}
         >
-          {mediaType?.includes("video") ? (
+          {previewImage?.type?.includes("video") ? (
             <video
-              src={mediaUrl}
+              src={previewImage.url}
               controls
               className="w-100 h-100"
               style={{ objectFit: "contain" }}
             />
           ) : (
             <img
-              src={mediaUrl}
+              src={previewImage?.url}
               alt={image.description || "Post"}
               className="w-100 h-100"
               style={{ objectFit: "contain" }}
             />
           )}
         </div>
+
+        {/* Media Selector (Desktop) */}
+        <div className="d-flex gap-2 flex-wrap mb-3">
+          {image?.media?.map((media, index) => (
+            <div
+              key={index}
+              onClick={() => handleImageSelect(media, index)}
+              className={`border rounded p-1 ${selectedMediaIndex === index
+                  ? "border-primary"
+                  : "border-secondary"
+                }`}
+              style={{
+                width: "80px",
+                height: "80px",
+                cursor: "pointer",
+                position: 'relative'
+              }}
+            >
+              {media.type === "video" ? (
+                <>
+                  <video
+                    src={media.url}
+                    muted
+                    className="w-100 h-100 rounded"
+                    style={{ objectFit: "cover" }}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '4px',
+                    right: '4px',
+                    backgroundColor: 'rgba(0,0,0,0.7)',
+                    color: 'white',
+                    padding: '2px 4px',
+                    borderRadius: '3px',
+                    fontSize: '10px'
+                  }}>
+                    ▶
+                  </div>
+                </>
+              ) : (
+                <img
+                  src={media.url}
+                  alt="media"
+                  className="w-100 h-100 rounded"
+                  style={{ objectFit: "cover" }}
+                />
+              )}
+              <div className="media-number" style={{
+                position: 'absolute',
+                top: '4px',
+                left: '4px',
+                backgroundColor: 'rgba(0,0,0,0.7)',
+                color: 'white',
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '10px',
+                fontWeight: 'bold'
+              }}>
+                {index + 1}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {selectedMediaIndex === null && (
+          <small className="text-danger d-block mb-2">
+            Please select an image or video to download
+          </small>
+        )}
 
         <p className="fw-medium mb-3">
           {image.description || "No description available"}
@@ -867,24 +1341,46 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
 
         {/* Download Button */}
         <button
-          className="btn btn-primary w-100 mt-3 rounded-pill py-2"
-          onClick={handleDownload}
+          className="btn btn-orange w-100 mt-3 rounded-pill py-2"
+          onClick={() => setShowDownloadModal(true)}
         >
           <i className="bi bi-download me-2"></i>
-          Download {image?.media?.[0]?.type?.includes("video") ? "Video" : "Image"}
+          Download {previewImage?.type?.includes("video") ? "Video" : "Image"}
         </button>
-
       </div>
 
-      {/* Mobile Styles */}
+      {/* Download Modal */}
+      <DownloadModal
+        show={showDownloadModal}
+        onClose={() => setShowDownloadModal(false)}
+        cost={cost}
+        image={image}
+        currentUserId={currentUserId}
+        selectedMediaIndex={selectedMediaIndex}
+        onAuthorized={handleFileDownload}
+      />
+
+      {/* Styles */}
       <style>{`
+        /* Modern Preview Styles */
+        .media-thumbnail:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .media-thumbnail.selected {
+          border-color: #007bff !important;
+          box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+        
+        /* Modal Styles */
         @media (max-width: 991px) {
           .modal-overlay {
             animation: fadeIn 0.3s ease;
           }
           
           .mobile-modal-content {
-            animation: slideUp 0.3s ease;
+            animation: slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
           }
           
           @keyframes fadeIn {
@@ -895,7 +1391,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
           @keyframes slideUp {
             from { 
               opacity: 0;
-              transform: translateY(50px);
+              transform: translateY(100%);
             }
             to { 
               opacity: 1;
@@ -903,32 +1399,56 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
             }
           }
           
-          .content-area::-webkit-scrollbar {
-            width: 4px;
+          .modal-scrollable-content::-webkit-scrollbar {
+            width: 6px;
           }
           
-          .content-area::-webkit-scrollbar-track {
+          .modal-scrollable-content::-webkit-scrollbar-track {
             background: #f1f1f1;
           }
           
-          .content-area::-webkit-scrollbar-thumb {
-            background: #ddd;
-            border-radius: 2px;
+          .modal-scrollable-content::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
           }
           
-          .actions-row button:hover {
+          .modal-scrollable-content::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+          }
+          
+          .post-actions button:hover {
             transform: scale(1.1);
-            transition: transform 0.2s ease;
-          }
-          
-          .comment-item {
-            padding-bottom: 12px;
-            border-bottom: 1px solid #f5f5f5;
           }
           
           .comment-item:last-child {
-            border-bottom: none;
+            border-bottom: none !important;
           }
+          
+          .btn-close:hover {
+            background-color: #f0f0f0 !important;
+            transform: scale(1.1);
+          }
+          
+          .media-thumbnails-modal div:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+          }
+        }
+        
+        /* Smooth transitions */
+        button, .media-thumbnail, .media-thumbnails-modal div {
+          transition: all 0.2s ease;
+        }
+        
+        /* Focus states */
+        input:focus, button:focus {
+          outline: none;
+          box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+        
+        /* Button hover effects */
+        .btn:hover {
+          transform: translateY(-1px);
         }
       `}</style>
     </>
