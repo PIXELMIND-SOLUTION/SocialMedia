@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import axios from "axios";
+import { Star } from "lucide-react";
 
 const Spin = () => {
   const [spinning, setSpinning] = useState(false);
@@ -18,9 +18,19 @@ const Spin = () => {
   const canvasRef = useRef(null);
   const coinContainerRef = useRef(null);
 
-  // Get user from session storage
-  const storedUser = JSON.parse(sessionStorage.getItem('userData') || '{}');
-  const userId = storedUser?.userId;
+  // Store user data in memory instead of sessionStorage
+  const [userData] = useState(() => {
+    // Try to get from sessionStorage if available, otherwise use demo user
+    try {
+      const stored = typeof window !== 'undefined' && window.sessionStorage 
+        ? window.sessionStorage.getItem('userData') 
+        : null;
+      return stored ? JSON.parse(stored) : { userId: "demo-user-123" };
+    } catch (e) {
+      return { userId: "demo-user-123" };
+    }
+  });
+  const userId = userData?.userId;
 
   // Color gradient mapping for segments
   const gradientColors = [
@@ -54,7 +64,6 @@ const Spin = () => {
       const countdownStr = calculateCountdown();
       setCountdown(countdownStr);
       
-      // Check if it's past midnight (00:00)
       const now = new Date();
       if (now.getHours() === 0 && now.getMinutes() === 0 && now.getSeconds() === 0) {
         resetWheel();
@@ -71,10 +80,11 @@ const Spin = () => {
     if (!userId) return;
     
     try {
-      const response = await axios.get(`https://apisocial.atozkeysolution.com/api/wallet/${userId}`);
-      if (response.data.success) {
-        setWalletData(response.data.data);
-        setWalletCoins(response.data.data.coins || 0);
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/wallet/${userId}`);
+      const data = await response.json();
+      if (data.success) {
+        setWalletData(data.data);
+        setWalletCoins(data.data.coins || 0);
       }
     } catch (error) {
       console.error('Error fetching wallet data:', error);
@@ -85,9 +95,10 @@ const Spin = () => {
   useEffect(() => {
     const fetchWheelData = async () => {
       try {
-        const response = await axios.get('https://apisocial.atozkeysolution.com/api/wheel');
-        if (response.data.success) {
-          const segmentsData = response.data.data
+        const response = await fetch('https://apisocial.atozkeysolution.com/api/wheel');
+        const data = await response.json();
+        if (data.success) {
+          const segmentsData = data.data
             .sort((a, b) => a.position - b.position)
             .map((item, index) => ({
               ...item,
@@ -96,12 +107,33 @@ const Spin = () => {
               label: item.label
             }));
           setSegments(segmentsData);
+        } else {
+          // Fallback to demo segments
+          setDemoSegments();
         }
       } catch (error) {
         console.error('Error fetching wheel data:', error);
-        // Fallback to default segments
-        setSegments([]);
+        setDemoSegments();
       }
+    };
+
+    const setDemoSegments = () => {
+      const demoSegments = [
+        { _id: "1", label: "1 Coin", coins: 1, position: 0, isActive: true, spinAgain: false },
+        { _id: "2", label: "2 Coins", coins: 2, position: 1, isActive: true, spinAgain: false },
+        { _id: "3", label: "3 Coins", coins: 3, position: 2, isActive: true, spinAgain: false },
+        { _id: "4", label: "4 Coins", coins: 4, position: 3, isActive: true, spinAgain: false },
+        { _id: "5", label: "Better Luck", coins: 0, position: 4, isActive: true, spinAgain: false },
+        { _id: "6", label: "5 Coins", coins: 5, position: 5, isActive: true, spinAgain: false },
+        { _id: "7", label: "1 Coin", coins: 1, position: 6, isActive: true, spinAgain: false },
+        { _id: "8", label: "Spin Again", coins: 0, position: 7, isActive: true, spinAgain: true },
+      ];
+      const segmentsData = demoSegments.map((item, index) => ({
+        ...item,
+        gradient: gradientColors[index] || ["#999999", "#999999"],
+        value: item.label,
+      }));
+      setSegments(segmentsData);
     };
 
     fetchWheelData();
@@ -117,35 +149,41 @@ const Spin = () => {
       
       try {
         // Fetch summary
-        const summaryResponse = await axios.get(`https://apisocial.atozkeysolution.com/api/spin/summary/${userId}`);
-        if (summaryResponse.data.success) {
-          setSummary(summaryResponse.data.data);
+        const summaryResponse = await fetch(`https://apisocial.atozkeysolution.com/api/spin/summary/${userId}`);
+        const summaryData = await summaryResponse.json();
+        if (summaryData.success) {
+          setSummary(summaryData.data);
+        } else {
+          setFallbackSummary();
         }
         
         // Fetch wallet data
         await fetchWalletData();
       } catch (error) {
         console.error('Error fetching user data:', error);
-        // Fallback summary data
-        setSummary({
-          yourCoins: 0,
-          todayRewards: [],
-          spinsUsed: 0,
-          spinsLeft: 2,
-          nextSpin: "2 spins available",
-          mostCommonReward: null,
-          friendsRecentSpins: [
-            { name: "Vijay", reward: "3 Coins", coins: 3, timeAgo: "Last spin" },
-            { name: "Priya", reward: "Better Luck", coins: 0, timeAgo: "10 mins ago" },
-            { name: "Rahul", reward: "2 Coins", coins: 2, timeAgo: "15 mins ago" },
-            { name: "Anjali", reward: "5 Coins", coins: 5, timeAgo: "20 mins ago" },
-            { name: "Karthik", reward: "1 Coin", coins: 1, timeAgo: "25 mins ago" },
-            { name: "Sneha", reward: "4 Coins", coins: 4, timeAgo: "30 mins ago" },
-          ]
-        });
+        setFallbackSummary();
       } finally {
         setLoading(false);
       }
+    };
+
+    const setFallbackSummary = () => {
+      setSummary({
+        yourCoins: 0,
+        todayRewards: [],
+        spinsUsed: 0,
+        spinsLeft: 2,
+        nextSpin: "2 spins available",
+        mostCommonReward: null,
+        friendsRecentSpins: [
+          { name: "Vijay", reward: "3 Coins", coins: 3, timeAgo: "Last spin" },
+          { name: "Priya", reward: "Better Luck", coins: 0, timeAgo: "10 mins ago" },
+          { name: "Rahul", reward: "2 Coins", coins: 2, timeAgo: "15 mins ago" },
+          { name: "Anjali", reward: "5 Coins", coins: 5, timeAgo: "20 mins ago" },
+          { name: "Karthik", reward: "1 Coin", coins: 1, timeAgo: "25 mins ago" },
+          { name: "Sneha", reward: "4 Coins", coins: 4, timeAgo: "30 mins ago" },
+        ]
+      });
     };
 
     fetchUserData();
@@ -216,6 +254,7 @@ const Spin = () => {
       ctx.fillStyle = segment.gradient[0];
       ctx.fill();
       ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
       ctx.stroke();
 
       ctx.save();
@@ -224,7 +263,6 @@ const Spin = () => {
       ctx.fillStyle = segment.gradient[0] === "#FFFFFF" ? "#000" : "#fff";
       ctx.font = `${canvasSize <= 280 ? "10px" : "12px"} bold sans-serif`;
       ctx.textAlign = "right";
-      // Truncate long labels
       const label = segment.label.length > 10 ? segment.label.substring(0, 10) + "..." : segment.label;
       ctx.fillText(label, radius - 15, 5);
       ctx.restore();
@@ -233,7 +271,9 @@ const Spin = () => {
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius * 0.15, 0, 2 * Math.PI);
     ctx.fillStyle = "#D6A33A";
+    ctx.fill();
     ctx.strokeStyle = "#8B6A23";
+    ctx.lineWidth = 2;
     ctx.stroke();
   };
 
@@ -260,7 +300,6 @@ const Spin = () => {
     setWalletAnimation(true);
     createCoinAnimation(coins);
     
-    // Animate wallet count increment
     let current = walletCoins;
     const target = walletCoins + coins;
     const duration = 1500;
@@ -279,27 +318,58 @@ const Spin = () => {
     }, 16);
   };
 
-  // Calculate winner based on arrow at top (0 degrees)
-  const calculateWinner = (finalRotation) => {
+  // Fixed: Calculate which segment the arrow points to after rotation
+  const calculateWinningSegmentIndex = (finalRotation) => {
+    if (segments.length === 0) return 0;
+    
     // Normalize rotation to 0-360
     const normalizedRotation = ((finalRotation % 360) + 360) % 360;
     
-    // Arrow is at top (0 degrees), but canvas rotation is clockwise
-    // We need to find which segment is at 0 degrees after rotation
-    // Since wheel rotates, the segment at 0 degrees is the one that started at (360 - normalizedRotation)
+    // The arrow points UP (at 270 degrees in standard coordinate system)
     const segmentAngle = 360 / segments.length;
     
-    // Calculate the index of the winning segment
-    // The pointer is at 0 degrees, so we need the segment that ends at (360 - normalizedRotation) % 360
-    let winnerIndex = Math.floor((360 - normalizedRotation) / segmentAngle) % segments.length;
+    // Arrow is at top, calculate which segment is there
+    const arrowAngle = 270;
+    const totalAngle = (arrowAngle - normalizedRotation + 360) % 360;
     
-    // Adjust for array bounds
-    winnerIndex = (winnerIndex + segments.length) % segments.length;
+    let winningIndex = Math.floor(totalAngle / segmentAngle);
+    winningIndex = (winningIndex + segments.length) % segments.length;
     
-    return segments[winnerIndex];
+    return winningIndex;
   };
 
-  // Spin wheel
+  // Fixed: Calculate exact rotation to land on a specific segment
+  const calculateRotationForSegment = (segmentIndex) => {
+    if (segments.length === 0) return 0;
+    
+    const segmentAngle = 360 / segments.length;
+    
+    // The arrow is at 270° (top of wheel)
+    // We want the CENTER of the selected segment to align with the arrow
+    const segmentCenterAngle = (segmentIndex * segmentAngle) + (segmentAngle / 2);
+    
+    // Calculate rotation needed
+    const targetRotation = (270 - segmentCenterAngle + 360) % 360;
+    
+    // Add multiple full rotations for effect
+    const fullRotations = 5 * 360;
+    
+    return fullRotations + targetRotation;
+  };
+
+  // Function to select a random spin slot ID
+  const getRandomSpinSlotId = () => {
+    if (segments.length === 0) return null;
+    
+    const eligibleSegments = segments.filter(segment => segment.isActive !== false);
+    
+    if (eligibleSegments.length === 0) return null;
+    
+    const randomIndex = Math.floor(Math.random() * eligibleSegments.length);
+    return eligibleSegments[randomIndex]._id;
+  };
+
+  // Spin wheel with API integration
   const spinWheel = async () => {
     if (spinning || hasSpun || !userId) return;
 
@@ -307,48 +377,77 @@ const Spin = () => {
     setSelectedItem(null);
 
     try {
+      // Get a random spin slot ID
+      const spinSlotId = getRandomSpinSlotId();
+      
+      if (!spinSlotId) {
+        throw new Error("No valid spin slots available");
+      }
+
       // Make spin API call
-      const spinResponse = await axios.post('https://apisocial.atozkeysolution.com/api/spin', {
-        userId: userId
+      const response = await fetch('https://apisocial.atozkeysolution.com/api/spin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userId,
+          spinSlotId: spinSlotId
+        })
       });
 
-      if (spinResponse.data.success) {
-        const result = spinResponse.data.data;
+      const data = await response.json();
+
+      if (data.success) {
+        const result = data.data;
         
-        // Calculate rotation for animation - end at specific segment
-        const duration = 3000 + Math.random() * 1000;
-        const extraRotation = 3600 + Math.random() * 1800;
-        const finalRotation = rotation + extraRotation;
+        // Find the selected segment
+        const selectedSegment = segments.find(segment => segment._id === spinSlotId);
         
-        // Calculate exact rotation to land on winning segment
-        const targetSegment = segments.find(seg => 
-          seg.coins === result.coins || seg.label === result.reward
-        );
-        
-        let finalRotationAdjusted = finalRotation;
-        if (targetSegment) {
-          // Calculate exact rotation to land arrow on this segment
-          const segmentIndex = segments.indexOf(targetSegment);
-          const segmentAngle = 360 / segments.length;
-          // Target position: segment should be at top (0 degrees)
-          const targetRotation = 360 - (segmentIndex * segmentAngle) - (segmentAngle / 2);
-          finalRotationAdjusted = rotation + extraRotation + (targetRotation - (finalRotation % 360));
+        if (!selectedSegment) {
+          throw new Error("Selected segment not found");
         }
         
-        setRotation(finalRotationAdjusted);
+        // Find the index of the selected segment
+        const segmentIndex = segments.findIndex(seg => seg._id === spinSlotId);
+        
+        if (segmentIndex === -1) {
+          throw new Error("Segment index not found");
+        }
+        
+        // Calculate the exact rotation to land on this segment
+        const targetRotation = calculateRotationForSegment(segmentIndex);
+        const newRotation = rotation + targetRotation;
+        
+        // Apply rotation with CSS transition
+        const canvas = canvasRef.current;
+        if (canvas) {
+          canvas.style.transition = "transform 4000ms cubic-bezier(0.1, 0.7, 0.1, 1)";
+          canvas.style.transform = `rotate(${newRotation}deg)`;
+        }
+        
+        // Update rotation state
+        setRotation(newRotation);
 
         setTimeout(() => {
-          // Calculate winner based on arrow position
-          const winner = calculateWinner(finalRotationAdjusted);
-          setSelectedItem(winner || {
-            label: result.reward,
-            value: result.reward,
-            coins: result.coins
+          // Verify the winning segment
+          const verifyIndex = calculateWinningSegmentIndex(newRotation);
+          const verifySegment = segments[verifyIndex];
+          
+          console.log("Target segment:", selectedSegment.label, "at index", segmentIndex);
+          console.log("Actual segment:", verifySegment?.label, "at index", verifyIndex);
+          
+          // Set the selected item
+          setSelectedItem({
+            ...selectedSegment,
+            coins: result.coinsWon || selectedSegment.coins || 0,
+            spinAgain: selectedSegment.spinAgain || false
           });
           
           // Animate wallet credit if coins won
-          if (result.coins > 0) {
-            animateWalletCredit(result.coins);
+          if (result.coinsWon > 0) {
+            animateWalletCredit(result.coinsWon);
+            setWalletCoins(result.walletCoins || walletCoins + result.coinsWon);
           }
           
           setHasSpun(true);
@@ -357,42 +456,71 @@ const Spin = () => {
           // Refresh wallet and summary data
           fetchWalletData();
           if (userId) {
-            axios.get(`https://apisocial.atozkeysolution.com/api/spin/summary/${userId}`)
+            fetch(`https://apisocial.atozkeysolution.com/api/spin/summary/${userId}`)
+              .then(res => res.json())
               .then(res => {
-                if (res.data.success) {
-                  setSummary(res.data.data);
+                if (res.success) {
+                  setSummary(res.data);
                 }
-              });
+              })
+              .catch(err => console.error('Error refreshing summary:', err));
           }
-        }, duration);
+          
+        }, 4000);
+      } else {
+        throw new Error(data.message || "Spin failed");
       }
     } catch (error) {
       console.error('Error spinning wheel:', error);
       
-      // Fallback animation if API fails
-      const duration = 3000 + Math.random() * 1000;
-      const extraRotation = 3600 + Math.random() * 1800;
-      const finalRotation = rotation + extraRotation;
-      setRotation(finalRotation);
+      // Fallback: select a random segment and animate to it
+      const fallbackIndex = Math.floor(Math.random() * segments.length);
+      const fallbackSegment = segments[fallbackIndex];
+      const targetRotation = calculateRotationForSegment(fallbackIndex);
+      const newRotation = rotation + targetRotation;
+      
+      const canvas = canvasRef.current;
+      if (canvas) {
+        canvas.style.transition = "transform 4000ms cubic-bezier(0.1, 0.7, 0.1, 1)";
+        canvas.style.transform = `rotate(${newRotation}deg)`;
+      }
+      
+      setRotation(newRotation);
 
       setTimeout(() => {
-        const winner = calculateWinner(finalRotation);
-        setSelectedItem(winner);
+        setSelectedItem({
+          ...fallbackSegment,
+          coins: fallbackSegment.coins || 0,
+          spinAgain: fallbackSegment.spinAgain || false
+        });
         
-        if (winner && winner.coins > 0) {
-          animateWalletCredit(winner.coins);
+        if (fallbackSegment.coins > 0) {
+          animateWalletCredit(fallbackSegment.coins);
         }
         
         setHasSpun(true);
         setSpinning(false);
-      }, duration);
+      }, 4000);
     }
   };
 
   const resetWheel = () => {
-    setRotation(0);
-    setHasSpun(false);
-    setSelectedItem(null);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.style.transition = "none";
+      canvas.style.transform = `rotate(${rotation}deg)`;
+      
+      void canvas.offsetHeight;
+      
+      canvas.style.transition = "transform 1000ms ease-out";
+      canvas.style.transform = "rotate(0deg)";
+    }
+    
+    setTimeout(() => {
+      setRotation(0);
+      setHasSpun(false);
+      setSelectedItem(null);
+    }, 100);
   };
 
   // Draw wheel when segments or canvas size changes
@@ -401,18 +529,6 @@ const Spin = () => {
       drawWheel();
     }
   }, [segments, canvasSize]);
-
-  // Initial draw
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (segments.length > 0) {
-        drawWheel();
-        clearInterval(interval);
-      }
-    }, 100);
-    
-    return () => clearInterval(interval);
-  }, [segments]);
 
   if (loading) {
     return (
@@ -425,7 +541,6 @@ const Spin = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#fff7ec] to-[#fef3d7] p-3 sm:p-4">
       <div className="max-w-6xl mx-auto">
-        {/* TITLE */}
         <h1 className="text-center text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
           🪙 Coin Spin Wheel
         </h1>
@@ -436,10 +551,11 @@ const Spin = () => {
             {coinsAnimation.map(coin => (
               <div
                 key={coin.id}
-                className="absolute animate-coin-float"
+                className="absolute"
                 style={{
                   left: `${coin.left}%`,
                   top: '50%',
+                  animation: `coinFloat 2s ease-out forwards`,
                   animationDelay: `${coin.delay}s`,
                   fontSize: `${coin.size}px`
                 }}
@@ -470,14 +586,11 @@ const Spin = () => {
                   <div>
                     <div className="text-sm text-gray-600">Your Wallet Balance</div>
                     <div className={`text-3xl font-bold ${walletAnimation ? 'text-green-600 animate-bounce' : 'text-gray-900'}`}>
-                      {walletCoins} Coins
+                      {walletCoins} Stars
                     </div>
-                    {/* <div className="text-xs text-gray-500 mt-1">
-                      {walletData?.history?.length || 0} transactions
-                    </div> */}
                   </div>
-                  <div className={`text-4xl ${walletAnimation ? 'animate-spin' : ''}`}>
-                    💰
+                  <div className={`text-4xl w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center ${walletAnimation ? 'animate-spin' : ''}`}>
+                    <Star className="text-white" size={20} />
                   </div>
                 </div>
                 
@@ -510,10 +623,6 @@ const Spin = () => {
                   style={{
                     width: "100%",
                     height: "100%",
-                    transform: `rotate(${rotation}deg)`,
-                    transition: spinning
-                      ? `transform 4s cubic-bezier(0.1, 0.7, 0.1, 1)`
-                      : "none",
                     filter: spinning ? "blur(0.5px)" : "none"
                   }}
                 />
@@ -538,48 +647,13 @@ const Spin = () => {
                     "SPIN"
                   )}
                 </button>
-                
-                {/* Arrow indicator */}
-                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1">
-                  <div className="text-2xl">▼</div>
-                </div>
               </div>
 
               {/* Stand */}
               <div className="mx-auto mt-[-4px] w-[50%] h-[40px] bg-gradient-to-b from-red-600 to-red-700 rounded-t-full shadow-lg"></div>
               <div className="mx-auto w-[70%] h-[15px] bg-red-800 rounded-b-lg shadow"></div>
 
-              {/* Result */}
-              <div className="text-center mt-4">
-                {selectedItem ? (
-                  <div className="animate-fade-in">
-                    <h2 className={`font-bold text-xl ${selectedItem.coins > 0 ? 'text-green-600' : selectedItem.spinAgain ? 'text-blue-600' : 'text-gray-600'}`}>
-                      {selectedItem.coins > 0 
-                        ? `🎉 You Won: ${selectedItem.coins} Coins!` 
-                        : selectedItem.spinAgain
-                        ? "🔄 Spin Again!"
-                        : "🤞 Better Luck Next Time!"
-                      }
-                    </h2>
-                    {selectedItem.coins > 0 && (
-                      <div className="mt-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 animate-pulse">
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="text-2xl">🪙</div>
-                          <div className="text-green-700 font-semibold">
-                            +{selectedItem.coins} coins added to your wallet
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-gray-600 text-sm">
-                    {!userId ? "Please login to spin" : 
-                     summary?.spinsLeft === 0 ? `Next spin in ${countdown}` : 
-                     `Spins left: ${summary?.spinsLeft ?? 2}`}
-                  </p>
-                )}
-              </div>
+              
 
               {/* Reset Button */}
               <button
@@ -723,16 +797,7 @@ const Spin = () => {
           animation: fade-in 0.5s ease-out;
         }
         
-        @keyframes coin-bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-20px); }
-        }
-        
-        .animate-coin-bounce {
-          animation: coin-bounce 0.5s ease-in-out infinite;
-        }
-        
-        @keyframes coin-float {
+        @keyframes coinFloat {
           0% {
             opacity: 1;
             transform: translate(0, 0) scale(1) rotate(0deg);
@@ -740,21 +805,6 @@ const Spin = () => {
           100% {
             opacity: 0;
             transform: translate(var(--tx, 100px), var(--ty, -100px)) scale(0.5) rotate(360deg);
-          }
-        }
-        
-        .animate-coin-float {
-          animation: coin-float 2s ease-out forwards;
-          --tx: ${Math.random() * 200 - 100}px;
-          --ty: ${Math.random() * -200 - 50}px;
-        }
-        
-        @keyframes spin-wheel {
-          0% {
-            transform: rotate(0deg);
-          }
-          100% {
-            transform: rotate(var(--rotation, 3600deg));
           }
         }
       `}</style>

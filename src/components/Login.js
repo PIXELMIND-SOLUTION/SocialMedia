@@ -360,13 +360,21 @@ const Login = () => {
 
                   <div className="mb-3">
                     <input
-                      type="number"
+                      type="text"
                       className="form-control"
                       placeholder="Mobile Number"
                       value={mobile}
+                      inputMode="numeric"      // shows number keypad on mobile
+                      pattern="[0-9]*"         // digits only
                       maxLength={10}
-                      onChange={(e) => setMobile(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, ""); // remove non-digits
+                        if (value.length <= 10) {
+                          setMobile(value);
+                        }
+                      }}
                     />
+
                   </div>
                   <div className="mb-3">
                     <input

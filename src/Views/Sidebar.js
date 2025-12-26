@@ -88,7 +88,7 @@ const Sidebar = () => {
 
   // Handle restricted routes
   const handleRestrictedRoute = (to) => {
-    if (['/campaign'].includes(to)) {
+    if ([].includes(to)) {
       setShowComingSoon(true);
     } else {
       // For other routes, let Link handle (but we won't use this in Link now)

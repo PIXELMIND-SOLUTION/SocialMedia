@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Star, Search, X } from "lucide-react";
+import { Star, Search, X, UserPlus } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -195,29 +195,39 @@ const WalletModal = () => {
               </div>
 
               <div className="max-h-72 overflow-y-auto space-y-2">
-                {filteredFriends.map(friend => (
-                  <div
-                    key={friend._id}
-                    className="flex justify-between items-center border p-3 rounded-lg"
-                  >
-                    <div>
-                      <p className="font-medium">{friend.fullName}</p>
-                      <p className="text-xs text-gray-500">{friend.email}</p>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setSelectedFriend(friend);
-                        setCoinsToSend("");
-                        setShowSendModal(true);
-                      }}
-                      className="bg-orange-500 text-white px-4 py-1 rounded-lg text-sm"
-                    >
-                      Send
-                    </button>
+                {filteredFriends.length === 0 ? (
+                  <div className="text-center text-gray-400 py-12">
+                    <UserPlus size={36} className="mx-auto mb-2" />
+                    <p className="font-medium text-gray-600">No friends found</p>
+                    <p className="text-xs mt-1">Invite friends to start sending coins</p>
                   </div>
-                ))}
+
+                ) : (
+                  filteredFriends.map(friend => (
+                    <div
+                      key={friend._id}
+                      className="flex justify-between items-center border p-3 rounded-lg"
+                    >
+                      <div>
+                        <p className="font-medium">{friend.fullName}</p>
+                        <p className="text-xs text-gray-500">{friend.email}</p>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setSelectedFriend(friend);
+                          setCoinsToSend("");
+                          setShowSendModal(true);
+                        }}
+                        className="bg-orange-500 text-white px-4 py-1 rounded-lg text-sm"
+                      >
+                        Send
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
+
             </div>
           </div>
         </div>
