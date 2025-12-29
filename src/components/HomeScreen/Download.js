@@ -2,8 +2,8 @@ import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import axios from "axios";
 
-const DOWNLOAD_API = "https://apisocial.atozkeysolution.com/api/post-download";
-const WALLET_API = "https://apisocial.atozkeysolution.com/api/wallet";
+const DOWNLOAD_API = "http://31.97.206.144:5002/api/post-download";
+const WALLET_API = "http://31.97.206.144:5002/api/wallet";
 
 const DownloadModal = ({
   show,

@@ -3,16 +3,24 @@ import { X, Upload, Plus, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
-const SimplifiedForm = ({ onClose }) => {
+const CreateCampaign = ({ onClose }) => {
   const navigate = useNavigate();
-  const API_BASE_URL = "https://apisocial.atozkeysolution.com/api";
-  const storedUser = JSON.parse(sessionStorage.getItem('userData') || '{}');
+  const API_BASE_URL = "http://31.97.206.144:5002/api";
+
+  const storedUser = JSON.parse(sessionStorage.getItem("userData") || "{}");
   const userId = storedUser?.userId;
 
+  /* ================= FAQ STATE ================= */
   const [questions, setQuestions] = useState([
-    { id: Date.now(), question: "", options: ["", "", "", ""], answer: "" }
+    {
+      id: Date.now(),
+      question: "",
+      options: ["", "", "", ""],
+      answer: ""
+    }
   ]);
 
+  /* ================= FORM STATE ================= */
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -24,23 +32,24 @@ const SimplifiedForm = ({ onClose }) => {
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  /* ---------------- FAQ LOGIC ---------------- */
-
+  /* ================= FAQ HELPERS ================= */
   const addQuestion = () =>
-    setQuestions([
-      ...questions,
+    setQuestions((p) => [
+      ...p,
       { id: Date.now(), question: "", options: ["", "", "", ""], answer: "" }
     ]);
 
   const removeQuestion = (id) =>
-    setQuestions(questions.filter((q) => q.id !== id));
+    setQuestions((p) => p.filter((q) => q.id !== id));
 
   const updateQuestion = (id, value) =>
-    setQuestions(questions.map((q) => (q.id === id ? { ...q, question: value } : q)));
+    setQuestions((p) =>
+      p.map((q) => (q.id === id ? { ...q, question: value } : q))
+    );
 
   const updateOption = (qid, idx, value) =>
-    setQuestions(
-      questions.map((q) =>
+    setQuestions((p) =>
+      p.map((q) =>
         q.id === qid
           ? { ...q, options: q.options.map((o, i) => (i === idx ? value : o)) }
           : q
@@ -48,99 +57,141 @@ const SimplifiedForm = ({ onClose }) => {
     );
 
   const updateAnswer = (qid, value) =>
-    setQuestions(questions.map((q) => (q.id === qid ? { ...q, answer: value } : q)));
+    setQuestions((p) =>
+      p.map((q) => (q.id === qid ? { ...q, answer: value } : q))
+    );
 
-  /* ---------------- FORM ---------------- */
-
+  /* ================= FORM HELPERS ================= */
   const handleInputChange = (e) =>
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData((p) => ({ ...p, [e.target.name]: e.target.value }));
 
   const handleFileUpload = (e) =>
-    setFormData((p) => ({ ...p, media: [...p.media, ...Array.from(e.target.files)] }));
+    setFormData((p) => ({
+      ...p,
+      media: [...p.media, ...Array.from(e.target.files)]
+    }));
 
   const removeMediaFile = (index) =>
-    setFormData((p) => ({ ...p, media: p.media.filter((_, i) => i !== index) }));
+    setFormData((p) => ({
+      ...p,
+      media: p.media.filter((_, i) => i !== index)
+    }));
 
-  /* ---------------- VALIDATION ---------------- */
-
+  /* ================= VALIDATION ================= */
   const validateForm = () => {
-    if (!userId) return alert("User not logged in");
+    if (!userId) {
+      alert("User not logged in");
+      return false;
+    }
 
     for (const q of questions) {
-      if (!q.question || q.options.some((o) => !o.trim()) || !q.answer)
-        return alert("Each question needs 4 options and an answer");
-      if (!q.options.includes(q.answer))
-        return alert("Answer must match one option");
+      if (
+        !q.question ||
+        q.options.some((o) => !o.trim()) ||
+        !q.answer
+      ) {
+        alert("Each FAQ must have a question, 4 options, and an answer");
+        return false;
+      }
+
+      if (!q.options.includes(q.answer)) {
+        alert("Answer must match one of the options");
+        return false;
+      }
     }
+
     return true;
   };
 
-  /* ---------------- SUBMIT ---------------- */
-
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+  e.preventDefault();
+  if (!validateForm()) return;
 
-    try {
-      setLoading(true);
-      const fd = new FormData();
-      fd.append("userId", userId);
-      fd.append("fullName", formData.fullName);
-      fd.append("email", formData.email);
-      fd.append("mobileNumber", formData.mobileNumber);
-      fd.append("link", formData.link);
-      fd.append("faqs", JSON.stringify(questions));
-      formData.media.forEach((file) => fd.append("media", file));
+  try {
+    setLoading(true);
 
-      await axios.post(`${API_BASE_URL}/campaign`, fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-        onUploadProgress: (e) =>
-          setUploadProgress(Math.round((e.loaded * 100) / e.total))
-      });
+    const fd = new FormData();
+    fd.append("userId", userId);
+    fd.append("fullName", formData.fullName);
+    fd.append("email", formData.email);
+    fd.append("mobileNumber", formData.mobileNumber);
+    fd.append("link", formData.link);
+    fd.append("faqs", JSON.stringify(questions));
+    formData.media.forEach((file) => fd.append("media", file));
 
-      alert("Campaign submitted for admin approval ✅");
-      navigate("/pricingplan");
-    } catch (err) {
-      alert(err.response?.data?.message || "Submission failed");
-    } finally {
-      setLoading(false);
-      setUploadProgress(0);
-    }
-  };
+    const res = await axios.post(
+      `${API_BASE_URL}/campaigns`,
+      fd,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
 
-  /* ---------------- UI ---------------- */
+    // ✅ SAVE CAMPAIGN ID
+    sessionStorage.setItem("campaignId", res.data.data._id);
 
+    alert("Campaign created successfully ✅");
+    navigate("/pricingplan");
+  } catch (err) {
+    alert(err.response?.data?.message || "Campaign submission failed");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+  /* ================= UI ================= */
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur">
       <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden">
+
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-xl font-semibold text-gray-800">Create Campaign</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
+          <h2 className="text-xl font-semibold">Create Campaign</h2>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100">
             <X />
           </button>
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+        <form
+          onSubmit={handleSubmit}
+          className="p-6 space-y-6 max-h-[75vh] overflow-y-auto"
+        >
           {/* Upload */}
-          <label className="group flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-8 cursor-pointer hover:border-orange-500 transition">
-            <Upload className="w-8 h-8 text-gray-400 group-hover:text-orange-500" />
-            <span className="mt-2 text-sm text-gray-500">Upload image / video / pdf</span>
-            <input hidden multiple accept="image/*,video/*,application/pdf" type="file" onChange={handleFileUpload} />
+          <label className="flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-8 cursor-pointer hover:border-orange-500">
+            <Upload className="w-8 h-8 text-gray-400" />
+            <span className="mt-2 text-sm text-gray-500">
+              Upload image / video / pdf
+            </span>
+            <input
+              hidden
+              multiple
+              accept="image/*,video/*,application/pdf"
+              type="file"
+              onChange={handleFileUpload}
+            />
           </label>
 
+          {/* Progress */}
           {uploadProgress > 0 && (
             <div className="w-full bg-gray-200 h-2 rounded-full">
-              <div className="bg-orange-500 h-2 rounded-full" style={{ width: `${uploadProgress}%` }} />
+              <div
+                className="bg-orange-500 h-2 rounded-full"
+                style={{ width: `${uploadProgress}%` }}
+              />
             </div>
           )}
 
-          {/* Media list */}
+          {/* Media List */}
           {formData.media.map((file, i) => (
-            <div key={i} className="flex justify-between items-center text-sm bg-gray-50 p-2 rounded">
+            <div
+              key={i}
+              className="flex justify-between items-center text-sm bg-gray-50 p-2 rounded"
+            >
               <span className="truncate">{file.name}</span>
-              <Trash2 onClick={() => removeMediaFile(i)} className="w-4 h-4 text-red-500 cursor-pointer" />
+              <Trash2
+                onClick={() => removeMediaFile(i)}
+                className="w-4 h-4 text-red-500 cursor-pointer"
+              />
             </div>
           ))}
 
@@ -148,7 +199,7 @@ const SimplifiedForm = ({ onClose }) => {
           {questions.map((q) => (
             <div key={q.id} className="bg-gray-50 border rounded-xl p-4 space-y-3">
               <input
-                className="w-full input-modern"
+                className="input-modern"
                 placeholder="Enter question"
                 value={q.question}
                 onChange={(e) => updateQuestion(q.id, e.target.value)}
@@ -173,7 +224,9 @@ const SimplifiedForm = ({ onClose }) => {
               >
                 <option value="">Select correct answer</option>
                 {q.options.map((opt, i) => (
-                  <option key={i} value={opt}>{opt}</option>
+                  <option key={i} value={opt}>
+                    {opt}
+                  </option>
                 ))}
               </select>
 
@@ -196,36 +249,38 @@ const SimplifiedForm = ({ onClose }) => {
           </button>
 
           {/* Contact */}
-          <div className="grid grid-cols-1 gap-4">
-            {["fullName", "mobileNumber", "email", "link"].map((f) => (
-              <input
-                key={f}
-                name={f}
-                placeholder={f === "link" ? "Campaign link (optional)" : f.replace(/([A-Z])/g, " $1")}
-                onChange={handleInputChange}
-                className="input-modern"
-              />
-            ))}
-          </div>
+          {["fullName", "mobileNumber", "email", "link"].map((f) => (
+            <input
+              key={f}
+              name={f}
+              placeholder={
+                f === "link"
+                  ? "Campaign link (optional)"
+                  : f.replace(/([A-Z])/g, " $1")
+              }
+              onChange={handleInputChange}
+              className="input-modern"
+            />
+          ))}
 
           {/* Submit */}
           <button
             disabled={loading}
-            className="sticky bottom-0 w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 rounded-xl font-medium shadow-lg hover:scale-[1.01] transition"
+            className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 rounded-xl font-medium shadow-lg"
           >
             {loading ? "Submitting..." : "Proceed"}
           </button>
         </form>
       </div>
 
-      {/* Tailwind helper */}
       <style>{`
         .input-modern {
-          @apply w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-orange-400 focus:outline-none;
+          @apply w-full px-4 py-3 rounded-xl border border-gray-300
+          focus:ring-2 focus:ring-orange-400 focus:outline-none;
         }
       `}</style>
     </div>
   );
 };
 
-export default SimplifiedForm;
+export default CreateCampaign;

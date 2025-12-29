@@ -44,8 +44,8 @@ const MessageModel = () => {
 
   const navigate = useNavigate();
 
-  const API_BASE = 'https://apisocial.atozkeysolution.com/api';
-  const SOCKET_URL = 'https://apisocial.atozkeysolution.com';
+  const API_BASE = 'http://31.97.206.144:5002/api';
+  const SOCKET_URL = 'http://31.97.206.144:5002';
 
   // Format last seen time
   const formatLastSeen = (timestamp) => {

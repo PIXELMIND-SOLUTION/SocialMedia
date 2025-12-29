@@ -124,7 +124,7 @@ const Login = () => {
     setError("");
 
     try {
-      const response = await fetch('https://apisocial.atozkeysolution.com/api/register', {
+      const response = await fetch('http://31.97.206.144:5002/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -167,7 +167,7 @@ const Login = () => {
         return;
       }
 
-      const response = await fetch('https://apisocial.atozkeysolution.com/api/verify-otp', {
+      const response = await fetch('http://31.97.206.144:5002/api/verify-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -202,7 +202,7 @@ const Login = () => {
     try {
       const identifier = email.includes('@') ? { email } : { mobile: inputValue };
 
-      const response = await fetch('https://apisocial.atozkeysolution.com/api/login', {
+      const response = await fetch('http://31.97.206.144:5002/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -240,7 +240,7 @@ const Login = () => {
         return;
       }
 
-      const response = await fetch('https://apisocial.atozkeysolution.com/api/verify-login-otp', {
+      const response = await fetch('http://31.97.206.144:5002/api/verify-login-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

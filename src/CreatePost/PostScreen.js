@@ -209,7 +209,7 @@ const PostScreen = ({
           setLoading(false);
           return;
         }
-        const res = await fetch(`https://apisocial.atozkeysolution.com/api/profiles/${currentUserId}`);
+        const res = await fetch(`http://31.97.206.144:5002/api/profiles/${currentUserId}`);
         if (res.ok) {
           const data = await res.json();
           if (data.success) {

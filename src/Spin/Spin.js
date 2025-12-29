@@ -80,7 +80,7 @@ const Spin = () => {
     if (!userId) return;
     
     try {
-      const response = await fetch(`https://apisocial.atozkeysolution.com/api/wallet/${userId}`);
+      const response = await fetch(`http://31.97.206.144:5002/api/wallet/${userId}`);
       const data = await response.json();
       if (data.success) {
         setWalletData(data.data);
@@ -95,7 +95,7 @@ const Spin = () => {
   useEffect(() => {
     const fetchWheelData = async () => {
       try {
-        const response = await fetch('https://apisocial.atozkeysolution.com/api/wheel');
+        const response = await fetch('http://31.97.206.144:5002/api/wheel');
         const data = await response.json();
         if (data.success) {
           const segmentsData = data.data
@@ -149,7 +149,7 @@ const Spin = () => {
       
       try {
         // Fetch summary
-        const summaryResponse = await fetch(`https://apisocial.atozkeysolution.com/api/spin/summary/${userId}`);
+        const summaryResponse = await fetch(`http://31.97.206.144:5002/api/spin/summary/${userId}`);
         const summaryData = await summaryResponse.json();
         if (summaryData.success) {
           setSummary(summaryData.data);
@@ -385,7 +385,7 @@ const Spin = () => {
       }
 
       // Make spin API call
-      const response = await fetch('https://apisocial.atozkeysolution.com/api/spin', {
+      const response = await fetch('http://31.97.206.144:5002/api/spin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -456,7 +456,7 @@ const Spin = () => {
           // Refresh wallet and summary data
           fetchWalletData();
           if (userId) {
-            fetch(`https://apisocial.atozkeysolution.com/api/spin/summary/${userId}`)
+            fetch(`http://31.97.206.144:5002/api/spin/summary/${userId}`)
               .then(res => res.json())
               .then(res => {
                 if (res.success) {

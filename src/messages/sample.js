@@ -36,8 +36,8 @@ const MessageModel = () => {
   const userId = storedUser?.userId;
   const userName = storedUser?.fullName || 'You';
 
-  const API_BASE = 'https://apisocial.atozkeysolution.com/api';
-  const SOCKET_URL = 'https://apisocial.atozkeysolution.com';
+  const API_BASE = 'http://31.97.206.144:5002/api';
+  const SOCKET_URL = 'http://31.97.206.144:5002';
 
   // Initialize Socket.IO connection
   useEffect(() => {

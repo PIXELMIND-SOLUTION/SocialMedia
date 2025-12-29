@@ -39,7 +39,7 @@ const UserProfile = () => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`https://apisocial.atozkeysolution.com/api/profiles/${userId}`);
+      const response = await fetch(`http://31.97.206.144:5002/api/profiles/${userId}`);
       const data = await response.json();
 
       if (data.success) {
@@ -67,7 +67,7 @@ const UserProfile = () => {
       const savedPostsDetails = await Promise.all(
         savedPostsIds.map(async (postId) => {
           try {
-            const res = await fetch(`https://apisocial.atozkeysolution.com/api/posts/${userId}/${postId}`);
+            const res = await fetch(`http://31.97.206.144:5002/api/posts/${userId}/${postId}`);
             const data = await res.json();
             console.log('Fetched saved post data:', data);
 
@@ -93,7 +93,7 @@ const UserProfile = () => {
 
   const checkFollowStatus = async () => {
     try {
-      const response = await fetch(`https://apisocial.atozkeysolution.com/api/following/${currentUserId}`);
+      const response = await fetch(`http://31.97.206.144:5002/api/following/${currentUserId}`);
       const data = await response.json();
 
       if (data.success) {
@@ -102,7 +102,7 @@ const UserProfile = () => {
       }
 
       // Check if request is pending
-      const followersResponse = await fetch(`https://apisocial.atozkeysolution.com/api/followers/${userId}`);
+      const followersResponse = await fetch(`http://31.97.206.144:5002/api/followers/${userId}`);
       const followersData = await followersResponse.json();
 
       if (followersData.success) {
@@ -126,7 +126,7 @@ const UserProfile = () => {
         setIsFollowing(false);
       } else {
         // Send follow request
-        const response = await fetch(`https://apisocial.atozkeysolution.com/api/send-request`, {
+        const response = await fetch(`http://31.97.206.144:5002/api/send-request`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -152,7 +152,7 @@ const UserProfile = () => {
 
   const fetchPostDetails = async (postId) => {
     try {
-      const response = await fetch(`https://apisocial.atozkeysolution.com/api/posts/${userId}/${postId}`);
+      const response = await fetch(`http://31.97.206.144:5002/api/posts/${userId}/${postId}`);
       const data = await response.json();
 
       if (data.success) {
@@ -209,7 +209,7 @@ const UserProfile = () => {
     }
 
     try {
-      const res = await fetch(`https://apisocial.atozkeysolution.com/api/get-friends/${currentUserId}`);
+      const res = await fetch(`http://31.97.206.144:5002/api/get-friends/${currentUserId}`);
       const data = await res.json();
 
       if (data.success && Array.isArray(data.data)) {

@@ -18,7 +18,7 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
     const fetchSaves = async () => {
       try {
         const res = await fetch(
-          `https://apisocial.atozkeysolution.com/api/saved-posts/${currentUserId}`
+          `http://31.97.206.144:5002/api/saved-posts/${currentUserId}`
         );
         const data = await res.json();
 
@@ -47,7 +47,7 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
       setSavingIds((prev) => [...prev, postId]);
 
       const res = await fetch(
-        "https://apisocial.atozkeysolution.com/api/posts/save",
+        "http://31.97.206.144:5002/api/posts/save",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -119,22 +119,34 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
       <div className="row">
         <div className="col-12">
           <div className={selectedImage ? "masonry1" : "masonry"}>
-            {images.map((img, index) => {
-              const mediaUrl = img.media?.[0]?.url;
-              const isVideo = mediaUrl?.match(/\.(mp4|webm|ogg)$/i);
+            {images.map((item, index) => {
+              const isAdvertisement = item.type === "advertisement";
+              const mediaUrl = item.media?.[0]?.url;
+              const isVideo = item.media?.[0]?.type === "video";
 
               return (
                 <div
-                  key={img._id || index}
+                  key={item._id || index}
                   className="masonry-item mb-3 position-relative"
-                  onClick={() => onImageClick(img)}
+                  onClick={() => onImageClick(item)}
                   style={{ cursor: "pointer" }}
                 >
+                  {/* Advertisement Badge */}
+                  {isAdvertisement && (
+                    <div className="advertisement-badge position-absolute top-0 start-0 m-2 z-2">
+                      <span className="badge glassmorphism-ad px-3 py-2 fw-bold text-black d-flex align-items-center">
+                        <i className="bi bi-megaphone me-1 fw-bold"></i> Ad
+                      </span>
+                    </div>
+                  )}
+
                   {/* -------------------- VIDEO -------------------- */}
                   {isVideo ? (
                     <div style={{ position: "relative", width: "100%" }}>
                       <video
-                        ref={(el) => (videoRefs.current[img._id] = el)}
+                        ref={(el) => {
+                          if (item._id) videoRefs.current[item._id] = el;
+                        }}
                         src={mediaUrl}
                         className="img-fluid rounded"
                         style={{
@@ -143,7 +155,7 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
                           objectFit: "cover",
                         }}
                         autoPlay
-                        muted={muteState[img._id] ?? true}
+                        muted={muteState[item._id] ?? true}
                         loop
                         playsInline
                         onClick={(e) => e.stopPropagation()}
@@ -151,7 +163,7 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
 
                       <button
                         className="z-[999] image-hover-overlay"
-                        onClick={(e) => toggleMute(e, img._id)}
+                        onClick={(e) => toggleMute(e, item._id)}
                         style={{
                           position: "absolute",
                           bottom: "10px",
@@ -164,7 +176,7 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
                           color: "white",
                         }}
                       >
-                        {muteState[img._id] ?? true ? (
+                        {muteState[item._id] ?? true ? (
                           <VolumeX size={20} />
                         ) : (
                           <Volume2 size={20} />
@@ -175,30 +187,48 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
                     // -------------------- IMAGE --------------------
                     <img
                       src={mediaUrl}
-                      alt={`img-${index}`}
+                      alt={isAdvertisement ? item.title || "Advertisement" : `img-${index}`}
                       className="img-fluid rounded"
                       style={{ width: "100%", display: "block" }}
                     />
                   )}
 
-                  {/* -------------------- HOVER OVERLAY -------------------- */}
-                  <div className="image-hover-overlay position-absolute top-0 start-0 w-100 h-100 d-flex flex-column justify-content-between p-3">
-                    <div className="d-flex justify-content-end">
-                      <button
-                        className="btn btn-light btn-sm rounded-circle"
-                        onClick={(e) => handleSave(e, img._id, img.userId?._id)}
-                        disabled={savingIds.includes(img._id)}
-                      >
-                        <i
-                          className={`bi ${
-                            isSaved(img._id)
-                              ? "bi-bookmark-fill text-primary"
-                              : "bi-bookmark"
-                          }`}
-                        ></i>
-                      </button>
+                  {/* -------------------- HOVER OVERLAY (Only for regular posts) -------------------- */}
+                  {!isAdvertisement && (
+                    <div className="image-hover-overlay position-absolute top-0 start-0 w-100 h-100 d-flex flex-column justify-content-between p-3">
+                      <div className="d-flex justify-content-end">
+                        <button
+                          className="btn btn-light btn-sm rounded-circle"
+                          onClick={(e) => handleSave(e, item._id, item.userId?._id)}
+                          disabled={savingIds.includes(item._id)}
+                        >
+                          <i
+                            className={`bi ${
+                              isSaved(item._id)
+                                ? "bi-bookmark-fill text-primary"
+                                : "bi-bookmark"
+                            }`}
+                          ></i>
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Advertisement Title Overlay */}
+                  {isAdvertisement && (
+                    <div className="ad-title-overlay position-absolute bottom-0 start-0 w-100 p-3 text-white"
+                      style={{
+                        background: "linear-gradient(to top, rgba(0,0,0,0.8), transparent)",
+                        borderBottomLeftRadius: "8px",
+                        borderBottomRightRadius: "8px"
+                      }}
+                    >
+                      <div className="d-flex align-items-center">
+                        <i className="bi bi-info-circle me-2"></i>
+                        <small className="fw-bold">{item.title || "Advertisement"}</small>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -231,6 +261,25 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
 
           .masonry-item:hover .image-hover-overlay {
             opacity: 1;
+          }
+
+          /* Glassmorphism Advertisement Badge */
+          .glassmorphism-ad {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+          }
+
+          .glassmorphism-ad:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
           }
 
           @media (max-width: 1180px) {

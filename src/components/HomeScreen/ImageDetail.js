@@ -3,8 +3,8 @@ import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 import DownloadModal from "./Download";
 
-const API_BASE = "https://apisocial.atozkeysolution.com/api";
-const SAVE_API = "https://apisocial.atozkeysolution.com/api/posts/save";
+const API_BASE = "http://31.97.206.144:5002/api";
+const SAVE_API = "http://31.97.206.144:5002/api/posts/save";
 
 const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
   const navigate = useNavigate();
@@ -29,6 +29,10 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
 
   // Initialize preview image
   useEffect(() => {
+
+    if (!image || image.type === "advertisement") {
+      return null;
+    }
     if (image?.media?.[0]) {
       setPreviewImage(image.media[0]);
     }
@@ -878,8 +882,8 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
                             setSelectedMediaIndex(index);
                           }}
                           className={`border rounded p-1 flex-shrink-0 ${selectedMediaIndex === index
-                              ? "border-primary border-2"
-                              : "border-secondary"
+                            ? "border-primary border-2"
+                            : "border-secondary"
                             }`}
                           style={{
                             width: "70px",
@@ -952,8 +956,8 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
                         onClick={handleLike}
                         disabled={loadingLike}
                         className="btn p-0"
-                        style={{ 
-                          fontSize: '28px', 
+                        style={{
+                          fontSize: '28px',
                           color: isLiked ? '#ff4757' : '#6c757d',
                           transition: 'transform 0.2s'
                         }}
@@ -964,8 +968,8 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
                         onClick={handleSave}
                         disabled={loadingSave}
                         className="btn p-0"
-                        style={{ 
-                          fontSize: '28px', 
+                        style={{
+                          fontSize: '28px',
                           color: isSaved ? '#1e90ff' : '#6c757d',
                           transition: 'transform 0.2s'
                         }}
@@ -975,8 +979,8 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
                       <button
                         className="btn p-0"
                         onClick={() => setShowDownloadModal(true)}
-                        style={{ 
-                          fontSize: '28px', 
+                        style={{
+                          fontSize: '28px',
                           color: '#6c757d',
                           transition: 'transform 0.2s'
                         }}
@@ -1014,17 +1018,17 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
                   padding: '16px',
                   borderBottom: '1px solid #f0f0f0'
                 }}>
-                  <p className="mb-2" style={{ 
+                  <p className="mb-2" style={{
                     lineHeight: '1.6',
                     fontSize: '15px'
                   }}>
                     <strong>{image.userId?.fullName || "Anonymous"}</strong> {image.description || "No description"}
                   </p>
                   <small className="text-muted" style={{ fontSize: '13px' }}>
-                    {new Date(image.createdAt).toLocaleDateString('en-US', { 
-                      month: 'long', 
-                      day: 'numeric', 
-                      year: 'numeric' 
+                    {new Date(image.createdAt).toLocaleDateString('en-US', {
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric'
                     })}
                   </small>
                 </div>
@@ -1036,7 +1040,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
                   <h6 className="fw-bold mb-3" style={{ fontSize: '16px' }}>
                     Comments ({comments.length})
                   </h6>
-                  
+
                   {comments.length > 0 ? (
                     <div className="comments-list">
                       {comments.map((comment) => (
@@ -1044,7 +1048,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
                           borderBottom: '1px solid #f5f5f5'
                         }}>
                           <div className="d-flex gap-3">
-                            <div 
+                            <div
                               onClick={() => handleProfile(comment.userId?._id)}
                               style={{ cursor: 'pointer' }}
                             >
@@ -1061,7 +1065,7 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
                                   </small>
                                 </div>
                               </div>
-                              <p className="mb-0" style={{ 
+                              <p className="mb-0" style={{
                                 fontSize: '14px',
                                 lineHeight: '1.5'
                               }}>
@@ -1172,8 +1176,8 @@ const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
               key={index}
               onClick={() => handleImageSelect(media, index)}
               className={`border rounded p-1 ${selectedMediaIndex === index
-                  ? "border-primary"
-                  : "border-secondary"
+                ? "border-primary"
+                : "border-secondary"
                 }`}
               style={{
                 width: "80px",

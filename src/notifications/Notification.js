@@ -52,7 +52,7 @@ const Notifications = () => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`https://apisocial.atozkeysolution.com/api/notifications/all-live/${userId}`);
+      const response = await fetch(`http://31.97.206.144:5002/api/notifications/all-live/${userId}`);
       const data = await response.json();
 
       if (data.success) {
@@ -72,7 +72,7 @@ const Notifications = () => {
 
   const fetchFriendStatus = async () => {
     try {
-      const response = await fetch(`https://apisocial.atozkeysolution.com/api/get-friends/${userId}`);
+      const response = await fetch(`http://31.97.206.144:5002/api/get-friends/${userId}`);
       const data = await response.json();
 
       if (data.success) {
@@ -187,7 +187,7 @@ const Notifications = () => {
 
   const markAsRead = async (notificationId) => {
     try {
-      const response = await fetch(`https://apisocial.atozkeysolution.com/api/notifications/read/${notificationId}`, {
+      const response = await fetch(`http://31.97.206.144:5002/api/notifications/read/${notificationId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -210,7 +210,7 @@ const Notifications = () => {
 
   const markAllAsRead = async () => {
     try {
-      const response = await fetch(`https://apisocial.atozkeysolution.com/api/notifications/read-all/${userId}`, {
+      const response = await fetch(`http://31.97.206.144:5002/api/notifications/read-all/${userId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -236,7 +236,7 @@ const Notifications = () => {
 
     try {
       const res = await fetch(
-        `https://apisocial.atozkeysolution.com/api/notifications/${notificationId}`,
+        `http://31.97.206.144:5002/api/notifications/${notificationId}`,
         { method: "DELETE" }
       );
 

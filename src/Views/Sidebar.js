@@ -43,7 +43,7 @@ const Sidebar = () => {
     try {
       // Fetch notification count
       const notifRes = await axios.get(
-        `https://apisocial.atozkeysolution.com/api/notifications/all-live/${userId}`
+        `http://31.97.206.144:5002/api/notifications/all-live/${userId}`
       );
       if (notifRes.data.success) {
         setNotificationCount(notifRes.data.data.counts.unread || 0); {/* user.unreadItems */}
@@ -51,7 +51,7 @@ const Sidebar = () => {
 
       // Fetch unread messages count
       const msgRes = await axios.get(
-        `https://apisocial.atozkeysolution.com/api/messages/unread/count/${userId}`
+        `http://31.97.206.144:5002/api/messages/unread/count/${userId}`
       );
       if (msgRes.data.success && msgRes.data.data?.unreadCount !== undefined) {
         setMessageCount(msgRes.data.data.unreadCount);
