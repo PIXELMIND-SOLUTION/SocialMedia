@@ -169,7 +169,7 @@ const DownloadModal = ({
             <div className="spinner-border spinner-border-sm text-warning" />
           ) : (
             <>
-              <h4 className="mb-0">{balance} Coins</h4>
+              <h4 className="mb-0">{balance} Stars</h4>
               <small className="text-muted">Available</small>
               <hr />
               <div
@@ -177,7 +177,7 @@ const DownloadModal = ({
                   hasEnough ? "text-warning fw-bold" : "text-danger fw-bold"
                 }
               >
-                Cost: {cost} Coins
+                Cost: {cost} Stars
               </div>
             </>
           )}

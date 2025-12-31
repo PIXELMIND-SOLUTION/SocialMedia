@@ -30,7 +30,7 @@ function App() {
   // Only hide Sidebar and Header on login page
   const isLoginPage = location.pathname === "/";
   const watch = location.pathname.startsWith("/watch/");
-  const countdownEndTime = new Date("2026-01-01T00:00:00").getTime();
+  const countdownEndTime = new Date("2026-01-01T00:05:00").getTime();
 
   const shouldShowCountdown =
   location.pathname === "/" && Date.now() < countdownEndTime;

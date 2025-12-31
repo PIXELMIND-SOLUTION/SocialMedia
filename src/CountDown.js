@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 const CountdownTimer = () => {
     const navigate = useNavigate();
-    const targetDate = new Date("2025-12-31T18:00:00");
+    const targetDate = new Date("2026-01-01T00:00:00");
     const canvasRef = useRef(null);
     const animationRef = useRef(null);
 
