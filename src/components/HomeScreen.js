@@ -20,6 +20,7 @@ const HomeScreen = () => {
   const [showAdModal, setShowAdModal] = useState(false); // New state for ad modal
   const [selectedAd, setSelectedAd] = useState(null); // New state for selected ad
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
 
   const userData = JSON.parse(sessionStorage.getItem("userData"));
   const currentUserId = userData?.userId;
@@ -28,7 +29,7 @@ const HomeScreen = () => {
   useEffect(() => {
     const fetchPosts = async () => {
       try {
-        const res = await axios.get("http://31.97.206.144:5002/api/posts");
+        const res = await axios.get("https://apisocial.atozkeysolution.com/api/posts");
         if (res.data.success) {
           let allPosts = res.data.data.map((item) => {
             if (item.type === "post") {
@@ -62,6 +63,7 @@ const HomeScreen = () => {
           // }
 
           setPosts(allPosts);
+          setLoading(false);
         }
       } catch (err) {
         console.error("Failed to fetch posts:", err);
@@ -180,6 +182,8 @@ const HomeScreen = () => {
     setSelectedAd(null);
   };
 
+  
+
   return (
     <div className="container-fluid min-vh-100 p-3 p-md-4 bg-light">
       <WelcomeModal show={showModal} onClose={handleCloseModal} onInstall={handleInstallClick} />
@@ -205,7 +209,7 @@ const HomeScreen = () => {
       )}
 
       <div className="row g-4">
-        <div className={selectedImage && window.innerWidth >= 768 ? "col-lg-8" : "col-12"}>
+        <div className={selectedImage && window.innerWidth >= 768 ? ( selectedImage.type === "advertisement" ? "col-12" : "col-lg-8") : "col-12"}>
           <div className="overflow-auto hide-scrollbar" style={{ maxHeight: "calc(100vh)" }}>
             <ImageGrid
               images={posts}
@@ -217,7 +221,7 @@ const HomeScreen = () => {
           </div>
         </div>
 
-        {selectedImage && selectedImage.type === "post" && window.innerWidth >= 768 && (
+        {selectedImage && selectedImage.type === "post" && selectedImage.type !== "advertisement" && window.innerWidth >= 768 && (
           <div className="col-lg-4">
             <ImageDetail
               image={selectedImage}

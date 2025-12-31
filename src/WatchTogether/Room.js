@@ -228,7 +228,7 @@ const Room = () => {
 
     try {
       const response = await axios.post(
-        'http://31.97.206.144:5002/api/room-join',
+        'https://apisocial.atozkeysolution.com/api/room-join',
         {
           userId: userId,
           RoomId: roomId
@@ -261,7 +261,7 @@ const Room = () => {
 
     try {
       const response = await axios.get(
-        `http://31.97.206.144:5002/api/room/${roomId}`
+        `https://apisocial.atozkeysolution.com/api/room/${roomId}`
       );
 
       if (response.data.success) {
@@ -284,7 +284,7 @@ const Room = () => {
 
     try {
       const response = await axios.post(
-        'http://31.97.206.144:5002/api/invite',
+        'https://apisocial.atozkeysolution.com/api/invite',
         {
           userId: userId,
           friendId: friendId,
@@ -318,7 +318,7 @@ const Room = () => {
 
     setIsLoadingFriends(true);
     try {
-      const response = await axios.get(`http://31.97.206.144:5002/api/chat/all/${userId}`);
+      const response = await axios.get(`https://apisocial.atozkeysolution.com/api/chat/all/${userId}`);
       if (response.data.success) {
         const friendsList = response.data.data.flatMap(chat =>
           chat.participants.filter(participant => participant._id !== userId)

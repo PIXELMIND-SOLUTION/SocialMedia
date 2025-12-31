@@ -3,8 +3,8 @@ import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
 import DownloadModal from "./Download";
 
-const API_BASE = "http://31.97.206.144:5002/api";
-const SAVE_API = "http://31.97.206.144:5002/api/posts/save";
+const API_BASE = "https://apisocial.atozkeysolution.com/api";
+const SAVE_API = "https://apisocial.atozkeysolution.com/api/posts/save";
 
 const ImageDetail = ({ image, onBack, onOpenGalleria, currentUserId }) => {
   const navigate = useNavigate();

@@ -172,7 +172,7 @@ const CreatePost = () => {
       processedFiles.forEach((file) => formData.append("media", file));
 
       const res = await axios.post(
-        "http://31.97.206.144:5002/api/posts",
+        "https://apisocial.atozkeysolution.com/api/posts",
         formData,
         { headers: { "Content-Type": "multipart/form-data" } }
       );

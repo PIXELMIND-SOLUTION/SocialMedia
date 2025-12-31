@@ -85,7 +85,7 @@ const Header = () => {
     const fetchProfile = async () => {
       try {
         const res = await axios.get(
-          `http://31.97.206.144:5002/api/profiles/${userId}`
+          `https://apisocial.atozkeysolution.com/api/profiles/${userId}`
         );
         if (res.data.success && res.data.data.profile.image) {
           setProfilePic(res.data.data.profile.image);
@@ -103,7 +103,7 @@ const Header = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await axios.get("http://31.97.206.144:5002/api/users");
+        const res = await axios.get("https://apisocial.atozkeysolution.com/api/users");
         if (res.data.success) {
           setAllUsers(res.data.data);
         }
@@ -123,7 +123,7 @@ const Header = () => {
 
     try {
       const res = await axios.get(
-        `http://31.97.206.144:5002/api/invites/user/${userId}`
+        `https://apisocial.atozkeysolution.com/api/invites/user/${userId}`
       );
 
       if (res.data.success) {
@@ -168,7 +168,7 @@ const Header = () => {
   const handleAcceptInvite = async (inviteId, roomId) => {
     try {
       const response = await axios.post(
-        "http://31.97.206.144:5002/api/accept",
+        "https://apisocial.atozkeysolution.com/api/accept",
         {
           inviteId,
           userId
@@ -203,7 +203,7 @@ const Header = () => {
   const handleRejectInvite = async (inviteId) => {
     try {
       const response = await axios.post(
-        "http://31.97.206.144:5002/api/reject",
+        "https://apisocial.atozkeysolution.com/api/reject",
         {
           inviteId,
           userId

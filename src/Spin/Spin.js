@@ -80,7 +80,7 @@ const Spin = () => {
     if (!userId) return;
     
     try {
-      const response = await fetch(`http://31.97.206.144:5002/api/wallet/${userId}`);
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/wallet/${userId}`);
       const data = await response.json();
       if (data.success) {
         setWalletData(data.data);
@@ -95,7 +95,7 @@ const Spin = () => {
   useEffect(() => {
     const fetchWheelData = async () => {
       try {
-        const response = await fetch('http://31.97.206.144:5002/api/wheel');
+        const response = await fetch('https://apisocial.atozkeysolution.com/api/wheel');
         const data = await response.json();
         if (data.success) {
           const segmentsData = data.data
@@ -119,13 +119,13 @@ const Spin = () => {
 
     const setDemoSegments = () => {
       const demoSegments = [
-        { _id: "1", label: "1 Coin", coins: 1, position: 0, isActive: true, spinAgain: false },
-        { _id: "2", label: "2 Coins", coins: 2, position: 1, isActive: true, spinAgain: false },
-        { _id: "3", label: "3 Coins", coins: 3, position: 2, isActive: true, spinAgain: false },
-        { _id: "4", label: "4 Coins", coins: 4, position: 3, isActive: true, spinAgain: false },
+        { _id: "1", label: "1 Star", coins: 1, position: 0, isActive: true, spinAgain: false },
+        { _id: "2", label: "2 Stars", coins: 2, position: 1, isActive: true, spinAgain: false },
+        { _id: "3", label: "3 Stars", coins: 3, position: 2, isActive: true, spinAgain: false },
+        { _id: "4", label: "4 Stars", coins: 4, position: 3, isActive: true, spinAgain: false },
         { _id: "5", label: "Better Luck", coins: 0, position: 4, isActive: true, spinAgain: false },
-        { _id: "6", label: "5 Coins", coins: 5, position: 5, isActive: true, spinAgain: false },
-        { _id: "7", label: "1 Coin", coins: 1, position: 6, isActive: true, spinAgain: false },
+        { _id: "6", label: "5 Stars", coins: 5, position: 5, isActive: true, spinAgain: false },
+        { _id: "7", label: "1 Star", coins: 1, position: 6, isActive: true, spinAgain: false },
         { _id: "8", label: "Spin Again", coins: 0, position: 7, isActive: true, spinAgain: true },
       ];
       const segmentsData = demoSegments.map((item, index) => ({
@@ -149,7 +149,7 @@ const Spin = () => {
       
       try {
         // Fetch summary
-        const summaryResponse = await fetch(`http://31.97.206.144:5002/api/spin/summary/${userId}`);
+        const summaryResponse = await fetch(`https://apisocial.atozkeysolution.com/api/spin/summary/${userId}`);
         const summaryData = await summaryResponse.json();
         if (summaryData.success) {
           setSummary(summaryData.data);
@@ -176,12 +176,12 @@ const Spin = () => {
         nextSpin: "2 spins available",
         mostCommonReward: null,
         friendsRecentSpins: [
-          { name: "Vijay", reward: "3 Coins", coins: 3, timeAgo: "Last spin" },
+          { name: "Vijay", reward: "3 Stars", coins: 3, timeAgo: "Last spin" },
           { name: "Priya", reward: "Better Luck", coins: 0, timeAgo: "10 mins ago" },
-          { name: "Rahul", reward: "2 Coins", coins: 2, timeAgo: "15 mins ago" },
-          { name: "Anjali", reward: "5 Coins", coins: 5, timeAgo: "20 mins ago" },
-          { name: "Karthik", reward: "1 Coin", coins: 1, timeAgo: "25 mins ago" },
-          { name: "Sneha", reward: "4 Coins", coins: 4, timeAgo: "30 mins ago" },
+          { name: "Rahul", reward: "2 Stars", coins: 2, timeAgo: "15 mins ago" },
+          { name: "Anjali", reward: "5 Stars", coins: 5, timeAgo: "20 mins ago" },
+          { name: "Karthik", reward: "1 Star", coins: 1, timeAgo: "25 mins ago" },
+          { name: "Sneha", reward: "4 Stars", coins: 4, timeAgo: "30 mins ago" },
         ]
       });
     };
@@ -385,7 +385,7 @@ const Spin = () => {
       }
 
       // Make spin API call
-      const response = await fetch('http://31.97.206.144:5002/api/spin', {
+      const response = await fetch('https://apisocial.atozkeysolution.com/api/spin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -456,7 +456,7 @@ const Spin = () => {
           // Refresh wallet and summary data
           fetchWalletData();
           if (userId) {
-            fetch(`http://31.97.206.144:5002/api/spin/summary/${userId}`)
+            fetch(`https://apisocial.atozkeysolution.com/api/spin/summary/${userId}`)
               .then(res => res.json())
               .then(res => {
                 if (res.success) {
@@ -542,7 +542,7 @@ const Spin = () => {
     <div className="min-h-screen bg-gradient-to-br from-[#fff7ec] to-[#fef3d7] p-3 sm:p-4">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-center text-2xl sm:text-3xl font-bold text-gray-900 mb-3">
-          🪙 Coin Spin Wheel
+          Spin Wheel
         </h1>
 
         {/* Flying Coins Animation */}
@@ -571,7 +571,7 @@ const Spin = () => {
           <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-40">
             <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white p-6 rounded-full shadow-2xl animate-ping">
               <div className="text-3xl font-bold text-center">+{selectedItem.coins}</div>
-              <div className="text-lg text-center">Coins Added! 💰</div>
+              <div className="text-lg text-center">Stars Added! 💰</div>
             </div>
           </div>
         )}
@@ -690,7 +690,7 @@ const Spin = () => {
                     {selectedItem?.label || "Not yet"}
                   </div>
                   {selectedItem?.coins > 0 && (
-                    <div className="text-xs text-green-600 mt-1">+{selectedItem.coins} coins</div>
+                    <div className="text-xs text-green-600 mt-1">+{selectedItem.coins} Stars</div>
                   )}
                 </div>
 
@@ -705,7 +705,7 @@ const Spin = () => {
                 <div className="bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-xl border border-green-200">
                   <div className="text-xs text-gray-600">Total Won</div>
                   <div className="font-bold text-green-700 text-lg">
-                    {summary?.todayRewards?.reduce((sum, r) => sum + (r.coins || 0), 0) || 0} Coins
+                    {summary?.todayRewards?.reduce((sum, r) => sum + (r.coins || 0), 0) || 0} Stars
                   </div>
                   <div className="text-xs text-green-600 mt-1">Today</div>
                 </div>

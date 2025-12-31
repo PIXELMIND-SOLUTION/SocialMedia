@@ -52,7 +52,7 @@ const Notifications = () => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://31.97.206.144:5002/api/notifications/all-live/${userId}`);
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/notifications/all-live/${userId}`);
       const data = await response.json();
 
       if (data.success) {
@@ -72,7 +72,7 @@ const Notifications = () => {
 
   const fetchFriendStatus = async () => {
     try {
-      const response = await fetch(`http://31.97.206.144:5002/api/get-friends/${userId}`);
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/get-friends/${userId}`);
       const data = await response.json();
 
       if (data.success) {
@@ -162,6 +162,15 @@ const Notifications = () => {
           description: "New post from someone you follow",
           link: notification.post ? `/post/${notification.post}` : '#'
         };
+
+      case 'message':
+        return {
+          title: `New message from ${senderName}`,
+          message: `${senderName} (@${username}) sent you a message`,
+          description: "You have received a new message",
+          link: `/messages/${notification.sender?._id}`
+        };
+
       default:
         return {
           title: 'New Notification',
@@ -187,7 +196,7 @@ const Notifications = () => {
 
   const markAsRead = async (notificationId) => {
     try {
-      const response = await fetch(`http://31.97.206.144:5002/api/notifications/read/${notificationId}`, {
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/notifications/read/${notificationId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -210,7 +219,7 @@ const Notifications = () => {
 
   const markAllAsRead = async () => {
     try {
-      const response = await fetch(`http://31.97.206.144:5002/api/notifications/read-all/${userId}`, {
+      const response = await fetch(`https://apisocial.atozkeysolution.com/api/notifications/read-all/${userId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -236,7 +245,7 @@ const Notifications = () => {
 
     try {
       const res = await fetch(
-        `http://31.97.206.144:5002/api/notifications/${notificationId}`,
+        `https://apisocial.atozkeysolution.com/api/notifications/${notificationId}`,
         { method: "DELETE" }
       );
 
@@ -594,10 +603,10 @@ const Notifications = () => {
                                 {notification.type === 'follow_request' && currentStatus && (
                                   <div className="mt-1">
                                     <span className={`text-xs px-2 py-1 rounded-full ${currentStatus === 'friends'
-                                        ? 'bg-green-100 text-green-800'
-                                        : currentStatus === 'rejected'
-                                          ? 'bg-red-100 text-red-800'
-                                          : 'bg-blue-100 text-blue-800'
+                                      ? 'bg-green-100 text-green-800'
+                                      : currentStatus === 'rejected'
+                                        ? 'bg-red-100 text-red-800'
+                                        : 'bg-blue-100 text-blue-800'
                                       }`}>
                                       Status: {currentStatus}
                                     </span>
@@ -753,10 +762,10 @@ const Notifications = () => {
                     {friendStatus[selectedNotification.sender?._id] && (
                       <div className="mt-3 text-center">
                         <span className={`text-xs px-3 py-1 rounded-full ${friendStatus[selectedNotification.sender._id] === 'friends'
-                            ? 'bg-green-100 text-green-800'
-                            : friendStatus[selectedNotification.sender._id] === 'rejected'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-blue-100 text-blue-800'
+                          ? 'bg-green-100 text-green-800'
+                          : friendStatus[selectedNotification.sender._id] === 'rejected'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-blue-100 text-blue-800'
                           }`}>
                           Current Status: {friendStatus[selectedNotification.sender._id]}
                         </span>

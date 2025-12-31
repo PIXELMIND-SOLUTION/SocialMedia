@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 
 const OtpTimer = () => {
-  const [timeLeft, setTimeLeft] = useState(30);
+  const [timeLeft, setTimeLeft] = useState(120);
   const [started, setStarted] = useState(false);
   const elementRef = useRef(null);
 

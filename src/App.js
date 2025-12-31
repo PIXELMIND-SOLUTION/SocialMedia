@@ -22,6 +22,7 @@ import Notifications from "./notifications/Notification";
 import PrivateRoute from "./components/PrivateRoute";
 import Room from "./WatchTogether/Room";
 import Spin from "./Spin/Spin";
+import CountdownTimer from "./CountDown";
 
 function App() {
   const location = useLocation();
@@ -29,9 +30,32 @@ function App() {
   // Only hide Sidebar and Header on login page
   const isLoginPage = location.pathname === "/";
   const watch = location.pathname.startsWith("/watch/");
+  const countdownEndTime = new Date("2026-01-01T00:00:00").getTime();
+
+  const shouldShowCountdown =
+  location.pathname === "/" && Date.now() < countdownEndTime;
+
+
+
 
 
   return (
+    <>
+    {/* ✅ SHOW COUNTDOWN ONLY ON LOGIN PAGE */}
+      {shouldShowCountdown && (
+  <div
+    style={{
+      position: "fixed",
+      bottom: "20px",
+      right: "20px",
+      zIndex: 2000
+    }}
+  >
+    <CountdownTimer />
+  </div>
+)}
+
+
     <div className="d-flex">
       {!isLoginPage && (
         <div className="vh-100 position-sticky top-0" style={{ zIndex: 1000 }}>
@@ -183,6 +207,7 @@ function App() {
         </Routes>
       </div>
     </div>
+    </>
   );
 }
 

@@ -5,7 +5,7 @@ import axios from "axios";
 
 const CreateCampaign = ({ onClose }) => {
   const navigate = useNavigate();
-  const API_BASE_URL = "http://31.97.206.144:5002/api";
+  const API_BASE_URL = "https://apisocial.atozkeysolution.com/api";
 
   const storedUser = JSON.parse(sessionStorage.getItem("userData") || "{}");
   const userId = storedUser?.userId;
@@ -256,6 +256,8 @@ const CreateCampaign = ({ onClose }) => {
               placeholder={
                 f === "link"
                   ? "Campaign link (optional)"
+                  : f === "fullName" 
+                  ? "Campaign Name"
                   : f.replace(/([A-Z])/g, " $1")
               }
               onChange={handleInputChange}

@@ -49,9 +49,9 @@ const WalletPackages = () => {
     const fetchData = async () => {
       try {
         const [packageRes, walletRes] = await Promise.all([
-          axios.get("http://31.97.206.144:5002/api/admin/packages"),
+          axios.get("https://apisocial.atozkeysolution.com/api/admin/packages"),
           axios.get(
-            `http://31.97.206.144:5002/api/wallet/${USER_ID}`
+            `https://apisocial.atozkeysolution.com/api/wallet/${USER_ID}`
           ),
         ]);
 
@@ -90,7 +90,7 @@ const WalletPackages = () => {
       }
 
       const orderRes = await axios.post(
-        "http://31.97.206.144:5002/api/create-order",
+        "https://apisocial.atozkeysolution.com/api/create-order",
         {
           userId: USER_ID,
           packageId: selectedPackage,
@@ -119,7 +119,7 @@ const WalletPackages = () => {
         handler: async (response) => {
           try {
             const verifyRes = await axios.post(
-              "http://31.97.206.144:5002/api/verify-payment",
+              "https://apisocial.atozkeysolution.com/api/verify-payment",
               {
                 razorpayOrderId: response.razorpay_order_id,
                 razorpayPaymentId: response.razorpay_payment_id,

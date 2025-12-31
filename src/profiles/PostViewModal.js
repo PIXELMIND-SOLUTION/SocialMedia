@@ -30,7 +30,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment, onDele
   const refreshPostData = async () => {
     try {
       setIsRefreshing(true);
-      const res = await fetch(`http://31.97.206.144:5002/api/posts/${post._id}`);
+      const res = await fetch(`https://apisocial.atozkeysolution.com/api/posts/${post._id}`);
       const data = await res.json();
       if (data.success && data.post) {
         setLikes(data.post.likes || []);
@@ -48,7 +48,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment, onDele
   const fetchFollowers = async () => {
     if (!currentUserId) return;
     try {
-      const res = await fetch(`http://31.97.206.144:5002/api/followers/${currentUserId}`);
+      const res = await fetch(`https://apisocial.atozkeysolution.com/api/followers/${currentUserId}`);
       const data = await res.json();
       if (data.success) {
         const followerList = data.followers || [];
@@ -112,7 +112,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment, onDele
     setLikes(prev => (isLiked ? prev.filter(id => id !== currentUserId) : [...prev, currentUserId]));
 
     try {
-      await fetch('http://31.97.206.144:5002/api/posts/like', {
+      await fetch('https://apisocial.atozkeysolution.com/api/posts/like', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -139,7 +139,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment, onDele
     setSaves(prev => (isSaved ? prev.filter(id => id !== currentUserId) : [...prev, currentUserId]));
 
     try {
-      await fetch('http://31.97.206.144:5002/api/posts/save', {
+      await fetch('https://apisocial.atozkeysolution.com/api/posts/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -169,7 +169,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment, onDele
     setCommentText('');
 
     try {
-      await fetch('http://31.97.206.144:5002/api/posts/comment', {
+      await fetch('https://apisocial.atozkeysolution.com/api/posts/comment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -205,7 +205,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment, onDele
 
     try {
       const response = await fetch(
-        `http://31.97.206.144:5002/api/deletepost/${post.userId._id}/${post._id}`,
+        `https://apisocial.atozkeysolution.com/api/deletepost/${post.userId._id}/${post._id}`,
         { method: "DELETE" }
       );
 

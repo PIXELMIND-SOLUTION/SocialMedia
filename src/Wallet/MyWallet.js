@@ -36,7 +36,7 @@ const WalletModal = () => {
 
     try {
       const res = await axios.get(
-        `http://31.97.206.144:5002/api/wallet/${userId}`
+        `https://apisocial.atozkeysolution.com/api/wallet/${userId}`
       );
 
       if (res.data?.success) {
@@ -57,7 +57,7 @@ const WalletModal = () => {
   /* ================= FETCH FRIENDS ================= */
   const fetchFriends = async () => {
     const res = await axios.get(
-      `http://31.97.206.144:5002/api/get-friends/${userId}`
+      `https://apisocial.atozkeysolution.com/api/get-friends/${userId}`
     );
     if (res.data?.success) {
       setFriends(res.data.data.filter(f => f.status === "friends"));
@@ -72,7 +72,7 @@ const WalletModal = () => {
       setSending(true);
 
       const res = await axios.post(
-        "http://31.97.206.144:5002/api/transfer-coins",
+        "https://apisocial.atozkeysolution.com/api/transfer-coins",
         {
           senderId: userId,
           friendId: selectedFriend._id,

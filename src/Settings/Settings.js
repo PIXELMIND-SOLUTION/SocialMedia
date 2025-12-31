@@ -63,7 +63,7 @@ const Settings = () => {
   ]);
 
   // API URLs
-  const BASE_URL = "http://31.97.206.144:5002/api";
+  const BASE_URL = "https://apisocial.atozkeysolution.com/api";
 
   const GET_PROFILE_API = `${BASE_URL}/profiles/${userId}`;
   const UPDATE_PROFILE_API = `${BASE_URL}/Profile`;

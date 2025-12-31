@@ -1,17 +1,27 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
-const API_BASE = "http://31.97.206.144:5002/api/campaigns/user";
+const API_BASE = "https://apisocial.atozkeysolution.com/api/campaigns/user";
 
 const TABS = [
   { id: "Pending", label: "Pending", countKey: "pending" },
   { id: "Current", label: "Active", countKey: "approved" },
   { id: "Rejected", label: "Rejected", countKey: "rejected" }
 ];
+const formatTime = (seconds) => {
+  const hours = Math.floor(seconds / 3600);
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+
+  if (hours > 0) return `${hours}h ${mins}m`;
+  if (mins === 0) return `${secs}s`;
+  if (secs === 0) return `${mins} min`;
+  return `${mins}m ${secs}s`;
+};
 
 const MyCampaigns = () => {
   const [campaigns, setCampaigns] = useState([]);
-  const [activeTab, setActiveTab] = useState("Pending");
+  const [activeTab, setActiveTab] = useState("Current");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -31,7 +41,7 @@ const MyCampaigns = () => {
         setLoading(true);
         setError(null);
         const res = await axios.get(`${API_BASE}/${userId}`);
-        
+
         if (res.data.success) {
           setCampaigns(res.data.data || []);
         } else {
@@ -47,6 +57,7 @@ const MyCampaigns = () => {
 
     fetchCampaigns();
   }, [userId]);
+
 
   /* ================= FILTER LOGIC ================= */
   const pendingCampaigns = campaigns.filter(
@@ -86,6 +97,8 @@ const MyCampaigns = () => {
     },
     { impressions: 0, clicks: 0, conversions: 0, faqAttempts: 0, faqCompletions: 0 }
   );
+
+
 
   /* ================= LOADING STATE ================= */
   if (loading) {
@@ -255,11 +268,11 @@ const MyCampaigns = () => {
 
 const CampaignCard = ({ campaign }) => {
   const pkg = campaign.purchasedPackage || {};
-  const stats = campaign.stats || { 
-    impressions: 0, 
-    clicks: 0, 
-    conversions: 0, 
-    faqAttempts: 0, 
+  const stats = campaign.stats || {
+    impressions: 0,
+    clicks: 0,
+    conversions: 0,
+    faqAttempts: 0,
     faqCompletions: 0,
     totalTimeSpent: 0,
     uniqueViews: 0
@@ -271,8 +284,8 @@ const CampaignCard = ({ campaign }) => {
       <div className="relative h-32 sm:h-36 md:h-40 lg:h-44 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
         {campaign.media?.[0]?.url ? (
           <>
-            {campaign.media[0].type === "video" || 
-             campaign.media[0].url.match(/\.(mp4|webm|ogg|mov)$/i) ? (
+            {campaign.media[0].type === "video" ||
+              campaign.media[0].url.match(/\.(mp4|webm|ogg|mov)$/i) ? (
               /* ---------- VIDEO ---------- */
               <div className="relative w-full h-full">
                 <video
@@ -339,9 +352,9 @@ const CampaignCard = ({ campaign }) => {
             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold 
               ${pkg.paymentStatus === "completed" ? "bg-green-500/90 text-white" :
                 pkg.paymentStatus === "pending" ? "bg-yellow-500/90 text-white" :
-                "bg-red-500/90 text-white"}`}>
-              {pkg.paymentStatus === "completed" ? "Paid" : 
-               pkg.paymentStatus === "pending" ? "Pending" : "Failed"}
+                  "bg-red-500/90 text-white"}`}>
+              {pkg.paymentStatus === "completed" ? "Paid" :
+                pkg.paymentStatus === "pending" ? "Pending" : "Failed"}
             </span>
           </div>
         )}
@@ -396,7 +409,11 @@ const CampaignCard = ({ campaign }) => {
             <span className="text-xs text-gray-500">{campaign.faqs?.length || 0} FAQ{campaign.faqs?.length !== 1 ? 's' : ''}</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            <CompactStat label="Views" value={stats.impressions} color="blue" />
+            <CompactStat
+              label="Users Time Spent"
+              value={formatTime(stats.totalTimeSpent)}
+              color="blue"
+            />
             <CompactStat label="Clicks" value={stats.clicks} color="green" />
             <CompactStat label="FAQs" value={stats.faqAttempts} color="purple" />
           </div>

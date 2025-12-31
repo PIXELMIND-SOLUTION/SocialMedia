@@ -39,7 +39,7 @@ const MyProfile = () => {
     try {
       setLoading(true);
       const response = await fetch(
-        `http://31.97.206.144:5002/api/profiles/${userId}`
+        `https://apisocial.atozkeysolution.com/api/profiles/${userId}`
       );
       const data = await response.json();
 
@@ -60,7 +60,7 @@ const MyProfile = () => {
   const fetchSavedPosts = async () => {
     try {
       const res = await fetch(
-        `http://31.97.206.144:5002/api/saved-posts/${userId}`
+        `https://apisocial.atozkeysolution.com/api/saved-posts/${userId}`
       );
       const data = await res.json();
 
@@ -79,7 +79,7 @@ const MyProfile = () => {
   const fetchPostDetails = async (postId) => {
     try {
       const response = await fetch(
-        `http://31.97.206.144:5002/api/posts/${userId}/${postId}`
+        `https://apisocial.atozkeysolution.com/api/posts/${userId}/${postId}`
       );
       const data = await response.json();
 

@@ -11,8 +11,8 @@ const WatchTogether = () => {
   const navigate = useNavigate();
 
   // 🔗 API URLs
-  const CREATE_ROOM_API = "http://31.97.206.144:5002/api/room-create";
-  const JOIN_ROOM_API = "http://31.97.206.144:5002/api/room-join";
+  const CREATE_ROOM_API = "https://apisocial.atozkeysolution.com/api/room-create";
+  const JOIN_ROOM_API = "https://apisocial.atozkeysolution.com/api/room-join";
 
   // 👤 Get userId from storage (adjust key if needed)
    const storedUser = JSON.parse(sessionStorage.getItem("userData"));

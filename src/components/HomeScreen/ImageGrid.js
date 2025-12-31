@@ -18,7 +18,7 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
     const fetchSaves = async () => {
       try {
         const res = await fetch(
-          `http://31.97.206.144:5002/api/saved-posts/${currentUserId}`
+          `https://apisocial.atozkeysolution.com/api/saved-posts/${currentUserId}`
         );
         const data = await res.json();
 
@@ -47,7 +47,7 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
       setSavingIds((prev) => [...prev, postId]);
 
       const res = await fetch(
-        "http://31.97.206.144:5002/api/posts/save",
+        "https://apisocial.atozkeysolution.com/api/posts/save",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -118,7 +118,7 @@ const ImageGrid = ({ images, onImageClick, selectedImage, currentUserId }) => {
     <div className={selectedImage ? "col-md-12 col-lg-12" : "col-12"}>
       <div className="row">
         <div className="col-12">
-          <div className={selectedImage ? "masonry1" : "masonry"}>
+          <div className={selectedImage ? ( selectedImage.type === "advertisement" ? "masonry" : "masonry1") : "masonry"}>
             {images.map((item, index) => {
               const isAdvertisement = item.type === "advertisement";
               const mediaUrl = item.media?.[0]?.url;

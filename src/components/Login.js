@@ -12,6 +12,7 @@ const Login = () => {
   const [gender, setGender] = useState("");
   const [otp, setOtp] = useState(["", "", "", ""]);
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
   const [error, setError] = useState("");
   const [token, setToken] = useState("");
   const [userId, setUserId] = useState("");
@@ -118,13 +119,73 @@ const Login = () => {
     setOtp(["", "", "", ""]);
   };
 
+  // Resend OTP for registration
+  const handleResendRegisterOtp = async () => {
+    setResendLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch('https://apisocial.atozkeysolution.com/api/resend-register-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          token
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("OTP resent successfully!");
+      } else {
+        setError(data.message || "Failed to resend OTP");
+      }
+    } catch (error) {
+      setError("Network error. Please try again.");
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  // Resend OTP for login
+  const handleResendLoginOtp = async () => {
+    setResendLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch('https://apisocial.atozkeysolution.com/api/resend-login-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("OTP resent successfully!");
+      } else {
+        setError(data.message || "Failed to resend OTP");
+      }
+    } catch (error) {
+      setError("Network error. Please try again.");
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   // Register API call
   const handleSignUp = async () => {
     setLoading(true);
     setError("");
 
     try {
-      const response = await fetch('http://31.97.206.144:5002/api/register', {
+      const response = await fetch('https://apisocial.atozkeysolution.com/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -167,7 +228,7 @@ const Login = () => {
         return;
       }
 
-      const response = await fetch('http://31.97.206.144:5002/api/verify-otp', {
+      const response = await fetch('https://apisocial.atozkeysolution.com/api/verify-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -202,7 +263,7 @@ const Login = () => {
     try {
       const identifier = email.includes('@') ? { email } : { mobile: inputValue };
 
-      const response = await fetch('http://31.97.206.144:5002/api/login', {
+      const response = await fetch('https://apisocial.atozkeysolution.com/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -240,7 +301,7 @@ const Login = () => {
         return;
       }
 
-      const response = await fetch('http://31.97.206.144:5002/api/verify-login-otp', {
+      const response = await fetch('https://apisocial.atozkeysolution.com/api/verify-login-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -553,9 +614,15 @@ const Login = () => {
                   </div>
                   <small className="text-muted d-block text-center mb-4">
                     Your code will be valid for <OtpTimer />.{" "}
-                    {/* <span className="text-primary fw-medium" role="button">
-                      Resend
-                    </span> */}
+                    <span 
+                      className="text-primary fw-medium" 
+                      role="button"
+                      onClick={handleResendRegisterOtp}
+                      disabled={resendLoading}
+                      style={{ cursor: resendLoading ? 'not-allowed' : 'pointer', opacity: resendLoading ? 0.6 : 1 }}
+                    >
+                      {resendLoading ? "Sending..." : "Resend"}
+                    </span>
                   </small>
                   <button
                     className="btn text-white w-100 fw-bold"
@@ -597,9 +664,15 @@ const Login = () => {
                   </div>
                   <small className="text-black d-block text-center mb-4">
                     Your code will be valid for <span className="text-success fw-bold"><OtpTimer />.</span>{" "}
-                    {/* <span className="text-primary fw-medium" role="button">
-                      Resend
-                    </span> */}
+                    <span 
+                      className="text-primary fw-medium" 
+                      role="button"
+                      onClick={handleResendLoginOtp}
+                      disabled={resendLoading}
+                      style={{ cursor: resendLoading ? 'not-allowed' : 'pointer', opacity: resendLoading ? 0.6 : 1 }}
+                    >
+                      {resendLoading ? "Sending..." : "Resend"}
+                    </span>
                   </small>
                   <button
                     className="btn text-white w-100 fw-bold"

@@ -2,11 +2,11 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-const PLANS_API = "http://31.97.206.144:5002/api/campaign-packages";
+const PLANS_API = "https://apisocial.atozkeysolution.com/api/campaign-packages";
 const CREATE_ORDER_API =
-  "http://31.97.206.144:5002/api/campaigns/payment/create-order";
+  "https://apisocial.atozkeysolution.com/api/campaigns/payment/create-order";
 const VERIFY_PAYMENT_API =
-  "http://31.97.206.144:5002/api/campaigns/payment/verify";
+  "https://apisocial.atozkeysolution.com/api/campaigns/payment/verify";
 
 const PricingPlans = () => {
   const navigate = useNavigate();
