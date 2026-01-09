@@ -253,6 +253,7 @@ const CreateCampaign = ({ onClose }) => {
             <input
               key={f}
               name={f}
+              maxLength={f === "mobileNumber" ? 10 : ""}
               placeholder={
                 f === "link"
                   ? "Campaign link (optional)"

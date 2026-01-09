@@ -143,8 +143,8 @@ const Room = () => {
   const [roomDetailsError, setRoomDetailsError] = useState('');
 
   // ZegoCloud credentials
-  const APP_ID = 938850321;
-  const SERVER_SECRET = "b27c8f8fcc265d4d3c3d6010e5d3af2c";
+  const APP_ID = 1469803092;
+  const SERVER_SECRET = "0b70baff13e6d04a518947bb3d05c4bf";
 
   const videoContainerRef = useRef(null);
   const chatContainerRef = useRef(null);
@@ -504,7 +504,7 @@ const Room = () => {
         turnOnMicrophoneWhenJoining: true,
         turnOnCameraWhenJoining: true,
         maxUsers: 50,
-        layout: "Grid",
+        layout: "Auto",
         videoResolutionList: [
           { resolution: 360, label: "SD" },
           { resolution: 720, label: "HD" }

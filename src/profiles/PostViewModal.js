@@ -30,7 +30,7 @@ const PostViewModal = ({ post, onClose, currentUserId, onLike, onComment, onDele
   const refreshPostData = async () => {
     try {
       setIsRefreshing(true);
-      const res = await fetch(`https://apisocial.atozkeysolution.com/api/posts/${post._id}`);
+      const res = await fetch(`https://apisocial.atozkeysolution.com/api/post/${post._id}`);
       const data = await res.json();
       if (data.success && data.post) {
         setLikes(data.post.likes || []);

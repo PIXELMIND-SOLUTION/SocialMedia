@@ -220,7 +220,7 @@ const Settings = () => {
       await axios.post(PERSONAL_INFO_API, personalPayload);
 
       Swal.fire("Success", "Profile updated successfully ✅", "success");
-      navigate('/home')
+      navigate('/settings')
     } catch (err) {
       Swal.fire("Error", "Failed to update settings", "error");
     }
